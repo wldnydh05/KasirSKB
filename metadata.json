@@ -1,0 +1,8 @@
+{
+  "name": "Remix BukuPOS",
+  "description": "Aplikasi Kasir UMKM \u0026 Dashboard Pemilik Offline-First dengan IndexedDB, Laba/Rugi Real-Time, dan Ekspor CSV.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
