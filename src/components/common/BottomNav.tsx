@@ -57,7 +57,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentTab, onSelectTab })
             type="button"
             className={`flex flex-col items-center justify-center py-1 px-1 rounded-lg transition ${
               isDashboardActive
-                ? 'bg-blue-600 text-white font-semibold'
+                ? 'bg-orange-600 text-white font-semibold'
                 : 'bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200'
             }`}
           >
@@ -71,7 +71,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentTab, onSelectTab })
             type="button"
             className={`relative flex flex-col items-center justify-center py-1 px-1 rounded-lg transition ${
               isPesananActive
-                ? 'bg-blue-600 text-white font-semibold'
+                ? 'bg-orange-600 text-white font-semibold'
                 : 'bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200'
             }`}
           >
@@ -92,7 +92,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentTab, onSelectTab })
             type="button"
             className={`flex flex-col items-center justify-center py-1 px-1 rounded-lg transition ${
               isMenuActive
-                ? 'bg-blue-600 text-white font-semibold'
+                ? 'bg-orange-600 text-white font-semibold'
                 : 'bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200'
             }`}
           >
@@ -109,7 +109,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentTab, onSelectTab })
             type="button"
             className={`flex items-center justify-center gap-2 rounded-lg py-2 px-3 transition ${
               isPesananActive
-                ? 'bg-blue-600 text-white font-semibold'
+                ? 'bg-orange-600 text-white font-semibold'
                 : 'bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200'
             }`}
           >
@@ -130,7 +130,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentTab, onSelectTab })
             type="button"
             className={`flex items-center justify-center gap-2 rounded-lg py-2 px-3 transition ${
               isKasirActive
-                ? 'bg-blue-600 text-white font-semibold'
+                ? 'bg-orange-600 text-white font-semibold'
                 : 'bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200'
             }`}
           >
@@ -149,3 +149,4 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentTab, onSelectTab })
     </nav>
   );
 };
+

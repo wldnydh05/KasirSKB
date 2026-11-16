@@ -342,9 +342,9 @@ export const CartBottomSheet: React.FC<CartBottomSheetProps> = ({ onTransactionS
 
             {/* Promo Selector */}
             {promos.length > 0 && (
-              <div className="px-4 py-2 bg-blue-50/50 border-t border-b border-blue-100/60 flex items-center justify-between gap-2">
-                <div className="flex items-center gap-1.5 text-xs text-blue-800">
-                  <Tag className="w-3.5 h-3.5 text-blue-600" />
+              <div className="px-4 py-2 bg-orange-50/50 border-t border-b border-orange-100/60 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 text-xs text-orange-800">
+                  <Tag className="w-3.5 h-3.5 text-orange-600" />
                   <span>Promo:</span>
                 </div>
                 <div className="flex items-center gap-1.5 overflow-x-auto">
@@ -749,3 +749,4 @@ export const CartBottomSheet: React.FC<CartBottomSheetProps> = ({ onTransactionS
     </>
   );
 };
+

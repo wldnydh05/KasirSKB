@@ -71,3 +71,4 @@ export function compressImageFile(
     reader.readAsDataURL(file);
   });
 }
+

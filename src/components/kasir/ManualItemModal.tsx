@@ -148,3 +148,4 @@ export const ManualItemModal: React.FC<ManualItemModalProps> = ({ isOpen, onClos
     </div>
   );
 };
+

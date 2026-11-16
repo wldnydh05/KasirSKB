@@ -95,3 +95,4 @@ export const PWAInstallButton: React.FC = () => {
 
   return null;
 };
+

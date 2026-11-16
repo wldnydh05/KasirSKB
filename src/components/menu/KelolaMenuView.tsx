@@ -710,3 +710,4 @@ export const KelolaMenuView: React.FC = () => {
     </div>
   );
 };
+

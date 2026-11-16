@@ -136,7 +136,7 @@ export const LoginPage: React.FC = () => {
               }}
               className={`py-2 rounded-md font-medium transition flex items-center justify-center gap-1.5 ${
                 authMode === 'login'
-                  ? 'bg-white text-blue-700 shadow-xs'
+                  ? 'bg-white text-orange-700 shadow-xs'
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
@@ -152,7 +152,7 @@ export const LoginPage: React.FC = () => {
               }}
               className={`py-2 rounded-md font-medium transition flex items-center justify-center gap-1.5 ${
                 authMode === 'register'
-                  ? 'bg-white text-blue-700 shadow-xs'
+                  ? 'bg-white text-orange-700 shadow-xs'
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
@@ -191,7 +191,7 @@ export const LoginPage: React.FC = () => {
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     placeholder="Masukkan username Anda"
-                    className="w-full pl-9 pr-3 py-2 text-sm bg-gray-50/50 border border-gray-300 rounded-lg focus:outline-none focus:bg-white focus:border-blue-600 focus:ring-1 focus:ring-blue-600 transition"
+                    className="w-full pl-9 pr-3 py-2 text-sm bg-gray-50/50 border border-gray-300 rounded-lg focus:outline-none focus:bg-white focus:border-orange-600 focus:ring-1 focus:ring-orange-600 transition"
                     autoComplete="username"
                   />
                 </div>
@@ -210,7 +210,7 @@ export const LoginPage: React.FC = () => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Masukkan password"
-                    className="w-full pl-9 pr-9 py-2 text-sm bg-gray-50/50 border border-gray-300 rounded-lg focus:outline-none focus:bg-white focus:border-blue-600 focus:ring-1 focus:ring-blue-600 transition"
+                    className="w-full pl-9 pr-9 py-2 text-sm bg-gray-50/50 border border-gray-300 rounded-lg focus:outline-none focus:bg-white focus:border-orange-600 focus:ring-1 focus:ring-orange-600 transition"
                     autoComplete="current-password"
                   />
                   <button
@@ -226,13 +226,13 @@ export const LoginPage: React.FC = () => {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full py-2.5 px-4 rounded-lg font-medium text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 transition text-sm disabled:opacity-50 cursor-pointer"
+                className="w-full py-2.5 px-4 rounded-lg font-medium text-white bg-orange-600 hover:bg-orange-700 active:bg-orange-800 transition text-sm disabled:opacity-50 cursor-pointer"
               >
                 {isSubmitting ? 'Memproses...' : 'Masuk ke Akun'}
               </button>
 
               <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 text-xs text-gray-600 flex items-start gap-2">
-                <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                <Info className="w-4 h-4 text-orange-600 shrink-0 mt-0.5" />
                 <p className="leading-relaxed">
                   Belum punya akun kasir? Akun kasir hanya dapat dibuat oleh <strong className="text-gray-800">Pemilik Usaha (Owner)</strong> melalui menu Kelola Kasir.
                 </p>
@@ -241,11 +241,11 @@ export const LoginPage: React.FC = () => {
           ) : (
             /* --- FORM REGISTER OWNER --- */
             <form onSubmit={handleRegisterSubmit} className="space-y-3.5">
-              <div className="p-3 rounded-lg bg-blue-50 border border-blue-200 text-blue-900 text-xs flex items-start gap-2">
-                <Info className="w-4 h-4 text-blue-700 shrink-0 mt-0.5" />
+              <div className="p-3 rounded-lg bg-orange-50 border border-orange-200 text-orange-900 text-xs flex items-start gap-2">
+                <Info className="w-4 h-4 text-orange-700 shrink-0 mt-0.5" />
                 <div>
-                  <p className="font-semibold text-blue-900">Pendaftaran Khusus Owner</p>
-                  <p className="text-blue-800 mt-0.5 leading-relaxed">
+                  <p className="font-semibold text-orange-900">Pendaftaran Khusus Owner</p>
+                  <p className="text-orange-800 mt-0.5 leading-relaxed">
                     Formulir ini untuk mendaftarkan akun Pemilik Usaha baru. Akun kasir nantinya dibuat oleh Owner dari menu pengaturan.
                   </p>
                 </div>
@@ -260,7 +260,7 @@ export const LoginPage: React.FC = () => {
                   value={regNamaLengkap}
                   onChange={(e) => setRegNamaLengkap(e.target.value)}
                   placeholder="Contoh: Budi Santoso"
-                  className="w-full px-3 py-2 text-sm bg-gray-50/50 border border-gray-300 rounded-lg focus:outline-none focus:bg-white focus:border-blue-600 focus:ring-1 focus:ring-blue-600 transition"
+                  className="w-full px-3 py-2 text-sm bg-gray-50/50 border border-gray-300 rounded-lg focus:outline-none focus:bg-white focus:border-orange-600 focus:ring-1 focus:ring-orange-600 transition"
                   required
                 />
               </div>
@@ -274,7 +274,7 @@ export const LoginPage: React.FC = () => {
                   value={regUsername}
                   onChange={(e) => setRegUsername(e.target.value)}
                   placeholder="Contoh: budi_owner"
-                  className="w-full px-3 py-2 text-sm bg-gray-50/50 border border-gray-300 rounded-lg focus:outline-none focus:bg-white focus:border-blue-600 focus:ring-1 focus:ring-blue-600 transition"
+                  className="w-full px-3 py-2 text-sm bg-gray-50/50 border border-gray-300 rounded-lg focus:outline-none focus:bg-white focus:border-orange-600 focus:ring-1 focus:ring-orange-600 transition"
                   autoComplete="username"
                   required
                 />
@@ -290,7 +290,7 @@ export const LoginPage: React.FC = () => {
                     value={regPassword}
                     onChange={(e) => setRegPassword(e.target.value)}
                     placeholder="Minimal 4 karakter"
-                    className="w-full pl-3 pr-9 py-2 text-sm bg-gray-50/50 border border-gray-300 rounded-lg focus:outline-none focus:bg-white focus:border-blue-600 focus:ring-1 focus:ring-blue-600 transition"
+                    className="w-full pl-3 pr-9 py-2 text-sm bg-gray-50/50 border border-gray-300 rounded-lg focus:outline-none focus:bg-white focus:border-orange-600 focus:ring-1 focus:ring-orange-600 transition"
                     autoComplete="new-password"
                     required
                   />
@@ -313,7 +313,7 @@ export const LoginPage: React.FC = () => {
                   value={regConfirmPassword}
                   onChange={(e) => setRegConfirmPassword(e.target.value)}
                   placeholder="Ketik ulang password"
-                  className="w-full px-3 py-2 text-sm bg-gray-50/50 border border-gray-300 rounded-lg focus:outline-none focus:bg-white focus:border-blue-600 focus:ring-1 focus:ring-blue-600 transition"
+                  className="w-full px-3 py-2 text-sm bg-gray-50/50 border border-gray-300 rounded-lg focus:outline-none focus:bg-white focus:border-orange-600 focus:ring-1 focus:ring-orange-600 transition"
                   autoComplete="new-password"
                   required
                 />
@@ -322,7 +322,7 @@ export const LoginPage: React.FC = () => {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full py-2.5 px-4 rounded-lg font-medium text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 transition text-sm disabled:opacity-50 cursor-pointer"
+                className="w-full py-2.5 px-4 rounded-lg font-medium text-white bg-orange-600 hover:bg-orange-700 active:bg-orange-800 transition text-sm disabled:opacity-50 cursor-pointer"
               >
                 {isSubmitting ? 'Mendaftarkan...' : 'Daftar Sebagai Owner'}
               </button>
@@ -346,7 +346,7 @@ export const LoginPage: React.FC = () => {
                     <span className="text-xs font-semibold text-gray-900">Owner (Bpk. Agus)</span>
                     <span className="text-[11px] text-gray-500 block">Username: owner · Akses penuh dashboard</span>
                   </div>
-                  <span className="text-[10px] font-medium px-2 py-0.5 rounded bg-blue-100 text-blue-700">
+                  <span className="text-[10px] font-medium px-2 py-0.5 rounded bg-orange-100 text-orange-700">
                     Owner
                   </span>
                 </button>
@@ -384,4 +384,5 @@ export const LoginPage: React.FC = () => {
     </div>
   );
 };
+
 

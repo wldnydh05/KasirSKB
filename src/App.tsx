@@ -69,7 +69,7 @@ function MainLayout() {
           alt="BukuPOS"
           className="h-16 object-contain mb-4"
         />
-        <div className="w-8 h-8 border-3 border-blue-600 border-t-transparent rounded-full animate-spin mb-3" />
+        <div className="w-8 h-8 border-3 border-orange-600 border-t-transparent rounded-full animate-spin mb-3" />
         <p className="text-sm font-medium text-gray-600">Memuat data BukuPOS...</p>
       </div>
     );
@@ -117,3 +117,4 @@ export default function App() {
     </ToastProvider>
   );
 }
+

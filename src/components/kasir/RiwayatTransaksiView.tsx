@@ -264,3 +264,4 @@ export const RiwayatTransaksiView: React.FC = () => {
     </div>
   );
 };
+

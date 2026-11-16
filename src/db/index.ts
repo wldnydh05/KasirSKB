@@ -606,3 +606,4 @@ export async function ensureThirtyDaysData() {
     console.error('Failed to ensure 30 days dummy data:', err);
   }
 }
+

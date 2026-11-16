@@ -235,3 +235,4 @@ export const MenuTerlarisView: React.FC = () => {
     </div>
   );
 };
+

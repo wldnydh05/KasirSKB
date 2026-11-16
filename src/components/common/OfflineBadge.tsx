@@ -21,3 +21,4 @@ export const OfflineBadge: React.FC = () => {
     </div>
   );
 };
+

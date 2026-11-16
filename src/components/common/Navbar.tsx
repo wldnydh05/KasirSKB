@@ -139,7 +139,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab }) => {
                     <span
                       className={`text-[10px] font-medium px-1.5 py-0.2 rounded ${
                         isOwner
-                          ? 'bg-blue-100 text-blue-800'
+                          ? 'bg-orange-100 text-orange-800'
                           : 'bg-emerald-100 text-emerald-800'
                       }`}
                     >
@@ -174,7 +174,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab }) => {
                         onClick={() => setSelectedCabangFilter(c)}
                         className={`px-2 py-0.5 rounded-md text-xs font-medium transition cursor-pointer ${
                           isSelected
-                            ? 'bg-white text-blue-700 shadow-2xs font-semibold'
+                            ? 'bg-white text-orange-700 shadow-2xs font-semibold'
                             : 'text-gray-600 hover:text-gray-900'
                         }`}
                       >
@@ -196,7 +196,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab }) => {
                     onClick={() => onSelectTab(tab.id)}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition whitespace-nowrap ${
                       isActive
-                        ? 'bg-blue-50 text-blue-700 border border-blue-200 font-semibold'
+                        ? 'bg-orange-50 text-orange-700 border border-orange-200 font-semibold'
                         : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                     }`}
                   >
@@ -223,7 +223,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab }) => {
                     className="w-7 h-7 rounded-md object-cover border border-gray-300"
                   />
                 ) : (
-                  <div className="w-7 h-7 rounded-md bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs uppercase">
+                  <div className="w-7 h-7 rounded-md bg-orange-100 text-orange-700 flex items-center justify-center font-bold text-xs uppercase">
                     {(user?.nama_lengkap || user?.username || 'U')[0]}
                   </div>
                 )}
@@ -269,7 +269,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab }) => {
                         onClick={() => setSelectedCabangFilter(c)}
                         className={`py-1.5 px-1 rounded-md text-xs font-medium transition text-center ${
                           isSelected
-                            ? 'bg-blue-600 text-white font-semibold'
+                            ? 'bg-orange-600 text-white font-semibold'
                             : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-100'
                         }`}
                       >
@@ -289,11 +289,11 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab }) => {
               }}
               className={`w-full flex items-center gap-3 p-2.5 rounded-lg text-left transition ${
                 currentTab === 'menu'
-                  ? 'bg-blue-50 text-blue-700 border border-blue-200 font-semibold'
+                  ? 'bg-orange-50 text-orange-700 border border-orange-200 font-semibold'
                   : 'bg-gray-50 hover:bg-gray-100 text-gray-800 border border-gray-200'
               }`}
             >
-              <div className="w-9 h-9 rounded-md bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
+              <div className="w-9 h-9 rounded-md bg-orange-100 text-orange-700 flex items-center justify-center shrink-0">
                 <UtensilsCrossed className="w-4 h-4" />
               </div>
               <div className="flex-1">
@@ -338,3 +338,4 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab }) => {
     </>
   );
 };
+

@@ -362,7 +362,7 @@ export const DashboardOwnerView: React.FC<DashboardOwnerViewProps> = ({ onNaviga
             onClick={() => setSelectedCabangFilter('Semua')}
             className={`px-3 py-1.5 rounded font-medium transition cursor-pointer ${
               selectedCabangFilter === 'Semua'
-                ? 'bg-blue-600 text-white font-semibold shadow-xs'
+                ? 'bg-orange-600 text-white font-semibold shadow-xs'
                 : 'text-gray-700 hover:text-gray-900'
             }`}
           >
@@ -378,7 +378,7 @@ export const DashboardOwnerView: React.FC<DashboardOwnerViewProps> = ({ onNaviga
                 onClick={() => setSelectedCabangFilter(cabang)}
                 className={`px-3 py-1.5 rounded font-medium transition cursor-pointer ${
                   isSelected
-                    ? 'bg-blue-600 text-white font-semibold shadow-xs'
+                    ? 'bg-orange-600 text-white font-semibold shadow-xs'
                     : 'text-gray-700 hover:text-gray-900'
                 }`}
               >
@@ -394,7 +394,7 @@ export const DashboardOwnerView: React.FC<DashboardOwnerViewProps> = ({ onNaviga
         <div className="p-4 bg-gray-50 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
             <h3 className="font-bold text-sm sm:text-base text-gray-800 flex items-center gap-2">
-              <Store className="w-4 h-4 text-blue-600" />
+              <Store className="w-4 h-4 text-orange-600" />
               <span>Tabel Perbandingan Penjualan Antar Cabang (Hari Ini)</span>
             </h3>
             <p className="text-xs text-gray-500 mt-0.5">
@@ -428,9 +428,9 @@ export const DashboardOwnerView: React.FC<DashboardOwnerViewProps> = ({ onNaviga
             </thead>
             <tbody className="divide-y divide-gray-200 text-gray-700">
               {/* Row Cabang 1 */}
-              <tr className={`hover:bg-gray-50/80 transition ${selectedCabangFilter === 'Cabang 1' ? 'bg-blue-50/60 font-medium' : ''}`}>
+              <tr className={`hover:bg-gray-50/80 transition ${selectedCabangFilter === 'Cabang 1' ? 'bg-orange-50/60 font-medium' : ''}`}>
                 <td className="px-4 py-3.5 font-semibold text-gray-900 flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-blue-600 inline-block"></span>
+                  <span className="w-2.5 h-2.5 rounded-full bg-orange-600 inline-block"></span>
                   Cabang 1
                 </td>
                 <td className="px-4 py-3.5">
@@ -449,7 +449,7 @@ export const DashboardOwnerView: React.FC<DashboardOwnerViewProps> = ({ onNaviga
                 <td className="px-4 py-3.5">
                   <div className="flex items-center gap-2">
                     <div className="w-24 bg-gray-200 rounded h-2 overflow-hidden">
-                      <div style={{ width: `${c1Percent}%` }} className="bg-blue-600 h-full"></div>
+                      <div style={{ width: `${c1Percent}%` }} className="bg-orange-600 h-full"></div>
                     </div>
                     <span className="text-xs font-semibold text-gray-700 w-10 text-right">{c1Percent}%</span>
                   </div>
@@ -460,7 +460,7 @@ export const DashboardOwnerView: React.FC<DashboardOwnerViewProps> = ({ onNaviga
                     onClick={() => setSelectedCabangFilter(selectedCabangFilter === 'Cabang 1' ? 'Semua' : 'Cabang 1')}
                     className={`px-3 py-1 text-xs rounded border cursor-pointer font-medium transition ${
                       selectedCabangFilter === 'Cabang 1'
-                        ? 'bg-blue-600 text-white border-blue-600'
+                        ? 'bg-orange-600 text-white border-orange-600'
                         : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'
                     }`}
                   >
@@ -470,7 +470,7 @@ export const DashboardOwnerView: React.FC<DashboardOwnerViewProps> = ({ onNaviga
               </tr>
 
               {/* Row Cabang 2 */}
-              <tr className={`hover:bg-gray-50/80 transition ${selectedCabangFilter === 'Cabang 2' ? 'bg-blue-50/60 font-medium' : ''}`}>
+              <tr className={`hover:bg-gray-50/80 transition ${selectedCabangFilter === 'Cabang 2' ? 'bg-orange-50/60 font-medium' : ''}`}>
                 <td className="px-4 py-3.5 font-semibold text-gray-900 flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-slate-600 inline-block"></span>
                   Cabang 2
@@ -502,7 +502,7 @@ export const DashboardOwnerView: React.FC<DashboardOwnerViewProps> = ({ onNaviga
                     onClick={() => setSelectedCabangFilter(selectedCabangFilter === 'Cabang 2' ? 'Semua' : 'Cabang 2')}
                     className={`px-3 py-1 text-xs rounded border cursor-pointer font-medium transition ${
                       selectedCabangFilter === 'Cabang 2'
-                        ? 'bg-blue-600 text-white border-blue-600'
+                        ? 'bg-orange-600 text-white border-orange-600'
                         : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'
                     }`}
                   >
@@ -519,7 +519,7 @@ export const DashboardOwnerView: React.FC<DashboardOwnerViewProps> = ({ onNaviga
                 <td className="px-4 py-3 text-center">
                   {branchComparison.cabang1Count + branchComparison.cabang2Count} Transaksi
                 </td>
-                <td className="px-4 py-3 text-right text-blue-700 font-bold">
+                <td className="px-4 py-3 text-right text-orange-700 font-bold">
                   {formatRupiah(totalCombinedToday)}
                 </td>
                 <td className="px-4 py-3 text-center text-gray-700">
@@ -556,7 +556,7 @@ export const DashboardOwnerView: React.FC<DashboardOwnerViewProps> = ({ onNaviga
             <span className="font-semibold text-gray-700">Grafik Rasio Kontribusi Penjualan:</span>
             <div className="flex flex-wrap items-center gap-4 text-xs text-gray-600">
               <span className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 bg-blue-600 rounded-sm inline-block"></span>
+                <span className="w-2.5 h-2.5 bg-orange-600 rounded-sm inline-block"></span>
                 <span>Cabang 1: {c1Percent}% ({formatRupiah(branchComparison.cabang1Sales)})</span>
               </span>
               <span className="flex items-center gap-1.5">
@@ -568,7 +568,7 @@ export const DashboardOwnerView: React.FC<DashboardOwnerViewProps> = ({ onNaviga
           <div className="h-3 w-full bg-gray-200 rounded flex overflow-hidden">
             <div
               style={{ width: `${c1Percent}%` }}
-              className="bg-blue-600 h-full transition-all duration-300"
+              className="bg-orange-600 h-full transition-all duration-300"
               title={`Cabang 1: ${c1Percent}%`}
             />
             <div
@@ -584,7 +584,7 @@ export const DashboardOwnerView: React.FC<DashboardOwnerViewProps> = ({ onNaviga
       <div className="flex items-center justify-between mb-4 bg-white px-3.5 py-2.5 rounded-lg border border-gray-200 text-xs">
         <div className="flex items-center gap-2 text-gray-700">
           <span className="font-medium text-gray-500">Filter Aktif:</span>
-          <span className="px-2 py-0.5 rounded bg-blue-50 text-blue-700 font-semibold border border-blue-200">
+          <span className="px-2 py-0.5 rounded bg-orange-50 text-orange-700 font-semibold border border-orange-200">
             {selectedCabangFilter === 'Semua' ? 'Semua Cabang (Data Gabungan)' : `Data ${selectedCabangFilter}`}
           </span>
         </div>
@@ -593,7 +593,7 @@ export const DashboardOwnerView: React.FC<DashboardOwnerViewProps> = ({ onNaviga
           <button
             type="button"
             onClick={() => setSelectedCabangFilter('Semua')}
-            className="text-xs font-semibold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+            className="text-xs font-semibold text-orange-600 hover:text-orange-800 hover:underline cursor-pointer"
           >
             ← Tampilkan Semua Cabang
           </button>
@@ -608,7 +608,7 @@ export const DashboardOwnerView: React.FC<DashboardOwnerViewProps> = ({ onNaviga
             <span className="text-xs font-medium text-gray-500">
               Total Penjualan Hari Ini
             </span>
-            <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center">
               <TrendingUp className="w-4 h-4" />
             </div>
           </div>
@@ -698,12 +698,12 @@ export const DashboardOwnerView: React.FC<DashboardOwnerViewProps> = ({ onNaviga
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <button
           onClick={() => onNavigate('terlaris')}
-          className="p-4 rounded-xl bg-white border border-gray-200 hover:border-blue-400 hover:shadow-xs transition text-left group"
+          className="p-4 rounded-xl bg-white border border-gray-200 hover:border-orange-400 hover:shadow-xs transition text-left group"
         >
-          <div className="w-9 h-9 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center mb-2">
+          <div className="w-9 h-9 rounded-lg bg-orange-50 text-orange-700 flex items-center justify-center mb-2">
             <TrendingUp className="w-4 h-4" />
           </div>
-          <h4 className="font-semibold text-xs sm:text-sm text-gray-900 group-hover:text-blue-600 transition">
+          <h4 className="font-semibold text-xs sm:text-sm text-gray-900 group-hover:text-orange-600 transition">
             Menu Terlaris
           </h4>
           <p className="text-[11px] text-gray-500 mt-0.5">Top 10 menu terpopuler</p>
@@ -711,12 +711,12 @@ export const DashboardOwnerView: React.FC<DashboardOwnerViewProps> = ({ onNaviga
 
         <button
           onClick={() => onNavigate('biaya')}
-          className="p-4 rounded-xl bg-white border border-gray-200 hover:border-blue-400 hover:shadow-xs transition text-left group"
+          className="p-4 rounded-xl bg-white border border-gray-200 hover:border-orange-400 hover:shadow-xs transition text-left group"
         >
           <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center mb-2">
             <DollarSign className="w-4 h-4" />
           </div>
-          <h4 className="font-semibold text-xs sm:text-sm text-gray-900 group-hover:text-blue-600 transition">
+          <h4 className="font-semibold text-xs sm:text-sm text-gray-900 group-hover:text-orange-600 transition">
             Pengaturan Biaya
           </h4>
           <p className="text-[11px] text-gray-500 mt-0.5">Bahan baku & operasional</p>
@@ -724,12 +724,12 @@ export const DashboardOwnerView: React.FC<DashboardOwnerViewProps> = ({ onNaviga
 
         <button
           onClick={() => onNavigate('ekspor')}
-          className="p-4 rounded-xl bg-white border border-gray-200 hover:border-blue-400 hover:shadow-xs transition text-left group"
+          className="p-4 rounded-xl bg-white border border-gray-200 hover:border-orange-400 hover:shadow-xs transition text-left group"
         >
           <div className="w-9 h-9 rounded-lg bg-gray-100 text-gray-700 flex items-center justify-center mb-2">
             <Receipt className="w-4 h-4" />
           </div>
-          <h4 className="font-semibold text-xs sm:text-sm text-gray-900 group-hover:text-blue-600 transition">
+          <h4 className="font-semibold text-xs sm:text-sm text-gray-900 group-hover:text-orange-600 transition">
             Ekspor CSV
           </h4>
           <p className="text-[11px] text-gray-500 mt-0.5">Download laporan transaksi</p>
@@ -737,12 +737,12 @@ export const DashboardOwnerView: React.FC<DashboardOwnerViewProps> = ({ onNaviga
 
         <button
           onClick={() => onNavigate('promo')}
-          className="p-4 rounded-xl bg-white border border-gray-200 hover:border-blue-400 hover:shadow-xs transition text-left group"
+          className="p-4 rounded-xl bg-white border border-gray-200 hover:border-orange-400 hover:shadow-xs transition text-left group"
         >
           <div className="w-9 h-9 rounded-lg bg-purple-50 text-purple-700 flex items-center justify-center mb-2">
             <Tag className="w-4 h-4" />
           </div>
-          <h4 className="font-semibold text-xs sm:text-sm text-gray-900 group-hover:text-blue-600 transition">
+          <h4 className="font-semibold text-xs sm:text-sm text-gray-900 group-hover:text-orange-600 transition">
             Kelola Promo
           </h4>
           <p className="text-[11px] text-gray-500 mt-0.5">Diskon & voucher toko</p>
@@ -751,3 +751,4 @@ export const DashboardOwnerView: React.FC<DashboardOwnerViewProps> = ({ onNaviga
     </div>
   );
 };
+

@@ -212,7 +212,7 @@ export const LineChartOwner: React.FC<LineChartOwnerProps> = ({
         <div>
           <div className="flex items-center gap-2">
             <h3 className="text-base font-bold text-gray-900 tracking-tight flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-blue-600" />
+              <TrendingUp className="w-5 h-5 text-orange-600" />
               <span>Grafik Garis Penjualan & Laba</span>
             </h3>
             <span className="text-xs font-medium px-2 py-0.5 rounded bg-gray-100 text-gray-700 border border-gray-200">
@@ -234,7 +234,7 @@ export const LineChartOwner: React.FC<LineChartOwnerProps> = ({
             }}
             className={`min-h-[34px] px-3 py-1.5 rounded font-medium transition flex items-center justify-center whitespace-nowrap cursor-pointer ${
               period === '7-hari'
-                ? 'bg-blue-600 text-white font-semibold shadow-xs'
+                ? 'bg-orange-600 text-white font-semibold shadow-xs'
                 : 'text-gray-700 hover:text-gray-900'
             }`}
           >
@@ -248,7 +248,7 @@ export const LineChartOwner: React.FC<LineChartOwnerProps> = ({
             }}
             className={`min-h-[34px] px-3 py-1.5 rounded font-medium transition flex items-center justify-center whitespace-nowrap cursor-pointer ${
               period === '30-hari'
-                ? 'bg-blue-600 text-white font-semibold shadow-xs'
+                ? 'bg-orange-600 text-white font-semibold shadow-xs'
                 : 'text-gray-700 hover:text-gray-900'
             }`}
           >
@@ -262,7 +262,7 @@ export const LineChartOwner: React.FC<LineChartOwnerProps> = ({
             }}
             className={`min-h-[34px] px-3 py-1.5 rounded font-medium transition flex items-center justify-center gap-1 whitespace-nowrap cursor-pointer ${
               period === 'bulan'
-                ? 'bg-blue-600 text-white font-semibold shadow-xs'
+                ? 'bg-orange-600 text-white font-semibold shadow-xs'
                 : 'text-gray-700 hover:text-gray-900'
             }`}
           >
@@ -277,7 +277,7 @@ export const LineChartOwner: React.FC<LineChartOwnerProps> = ({
             }}
             className={`min-h-[34px] px-3 py-1.5 rounded font-medium transition flex items-center justify-center gap-1 whitespace-nowrap cursor-pointer ${
               period === 'custom'
-                ? 'bg-blue-600 text-white font-semibold shadow-xs'
+                ? 'bg-orange-600 text-white font-semibold shadow-xs'
                 : 'text-gray-700 hover:text-gray-900'
             }`}
           >
@@ -796,7 +796,7 @@ export const LineChartOwner: React.FC<LineChartOwnerProps> = ({
           </div>
         ) : (
           <div className="text-xs text-gray-500 flex items-center justify-center gap-1.5 py-1">
-            <Info className="w-3.5 h-3.5 text-blue-600" />
+            <Info className="w-3.5 h-3.5 text-orange-600" />
             <span>Arahkan kursor atau ketuk titik bulatan grafik untuk melihat detail nominal.</span>
           </div>
         )}
@@ -804,3 +804,4 @@ export const LineChartOwner: React.FC<LineChartOwnerProps> = ({
     </div>
   );
 };
+
