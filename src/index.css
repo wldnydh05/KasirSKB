@@ -1,12 +1,10 @@
+/* Urutan penting: Tailwind dulu (deklarasi layer), lalu tokens & components.
+   Components sengaja memakai @layer components agar utility Tailwind lama tetap menang. */
 @import "tailwindcss";
+@import "./styles/tokens.css";
+@import "./styles/components.css";
 
 @layer base {
-  :root {
-    --primary: #FF6038;
-    --primary-hover: #E04620;
-    --surface: #F7F8FA;
-  }
-
   html, body {
     touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;

@@ -7,6 +7,8 @@ import React, { useState, useId } from 'react';
 import {
   Calendar,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   TrendingUp,
   DollarSign,
   Receipt,
@@ -23,7 +25,8 @@ export interface ChartDataPoint {
   penjualan: number;
   biayaBahan: number;
   biayaOperasional: number;
-  labaBersih: number;
+  labaKotor: number; // Gross Profit = penjualan - biayaBahan
+  labaBersih: number; // Net Profit = labaKotor - biayaOperasional
   totalTransaksi: number;
 }
 
@@ -49,10 +52,14 @@ interface LineChartOwnerProps {
   chartData: ChartDataPoint[];
   period: ChartPeriod;
   onPeriodChange: (p: ChartPeriod) => void;
-  selectedMonth: number; // 1-12
+  selectedMonth: number; // 1-12 (start month)
   onMonthChange: (m: number) => void;
-  selectedYear: number;
+  selectedMonthEnd: number; // 1-12 (end month)
+  onMonthEndChange: (m: number) => void;
+  selectedYear: number; // start year
   onYearChange: (y: number) => void;
+  selectedYearEnd: number; // end year
+  onYearEndChange: (y: number) => void;
   monthViewMode: MonthViewMode;
   onMonthViewModeChange: (mode: MonthViewMode) => void;
   customStartDate: string;
@@ -98,8 +105,12 @@ export const LineChartOwner: React.FC<LineChartOwnerProps> = ({
   onPeriodChange,
   selectedMonth,
   onMonthChange,
+  selectedMonthEnd,
+  onMonthEndChange,
   selectedYear,
   onYearChange,
+  selectedYearEnd,
+  onYearEndChange,
   monthViewMode,
   onMonthViewModeChange,
   customStartDate,
@@ -112,16 +123,31 @@ export const LineChartOwner: React.FC<LineChartOwnerProps> = ({
   const [selectedPointIndex, setSelectedPointIndex] = useState<number | null>(null);
   const [showSales, setShowSales] = useState(true);
   const [showProfit, setShowProfit] = useState(true);
+  const [showGrossProfit, setShowGrossProfit] = useState(true);
 
   const uid = useId().replace(/:/g, '');
+
+  // Computed max end date for custom range (30 days max)
+  const maxEndDate = (() => {
+    const d = new Date(customStartDate);
+    d.setDate(d.getDate() + 29);
+    return d.toISOString().split('T')[0];
+  })();
+
+  // Ensure at least one line is always visible
+  const anyLineVisible = showSales || showProfit || showGrossProfit;
+  const effectiveShowSales = showSales && anyLineVisible;
+  const effectiveShowProfit = showProfit && anyLineVisible;
+  const effectiveShowGrossProfit = showGrossProfit && anyLineVisible;
 
   // Summary calculations for the filtered period
   const totalOmzet = chartData.reduce((acc, curr) => acc + curr.penjualan, 0);
   const totalLaba = chartData.reduce((acc, curr) => acc + curr.labaBersih, 0);
+  const totalLabaKotor = chartData.reduce((acc, curr) => acc + curr.labaKotor, 0);
   const totalTx = chartData.reduce((acc, curr) => acc + curr.totalTransaksi, 0);
   const avgOmzetPerDay = chartData.length > 0 ? totalOmzet / chartData.length : 0;
 
-  // Chart coordinate space
+  // Chart coordinate space (logical units for viewBox — SVG scales responsively)
   const svgWidth = 1000;
   const svgHeight = 320;
   const padLeft = 80;
@@ -132,8 +158,12 @@ export const LineChartOwner: React.FC<LineChartOwnerProps> = ({
   const plotHeight = svgHeight - padTop - padBottom;
   const baselineY = padTop + plotHeight;
 
-  // Calculate min & max values for scaling
-  const allValues = chartData.flatMap((d) => [d.penjualan, d.labaBersih]);
+  // Calculate min & max values for scaling (include all visible metrics)
+  const allValues = chartData.flatMap((d) => [
+    d.penjualan,
+    d.labaBersih,
+    d.labaKotor,
+  ]);
   const maxValueRaw = Math.max(...allValues, 100000);
   const minValueRaw = Math.min(...allValues, 0);
 
@@ -167,10 +197,18 @@ export const LineChartOwner: React.FC<LineChartOwnerProps> = ({
     data: d,
   }));
 
+  const grossProfitPoints = chartData.map((d, idx) => ({
+    x: getX(idx),
+    y: getY(d.labaKotor),
+    data: d,
+  }));
+
   const salesPath = getSmoothPath(salesPoints);
   const profitPath = getSmoothPath(profitPoints);
+  const grossProfitPath = getSmoothPath(grossProfitPoints);
   const salesArea = getAreaPath(salesPoints, baselineY);
   const profitArea = getAreaPath(profitPoints, baselineY);
+  const grossProfitArea = getAreaPath(grossProfitPoints, baselineY);
 
   // 4 Y-axis tick lines
   const tickCount = 4;
@@ -195,37 +233,29 @@ export const LineChartOwner: React.FC<LineChartOwnerProps> = ({
 
   const ptSales = activeIdx !== null ? salesPoints[activeIdx] : null;
   const ptProfit = activeIdx !== null ? profitPoints[activeIdx] : null;
-
-  const badgeWidth = 98;
-  const badgeHalf = badgeWidth / 2;
-  const clampedSalesX = ptSales
-    ? Math.max(padLeft + badgeHalf, Math.min(svgWidth - padRight - badgeHalf, ptSales.x))
-    : 0;
-  const clampedProfitX = ptProfit
-    ? Math.max(padLeft + badgeHalf, Math.min(svgWidth - padRight - badgeHalf, ptProfit.x))
-    : 0;
+  const ptGrossProfit = activeIdx !== null ? grossProfitPoints[activeIdx] : null;
 
   return (
-    <div className="bg-white rounded-lg p-3.5 sm:p-5 border border-gray-300 shadow-sm mb-5 space-y-3.5">
+    <div className="bg-[var(--kartu)] rounded-lg p-3.5 sm:p-5 border border-[var(--garis-kuat)] shadow-sm mb-5 space-y-3.5">
       {/* 1. Header & Period Switcher */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-3 border-b border-gray-200">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-3 border-b border-[var(--garis)]">
         <div>
           <div className="flex items-center gap-2">
-            <h3 className="text-base font-bold text-gray-900 tracking-tight flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-orange-600" />
+            <h3 className="text-base font-bold text-[var(--teks)] tracking-tight flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-[var(--utama-teks)]" />
               <span>Grafik Garis Penjualan & Laba</span>
             </h3>
-            <span className="text-xs font-medium px-2 py-0.5 rounded bg-gray-100 text-gray-700 border border-gray-200">
+            <span className="text-xs font-medium px-2 py-0.5 rounded bg-[var(--latar)] text-[var(--teks)] border border-[var(--garis)]">
               Line Chart
             </span>
           </div>
-          <p className="text-xs text-gray-500 mt-0.5">
+          <p className="text-xs text-[var(--redup)] mt-0.5">
             Arahkan kursor atau ketuk titik bulatan pada grafik untuk melihat rincian nominal.
           </p>
         </div>
 
         {/* 4 Period Chips: 7 Hari, 30 Hari, Berdasarkan Bulan, Rentang Tanggal */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 bg-gray-100 p-1 rounded-lg border border-gray-200 w-full lg:w-auto text-xs">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 bg-[var(--latar)] p-1 rounded-lg border border-[var(--garis)] w-full lg:w-auto text-xs">
           <button
             type="button"
             onClick={() => {
@@ -234,8 +264,8 @@ export const LineChartOwner: React.FC<LineChartOwnerProps> = ({
             }}
             className={`min-h-[34px] px-3 py-1.5 rounded font-medium transition flex items-center justify-center whitespace-nowrap cursor-pointer ${
               period === '7-hari'
-                ? 'bg-orange-600 text-white font-semibold shadow-xs'
-                : 'text-gray-700 hover:text-gray-900'
+                ? 'bg-[var(--utama)] text-white font-semibold shadow-xs'
+                : 'text-[var(--teks)] hover:text-[var(--teks)]'
             }`}
           >
             7 Hari
@@ -248,8 +278,8 @@ export const LineChartOwner: React.FC<LineChartOwnerProps> = ({
             }}
             className={`min-h-[34px] px-3 py-1.5 rounded font-medium transition flex items-center justify-center whitespace-nowrap cursor-pointer ${
               period === '30-hari'
-                ? 'bg-orange-600 text-white font-semibold shadow-xs'
-                : 'text-gray-700 hover:text-gray-900'
+                ? 'bg-[var(--utama)] text-white font-semibold shadow-xs'
+                : 'text-[var(--teks)] hover:text-[var(--teks)]'
             }`}
           >
             30 Hari
@@ -262,8 +292,8 @@ export const LineChartOwner: React.FC<LineChartOwnerProps> = ({
             }}
             className={`min-h-[34px] px-3 py-1.5 rounded font-medium transition flex items-center justify-center gap-1 whitespace-nowrap cursor-pointer ${
               period === 'bulan'
-                ? 'bg-orange-600 text-white font-semibold shadow-xs'
-                : 'text-gray-700 hover:text-gray-900'
+                ? 'bg-[var(--utama)] text-white font-semibold shadow-xs'
+                : 'text-[var(--teks)] hover:text-[var(--teks)]'
             }`}
           >
             <Calendar className="w-3.5 h-3.5" />
@@ -277,8 +307,8 @@ export const LineChartOwner: React.FC<LineChartOwnerProps> = ({
             }}
             className={`min-h-[34px] px-3 py-1.5 rounded font-medium transition flex items-center justify-center gap-1 whitespace-nowrap cursor-pointer ${
               period === 'custom'
-                ? 'bg-orange-600 text-white font-semibold shadow-xs'
-                : 'text-gray-700 hover:text-gray-900'
+                ? 'bg-[var(--utama)] text-white font-semibold shadow-xs'
+                : 'text-[var(--teks)] hover:text-[var(--teks)]'
             }`}
           >
             <Calendar className="w-3.5 h-3.5" />
@@ -287,17 +317,21 @@ export const LineChartOwner: React.FC<LineChartOwnerProps> = ({
         </div>
       </div>
 
-      {/* 2. Sub-Filters: Berdasarkan Bulan */}
+      {/* 2. Sub-Filters: Per Bulan (Range Bulan - support cross-year, e.g. Jul 2026 - Jul 2027) */}
       {period === 'bulan' && (
-        <div className="bg-orange-50/70 border border-orange-200/80 rounded-2xl p-3 sm:p-3.5 space-y-2.5 w-full min-w-0 overflow-hidden animate-in fade-in">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-            <div className="grid grid-cols-2 gap-2 w-full sm:w-auto">
-              <div className="min-w-0">
-                <label className="text-[10px] font-bold text-slate-500 block mb-1">Bulan</label>
+        <div className="bg-[var(--utama-muda)]/70 border border-[var(--garis)]/80 rounded-2xl p-3 sm:p-3.5 space-y-2 w-full min-w-0 overflow-hidden animate-in fade-in">
+          <div className="flex items-center gap-1.5 text-xs font-bold text-[var(--utama-teks)]">
+            <Calendar className="w-4 h-4 text-[var(--utama-teks)] shrink-0" />
+            <span>Pilih Rentang Bulan (maks 12 bulan):</span>
+          </div>
+          <div className="grid grid-cols-2 gap-2 sm:gap-3 w-full min-w-0">
+            <div className="min-w-0 space-y-2">
+              <label className="text-[10px] font-semibold text-[var(--redup)] block mb-1 truncate">Dari Bulan</label>
+              <div className="grid grid-cols-2 gap-2">
                 <select
                   value={selectedMonth}
                   onChange={(e) => onMonthChange(Number(e.target.value))}
-                  className="w-full min-w-0 bg-white border border-slate-200 text-xs font-bold px-2.5 py-2 rounded-xl text-slate-800 outline-none focus:border-[#FF6038]"
+                  className="min-h-[40px] px-2 py-1.5 text-[11px] sm:text-xs font-bold bg-[var(--kartu)] rounded-xl border border-[var(--garis)] outline-none focus:border-[var(--utama-teks)] text-[var(--teks)] box-border"
                 >
                   {BULAN_NAMES.map((bName, idx) => (
                     <option key={idx + 1} value={idx + 1}>
@@ -305,14 +339,10 @@ export const LineChartOwner: React.FC<LineChartOwnerProps> = ({
                     </option>
                   ))}
                 </select>
-              </div>
-
-              <div className="min-w-0">
-                <label className="text-[10px] font-bold text-slate-500 block mb-1">Tahun</label>
                 <select
                   value={selectedYear}
                   onChange={(e) => onYearChange(Number(e.target.value))}
-                  className="w-full min-w-0 bg-white border border-slate-200 text-xs font-bold px-2.5 py-2 rounded-xl text-slate-800 outline-none focus:border-[#FF6038]"
+                  className="min-h-[40px] px-2 py-1.5 text-[11px] sm:text-xs font-bold bg-[var(--kartu)] rounded-xl border border-[var(--garis)] outline-none focus:border-[var(--utama-teks)] text-[var(--teks)] box-border"
                 >
                   {[2024, 2025, 2026, 2027].map((yr) => (
                     <option key={yr} value={yr}>
@@ -322,113 +352,122 @@ export const LineChartOwner: React.FC<LineChartOwnerProps> = ({
                 </select>
               </div>
             </div>
-
-            {/* Toggle View Mode: Harian di Bulan Ini vs Tren 12 Bulan */}
-            <div className="grid grid-cols-2 gap-1 bg-white/90 p-1 rounded-xl border border-orange-200/60 w-full sm:w-auto">
-              <button
-                type="button"
-                onClick={() => onMonthViewModeChange('daily')}
-                className={`px-2 py-1.5 text-[10px] sm:text-[11px] font-bold rounded-lg transition text-center truncate ${
-                  monthViewMode === 'daily'
-                    ? 'bg-[#FF6038] text-white shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Harian {BULAN_NAMES[selectedMonth - 1].slice(0, 3)}
-              </button>
-              <button
-                type="button"
-                onClick={() => onMonthViewModeChange('yearly')}
-                className={`px-2 py-1.5 text-[10px] sm:text-[11px] font-bold rounded-lg transition text-center truncate ${
-                  monthViewMode === 'yearly'
-                    ? 'bg-[#FF6038] text-white shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Tren 12 Bulan
-              </button>
+            <div className="min-w-0 space-y-2">
+              <label className="text-[10px] font-semibold text-[var(--redup)] block mb-1 truncate">Sampai Bulan</label>
+              <div className="grid grid-cols-2 gap-2">
+                <select
+                  value={selectedMonthEnd || selectedMonth}
+                  onChange={(e) => onMonthEndChange(Number(e.target.value))}
+                  className="min-h-[40px] px-2 py-1.5 text-[11px] sm:text-xs font-bold bg-[var(--kartu)] rounded-xl border border-[var(--garis)] outline-none focus:border-[var(--utama-teks)] text-[var(--teks)] box-border"
+                >
+                  {BULAN_NAMES.map((bName, idx) => (
+                    <option key={idx + 1} value={idx + 1}>
+                      {bName}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={selectedYearEnd}
+                  onChange={(e) => onYearEndChange(Number(e.target.value))}
+                  className="min-h-[40px] px-2 py-1.5 text-[11px] sm:text-xs font-bold bg-[var(--kartu)] rounded-xl border border-[var(--garis)] outline-none focus:border-[var(--utama-teks)] text-[var(--teks)] box-border"
+                >
+                  {[2024, 2025, 2026, 2027].map((yr) => (
+                    <option key={yr} value={yr}>
+                      {yr}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* 2b. Sub-Filters: Rentang Tanggal (Phone Friendly - Anti Keluar Box) */}
+      {/* 2b. Sub-Filters: Rentang Tanggal - Single Calendar Table Range Picker */}
       {period === 'custom' && (
-        <div className="bg-orange-50/70 border border-orange-200/80 rounded-2xl p-3 sm:p-3.5 space-y-2 w-full min-w-0 overflow-hidden animate-in fade-in">
-          <div className="flex items-center gap-1.5 text-xs font-bold text-orange-950">
-            <Calendar className="w-4 h-4 text-[#FF6038] shrink-0" />
-            <span>Pilih Rentang Tanggal:</span>
+        <div className="bg-[var(--utama-muda)]/70 border border-[var(--garis)]/80 rounded-2xl p-3 sm:p-3.5 space-y-2 w-full min-w-0 overflow-hidden animate-in fade-in">
+          <div className="flex items-center gap-1.5 text-xs font-bold text-[var(--utama-teks)]">
+            <Calendar className="w-4 h-4 text-[var(--utama-teks)] shrink-0" />
+            <span>Pilih Rentang Tanggal (maks 30 hari):</span>
           </div>
-          <div className="grid grid-cols-2 gap-2 sm:gap-3 w-full min-w-0">
-            <div className="min-w-0">
-              <label className="text-[10px] font-semibold text-slate-500 block mb-1 truncate">Dari Tanggal</label>
-              <input
-                type="date"
-                value={customStartDate}
-                onChange={(e) => onCustomStartDateChange(e.target.value)}
-                className="w-full min-w-0 max-w-full min-h-[40px] px-2 py-1.5 text-[11px] sm:text-xs font-bold bg-white rounded-xl border border-slate-200 outline-none focus:border-[#FF6038] text-slate-800 box-border"
-              />
+          
+          {/* Selected Range Display */}
+          <div className="flex items-center gap-2 text-xs sm:text-sm">
+            <div className="flex-1 min-w-0 bg-[var(--kartu)] border border-[var(--garis)] rounded-xl px-3 py-2.5">
+              <div className="text-[10px] font-semibold text-[var(--redup)] mb-0.5">Dari</div>
+              <div className="font-bold text-[var(--teks)]">
+                {customStartDate ? new Date(customStartDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
+              </div>
             </div>
-            <div className="min-w-0">
-              <label className="text-[10px] font-semibold text-slate-500 block mb-1 truncate">Sampai Tanggal</label>
-              <input
-                type="date"
-                value={customEndDate}
-                onChange={(e) => onCustomEndDateChange(e.target.value)}
-                className="w-full min-w-0 max-w-full min-h-[40px] px-2 py-1.5 text-[11px] sm:text-xs font-bold bg-white rounded-xl border border-slate-200 outline-none focus:border-[#FF6038] text-slate-800 box-border"
-              />
+            <span className="text-[var(--redup)]">→</span>
+            <div className="flex-1 min-w-0 bg-[var(--kartu)] border border-[var(--garis)] rounded-xl px-3 py-2.5">
+              <div className="text-[10px] font-semibold text-[var(--redup)] mb-0.5">Sampai</div>
+              <div className="font-bold text-[var(--teks)]">
+                {customEndDate ? new Date(customEndDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
+              </div>
             </div>
           </div>
+
+          {/* Inline Calendar Range Picker */}
+          <DateRangeCalendar
+            startDate={customStartDate}
+            endDate={customEndDate}
+            onStartChange={onCustomStartDateChange}
+            onEndChange={onCustomEndDateChange}
+            maxDays={30}
+          />
         </div>
       )}
 
-      {/* 3. Metrics Summary for Filtered Period & Line Toggles */}
+      {/* 3. Line Display Toggles - Urutan: Merah (Omzet), Kuning (Laba Kotor), Hijau (Laba Bersih) */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
-        {/* Quick summary metrics */}
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs">
-          <div className="px-2.5 py-1.5 rounded-xl bg-orange-50/80 border border-orange-100 flex items-center gap-1.5 sm:gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#FF6038]" />
-            <span className="text-slate-600 font-medium">Omzet:</span>
-            <span className="font-extrabold text-slate-900">{formatRupiah(totalOmzet)}</span>
-          </div>
-
-          <div className="px-2.5 py-1.5 rounded-xl bg-emerald-50/80 border border-emerald-100 flex items-center gap-1.5 sm:gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-            <span className="text-slate-600 font-medium">Laba:</span>
-            <span className={`font-extrabold ${totalLaba >= 0 ? 'text-emerald-700' : 'text-rose-600'}`}>
-              {formatRupiah(totalLaba)}
-            </span>
-          </div>
-
-          <div className="px-2.5 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-600 font-semibold">
-            <span>{totalTx} Pesanan</span>
-            <span className="mx-1 text-slate-300">·</span>
-            <span>Rata-rata: {formatRupiah(avgOmzetPerDay)}/hari</span>
-          </div>
-        </div>
-
-        {/* Line Display Toggles */}
         <div className="flex items-center gap-2 self-start sm:self-auto text-xs">
           <button
             type="button"
-            onClick={() => setShowSales(!showSales)}
+            onClick={() => {
+              const newVal = !showSales;
+              // Prevent turning off if it's the last one visible
+              if (!newVal && !showGrossProfit && !showProfit) return;
+              setShowSales(newVal);
+            }}
             className={`px-2.5 py-1 rounded-xl font-bold flex items-center gap-1.5 border transition active:scale-95 ${
               showSales
-                ? 'bg-[#FF6038]/10 text-[#FF6038] border-[#FF6038]/30 shadow-2xs'
-                : 'bg-slate-100 text-slate-400 border-slate-200 opacity-60'
+                ? 'bg-[var(--utama)]/10 text-[var(--utama-teks)] border-[var(--utama-teks)]/30 shadow-2xs'
+                : 'bg-[var(--latar)] text-[var(--redup)] border-[var(--garis)] opacity-60'
             }`}
           >
-            <span className="w-2.5 h-2.5 rounded-full bg-[#FF6038]" />
+            <span className="w-2.5 h-2.5 rounded-full bg-[var(--utama)]" />
             <span>Omzet</span>
           </button>
 
           <button
             type="button"
-            onClick={() => setShowProfit(!showProfit)}
+            onClick={() => {
+              const newVal = !showGrossProfit;
+              if (!newVal && !showSales && !showProfit) return;
+              setShowGrossProfit(newVal);
+            }}
+            className={`px-2.5 py-1 rounded-xl font-bold flex items-center gap-1.5 border transition active:scale-95 ${
+              showGrossProfit
+                ? 'bg-amber-50 text-amber-700 border-amber-200 shadow-2xs'
+                : 'bg-[var(--latar)] text-[var(--redup)] border-[var(--garis)] opacity-60'
+            }`}
+          >
+            <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+            <span>Laba Kotor</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              const newVal = !showProfit;
+              if (!newVal && !showSales && !showGrossProfit) return;
+              setShowProfit(newVal);
+            }}
             className={`px-2.5 py-1 rounded-xl font-bold flex items-center gap-1.5 border transition active:scale-95 ${
               showProfit
                 ? 'bg-emerald-50 text-emerald-700 border-emerald-200 shadow-2xs'
-                : 'bg-slate-100 text-slate-400 border-slate-200 opacity-60'
+                : 'bg-[var(--latar)] text-[var(--redup)] border-[var(--garis)] opacity-60'
             }`}
           >
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
@@ -440,31 +479,40 @@ export const LineChartOwner: React.FC<LineChartOwnerProps> = ({
       {/* 4. Interactive SVG Line Chart */}
       <div className="relative w-full overflow-hidden select-none">
         {isLoading ? (
-          <div className="h-72 flex items-center justify-center text-xs font-semibold text-slate-400 bg-slate-50/50 rounded-2xl">
+          <div className="h-72 flex items-center justify-center text-xs font-semibold text-[var(--redup)] bg-[var(--latar)]/50 rounded-2xl">
             Memuat data grafik garis...
           </div>
         ) : chartData.length === 0 ? (
-          <div className="h-72 flex items-center justify-center text-xs font-semibold text-slate-400 bg-slate-50/50 rounded-2xl">
+          <div className="h-72 flex items-center justify-center text-xs font-semibold text-[var(--redup)] bg-[var(--latar)]/50 rounded-2xl">
             Tidak ada data transaksi pada rentang periode ini.
           </div>
         ) : (
-          <div className="w-full overflow-x-auto no-scrollbar">
-            <div className="min-w-[600px] sm:min-w-full">
-              <svg
-                viewBox={`0 0 ${svgWidth} ${svgHeight}`}
-                className="w-full h-64 sm:h-72 overflow-visible"
-              >
+          <div className="w-full" style={{ aspectRatio: `${svgWidth} / ${svgHeight}`, minHeight: '200px' }}>
+            <svg
+              viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+              width="100%"
+              height="100%"
+              preserveAspectRatio="xMidYMid meet"
+              style={{ display: 'block' }}
+              className="chart overflow-visible"
+            >
                 <defs>
                   {/* Gradient for Sales (Orange) */}
                   <linearGradient id={`salesGrad_${uid}`} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#FF6038" stopOpacity="0.25" />
-                    <stop offset="100%" stopColor="#FF6038" stopOpacity="0.0" />
+                    <stop offset="0%" style={{ stopColor: 'var(--utama)' }} stopOpacity="0.25" />
+                    <stop offset="100%" style={{ stopColor: 'var(--utama)' }} stopOpacity="0.0" />
                   </linearGradient>
 
                   {/* Gradient for Profit (Emerald) */}
                   <linearGradient id={`profitGrad_${uid}`} x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="#10B981" stopOpacity="0.22" />
                     <stop offset="100%" stopColor="#10B981" stopOpacity="0.0" />
+                  </linearGradient>
+
+                  {/* Gradient for Gross Profit (Yellow/Amber) */}
+                  <linearGradient id={`grossProfitGrad_${uid}`} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#F59E0B" stopOpacity="0.22" />
+                    <stop offset="100%" stopColor="#F59E0B" stopOpacity="0.0" />
                   </linearGradient>
                 </defs>
 
@@ -476,7 +524,7 @@ export const LineChartOwner: React.FC<LineChartOwnerProps> = ({
                       y1={tick.y}
                       x2={svgWidth - padRight}
                       y2={tick.y}
-                      stroke="#E2E8F0"
+                      style={{ stroke: 'var(--garis)' }}
                       strokeWidth="1"
                       strokeDasharray={i === 0 ? 'none' : '4 4'}
                     />
@@ -486,14 +534,45 @@ export const LineChartOwner: React.FC<LineChartOwnerProps> = ({
                       textAnchor="end"
                       fontSize="10"
                       fontWeight="bold"
-                      fill="#94A3B8"
+                      style={{ fill: 'var(--redup)' }}
                     >
                       {formatRupiah(tick.val)}
                     </text>
                   </g>
                 ))}
 
-                {/* Sales Area & Line */}
+                {/* Profit Area & Line (Green) - drawn first = bottom */}
+                {effectiveShowProfit && profitArea && (
+                  <path d={profitArea} fill={`url(#profitGrad_${uid})`} />
+                )}
+                {effectiveShowProfit && profitPath && (
+                  <path
+                    d={profitPath}
+                    fill="none"
+                    stroke="#10B981"
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                )}
+
+                {/* Gross Profit Area & Line (Yellow) - drawn second = middle (on top of Green) */}
+                {effectiveShowGrossProfit && grossProfitArea && (
+                  <path d={grossProfitArea} fill={`url(#grossProfitGrad_${uid})`} />
+                )}
+                {effectiveShowGrossProfit && grossProfitPath && (
+                  <path
+                    d={grossProfitPath}
+                    fill="none"
+                    stroke="#F59E0B"
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeDasharray="8 4"
+                  />
+                )}
+
+                {/* Sales Area & Line (Red) - drawn last = top */}
                 {showSales && salesArea && (
                   <path d={salesArea} fill={`url(#salesGrad_${uid})`} />
                 )}
@@ -501,23 +580,8 @@ export const LineChartOwner: React.FC<LineChartOwnerProps> = ({
                   <path
                     d={salesPath}
                     fill="none"
-                    stroke="#FF6038"
+                    style={{ stroke: 'var(--utama)' }}
                     strokeWidth="3.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                )}
-
-                {/* Profit Area & Line */}
-                {showProfit && profitArea && (
-                  <path d={profitArea} fill={`url(#profitGrad_${uid})`} />
-                )}
-                {showProfit && profitPath && (
-                  <path
-                    d={profitPath}
-                    fill="none"
-                    stroke="#10B981"
-                    strokeWidth="3"
                     strokeLinecap="round"
                     strokeLinejoin="round"
                   />
@@ -530,14 +594,52 @@ export const LineChartOwner: React.FC<LineChartOwnerProps> = ({
                     y1={padTop}
                     x2={getX(activeIdx)}
                     y2={baselineY}
-                    stroke="#0F172A"
+                    style={{ stroke: 'var(--teks)' }}
                     strokeWidth="1.5"
                     strokeDasharray="3 3"
                     className="opacity-50"
                   />
                 )}
 
-                {/* Data Points (Dots) for Sales */}
+                {/* Data Points (Dots) for Profit - drawn first = bottom */}
+                {effectiveShowProfit &&
+                  profitPoints.map((pt, idx) => {
+                    const isSelected = activeIdx === idx;
+                    return (
+                      <g key={`profit-pt-${idx}`} className="cursor-pointer">
+                        <circle
+                          cx={pt.x}
+                          cy={pt.y}
+                          r={isSelected ? 6 : chartData.length > 20 ? 2.5 : 3.5}
+                          style={{ fill: '#10B981', stroke: 'var(--kartu)' }}
+                          strokeWidth={isSelected ? 2.5 : 1.5}
+                          className="transition-all duration-150"
+                          onClick={() => setSelectedPointIndex((prev) => (prev === idx ? null : idx))}
+                        />
+                      </g>
+                    );
+                  })}
+
+                {/* Data Points (Dots) for Gross Profit - drawn second = middle (on top of Green) */}
+                {effectiveShowGrossProfit &&
+                  grossProfitPoints.map((pt, idx) => {
+                    const isSelected = activeIdx === idx;
+                    return (
+                      <g key={`gross-pt-${idx}`} className="cursor-pointer">
+                        <circle
+                          cx={pt.x}
+                          cy={pt.y}
+                          r={isSelected ? 6 : chartData.length > 20 ? 2.5 : 3.5}
+                          style={{ fill: '#F59E0B', stroke: 'var(--kartu)' }}
+                          strokeWidth={isSelected ? 2.5 : 1.5}
+                          className="transition-all duration-150"
+                          onClick={() => setSelectedPointIndex((prev) => (prev === idx ? null : idx))}
+                        />
+                      </g>
+                    );
+                  })}
+
+                {/* Data Points (Dots) for Sales - drawn last = top */}
                 {showSales &&
                   salesPoints.map((pt, idx) => {
                     const isSelected = activeIdx === idx;
@@ -547,8 +649,7 @@ export const LineChartOwner: React.FC<LineChartOwnerProps> = ({
                           cx={pt.x}
                           cy={pt.y}
                           r={isSelected ? 6.5 : chartData.length > 20 ? 3 : 4}
-                          fill="#FF6038"
-                          stroke="#FFFFFF"
+                          style={{ fill: 'var(--utama)', stroke: 'var(--kartu)' }}
                           strokeWidth={isSelected ? 3 : 2}
                           className="transition-all duration-150"
                           onClick={() => setSelectedPointIndex((prev) => (prev === idx ? null : idx))}
@@ -557,138 +658,119 @@ export const LineChartOwner: React.FC<LineChartOwnerProps> = ({
                     );
                   })}
 
-                {/* Data Points (Dots) for Profit */}
-                {showProfit &&
-                  profitPoints.map((pt, idx) => {
-                    const isSelected = activeIdx === idx;
-                    return (
-                      <g key={`profit-pt-${idx}`} className="cursor-pointer">
-                        <circle
-                          cx={pt.x}
-                          cy={pt.y}
-                          r={isSelected ? 6 : chartData.length > 20 ? 2.5 : 3.5}
-                          fill="#10B981"
-                          stroke="#FFFFFF"
-                          strokeWidth={isSelected ? 2.5 : 1.5}
-                          className="transition-all duration-150"
-                          onClick={() => setSelectedPointIndex((prev) => (prev === idx ? null : idx))}
-                        />
-                      </g>
-                    );
-                  })}
-
-                {/* FLOATING NUMBER BADGES (Muncul Angka Saat Dipencet / Ditekan / Hover) */}
+                {/* FLOATING NUMBER BADGES - Nominal di samping kanan titik bulatan, stacked vertically */}
                 {activeIdx !== null && chartData[activeIdx] && (
                   <>
-                    {/* Badge 1: Sales / Omzet Number Badge */}
-                    {showSales && ptSales && (
-                      <g className="transition-all duration-200 pointer-events-none animate-in fade-in zoom-in-95">
-                        {/* Halo glow pulse */}
-                        <circle
-                          cx={ptSales.x}
-                          cy={ptSales.y}
-                          r="12"
-                          fill="#FF6038"
-                          fillOpacity="0.25"
-                        />
-                        <circle
-                          cx={ptSales.x}
-                          cy={ptSales.y}
-                          r="6.5"
-                          fill="#FF6038"
-                          stroke="#FFFFFF"
-                          strokeWidth="3"
-                        />
+                    {/* Collect visible points for vertical stacking - smart algorithm avoids top/bottom clipping */}
+                    {(() => {
+                      const points = [
+                        { key: 'sales', show: showSales, pt: ptSales, color: 'var(--utama)', hexColor: 'var(--utama)', value: formatRupiah(chartData[activeIdx].penjualan), label: 'Omzet' },
+                        { key: 'gross', show: effectiveShowGrossProfit, pt: ptGrossProfit, color: '#F59E0B', hexColor: '#F59E0B', value: formatRupiah(chartData[activeIdx].labaKotor), label: 'Laba Kotor' },
+                        { key: 'profit', show: effectiveShowProfit, pt: ptProfit, color: '#10B981', hexColor: '#10B981', value: formatRupiah(chartData[activeIdx].labaBersih), label: 'Laba Bersih' },
+                      ].filter(p => p.show && p.pt);
 
-                        {/* Speech Bubble Badge with exact Rupiah number */}
-                        <g transform={`translate(${clampedSalesX}, ${Math.max(26, ptSales.y - 28)})`}>
-                          <polygon
-                            points="-5,0 5,0 0,6"
-                            fill="#FF6038"
-                            transform={`translate(${ptSales.x - clampedSalesX}, 0)`}
-                          />
-                          <rect
-                            x={-badgeHalf}
-                            y="-22"
-                            width={badgeWidth}
-                            height="22"
-                            rx="11"
-                            fill="#FF6038"
-                            filter="drop-shadow(0 3px 6px rgba(255,96,56,0.35))"
-                          />
-                          <text
-                            x="0"
-                            y="-7.5"
-                            textAnchor="middle"
-                            fontSize="11"
-                            fontWeight="900"
-                            fill="#FFFFFF"
-                            letterSpacing="-0.2"
-                          >
-                            {formatRupiah(chartData[activeIdx].penjualan)}
-                          </text>
-                        </g>
-                      </g>
-                    )}
+                      if (points.length === 0) return null;
 
-                    {/* Badge 2: Profit / Laba Number Badge */}
-                    {showProfit && ptProfit && (
-                      <g className="transition-all duration-200 pointer-events-none animate-in fade-in zoom-in-95">
-                        <circle
-                          cx={ptProfit.x}
-                          cy={ptProfit.y}
-                          r="11"
-                          fill="#10B981"
-                          fillOpacity="0.25"
-                        />
-                        <circle
-                          cx={ptProfit.x}
-                          cy={ptProfit.y}
-                          r="6"
-                          fill="#10B981"
-                          stroke="#FFFFFF"
-                          strokeWidth="2.5"
-                        />
+                      // Calculate badge positions with smart vertical stacking
+                      const badgeHeight = 22;
+                      const badgeGap = 6;
+                      const minY = padTop + 2;
+                      const maxY = baselineY - badgeHeight - 2;
+                      const plotCenterY = (minY + maxY) / 2;
 
-                        {(() => {
-                          const isCloseToSales = ptSales && Math.abs(ptSales.y - ptProfit.y) < 32;
-                          const profitBadgeY = isCloseToSales
-                            ? Math.min(baselineY - 10, ptProfit.y + 28)
-                            : Math.max(26, ptProfit.y - 28);
-                          const pointerDown = !isCloseToSales;
+                      // Ideal Y for each badge (centered on its point)
+                      const idealYs = points.map(p => p.pt!.y - badgeHeight / 2);
 
-                          return (
-                            <g transform={`translate(${clampedProfitX}, ${profitBadgeY})`}>
-                              <polygon
-                                points={pointerDown ? "-5,0 5,0 0,6" : "-5,0 5,0 0,-6"}
-                                fill="#10B981"
-                                transform={`translate(${ptProfit.x - clampedProfitX}, ${pointerDown ? 0 : -22})`}
-                              />
-                              <rect
-                                x={-badgeHalf}
-                                y="-22"
-                                width={badgeWidth}
-                                height="22"
-                                rx="11"
-                                fill="#10B981"
-                                filter="drop-shadow(0 3px 6px rgba(16,185,129,0.35))"
-                              />
-                              <text
-                                x="0"
-                                y="-7.5"
-                                textAnchor="middle"
-                                fontSize="10.5"
-                                fontWeight="900"
-                                fill="#FFFFFF"
-                                letterSpacing="-0.2"
-                              >
-                                {formatRupiah(chartData[activeIdx].labaBersih)}
-                              </text>
-                            </g>
-                          );
-                        })()}
-                      </g>
-                    )}
+                      // Detect if we're near top/bottom edge - if so, stack from center instead of first point
+                      const avgIdealY = idealYs.reduce((a, b) => a + b, 0) / idealYs.length;
+                      const nearTop = avgIdealY < minY + 30;
+                      const nearBottom = avgIdealY > maxY - 30;
+
+                      // Start Y: center of stack at plot center if near edge, else at average ideal Y
+                      const stackCenterY = (nearTop || nearBottom) ? plotCenterY : avgIdealY;
+                      const startY = stackCenterY - (points.length - 1) * (badgeHeight + badgeGap) / 2;
+
+                      // Ensure entire stack fits in bounds
+                      const finalStartY = Math.max(minY, Math.min(startY, maxY - (points.length - 1) * (badgeHeight + badgeGap)));
+
+                      return (
+                        <>
+                          {points.map((p, i) => {
+                            const baseY = finalStartY + i * (badgeHeight + badgeGap);
+                            const text = p.value;
+                            // Approximate text width: 7px per char + 24px padding
+                            const textWidth = Math.max(56, text.length * 7 + 24);
+                            const badgeX = p.pt!.x + 14;
+                            // Clamp to stay within SVG bounds (svgWidth - padRight - textWidth - 10)
+                            const clampedX = Math.min(badgeX, svgWidth - padRight - textWidth - 4);
+                            const clampedY = Math.max(minY, Math.min(maxY, baseY));
+
+                            return (
+                              <g key={p.key} className="transition-all duration-200 pointer-events-none animate-zoom-in animate-fade-in animate-slide-in-left">
+                                {/* Enhanced dot with ring */}
+                                <circle
+                                  cx={p.pt!.x}
+                                  cy={p.pt!.y}
+                                  r={p.key === 'sales' ? 10 : 9}
+                                  style={{ fill: p.color }}
+                                  fillOpacity="0.15"
+                                />
+                                <circle
+                                  cx={p.pt!.x}
+                                  cy={p.pt!.y}
+                                  r={p.key === 'sales' ? 5.5 : 5}
+                                  style={{ fill: p.color, stroke: 'var(--kartu)' }}
+                                  strokeWidth={p.key === 'sales' ? 2.5 : 2}
+                                />
+
+                                {/* Connector line from dot to badge */}
+                                <line
+                                  x1={p.pt!.x + (p.key === 'sales' ? 7 : 6)}
+                                  y1={p.pt!.y}
+                                  x2={clampedX}
+                                  y2={clampedY + badgeHeight / 2}
+                                  style={{ stroke: p.color, strokeWidth: 1.5, strokeDasharray: '3 3', opacity: 0.6 }}
+                                />
+
+                                {/* Badge background */}
+                                <g transform={`translate(${clampedX}, ${clampedY})`}>
+                                  <rect
+                                    x="0"
+                                    y="0"
+                                    width={textWidth}
+                                    height={badgeHeight}
+                                    rx="5"
+                                    style={{ fill: p.color }}
+                                    filter="drop-shadow(0 3px 8px rgba(0,0,0,0.15))"
+                                  />
+                                  {/* Left accent bar */}
+                                  <rect
+                                    x="0"
+                                    y="0"
+                                    width="4"
+                                    height={badgeHeight}
+                                    rx="5"
+                                    style={{ fill: 'white', fillOpacity: 0.25 }}
+                                  />
+                                  <text
+                                    x={textWidth / 2}
+                                    y={15}
+                                    textAnchor="middle"
+                                    fontSize="10.5"
+                                    fontWeight="800"
+                                    fill="white"
+                                    fontFamily="system-ui, -apple-system, sans-serif"
+                                    letterSpacing="-0.15"
+                                  >
+                                    {text}
+                                  </text>
+                                </g>
+                              </g>
+                            );
+                          })}
+                        </>
+                      );
+                    })()}
                   </>
                 )}
 
@@ -711,7 +793,7 @@ export const LineChartOwner: React.FC<LineChartOwnerProps> = ({
                       textAnchor="middle"
                       fontSize={isSelected ? '11' : '10'}
                       fontWeight={isSelected ? 'bold' : '600'}
-                      fill={isSelected ? '#FF6038' : '#64748B'}
+                      style={{ fill: isSelected ? 'var(--utama)' : 'var(--redup)' }}
                       className="transition-colors cursor-pointer"
                       onClick={() => setSelectedPointIndex((prev) => (prev === idx ? null : idx))}
                     >
@@ -744,59 +826,39 @@ export const LineChartOwner: React.FC<LineChartOwnerProps> = ({
                   );
                 })}
               </svg>
-            </div>
           </div>
         )}
       </div>
 
-      {/* 5. Tooltip Card / Detail Preview */}
-      <div className="p-3 sm:p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80">
+      {/* 5. Tooltip Card / Detail Preview - Format: Omzet: Rp... Laba Kotor: Rp... Laba Bersih: Rp... */}
+      <div className="p-3 sm:p-3.5 rounded-2xl bg-[var(--latar)] border border-[var(--garis)]/80">
         {currentHovered ? (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-            <div>
-              <span className="text-slate-500 text-[11px] font-semibold">Tanggal:</span>
-              <div className="font-extrabold text-slate-900">
-                {currentHovered.tanggal.length === 7
-                  ? currentHovered.label
-                  : formatDateIndo(currentHovered.tanggal)}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 text-xs">
+            <div className="flex items-center gap-2 p-2 bg-[var(--utama-muda)]/50 rounded-xl border border-[var(--garis)]">
+              <span className="w-2.5 h-2.5 rounded-full bg-[var(--utama)] shrink-0" />
+              <div>
+                <span className="text-[10px] font-semibold text-[var(--redup)] block">Omzet</span>
+                <span className="font-extrabold text-[var(--utama-teks)]">{formatRupiah(currentHovered.penjualan)}</span>
               </div>
             </div>
-
-            <div>
-              <span className="text-slate-500 text-[11px] font-semibold">
-                Penjualan ({currentHovered.totalTransaksi} tx):
-              </span>
-              <div className="font-black text-[#FF6038]">
-                {formatRupiah(currentHovered.penjualan)}
+            <div className="flex items-center gap-2 p-2 bg-amber-50/50 rounded-xl border border-[var(--garis)]">
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0" />
+              <div>
+                <span className="text-[10px] font-semibold text-[var(--redup)] block">Laba Kotor</span>
+                <span className={`font-extrabold ${currentHovered.labaKotor >= 0 ? 'text-amber-700' : 'text-rose-600'}`}>{formatRupiah(currentHovered.labaKotor)}</span>
               </div>
             </div>
-
-            <div>
-              <span className="text-slate-500 text-[11px] font-semibold">Bahan Baku + Ops:</span>
-              <div className="font-bold text-slate-700">
-                {formatRupiah(currentHovered.biayaBahan + currentHovered.biayaOperasional)}
-              </div>
-            </div>
-
-            <div>
-              <span className="text-slate-500 text-[11px] font-semibold">Laba Bersih:</span>
-              <div
-                className={`font-black flex items-center gap-1 ${
-                  currentHovered.labaBersih >= 0 ? 'text-emerald-600' : 'text-rose-600'
-                }`}
-              >
-                {currentHovered.labaBersih >= 0 ? (
-                  <ArrowUpRight className="w-3.5 h-3.5" />
-                ) : (
-                  <ArrowDownRight className="w-3.5 h-3.5" />
-                )}
-                <span>{formatRupiah(currentHovered.labaBersih)}</span>
+            <div className="flex items-center gap-2 p-2 bg-emerald-50/50 rounded-xl border border-[var(--garis)]">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" />
+              <div>
+                <span className="text-[10px] font-semibold text-[var(--redup)] block">Laba Bersih</span>
+                <span className={`font-extrabold ${currentHovered.labaBersih >= 0 ? 'text-emerald-700' : 'text-rose-600'}`}>{formatRupiah(currentHovered.labaBersih)}</span>
               </div>
             </div>
           </div>
         ) : (
-          <div className="text-xs text-gray-500 flex items-center justify-center gap-1.5 py-1">
-            <Info className="w-3.5 h-3.5 text-orange-600" />
+          <div className="text-xs text-[var(--redup)] flex items-center justify-center gap-1.5 py-1">
+            <Info className="w-3.5 h-3.5 text-[var(--utama-teks)]" />
             <span>Arahkan kursor atau ketuk titik bulatan grafik untuk melihat detail nominal.</span>
           </div>
         )}
@@ -804,4 +866,133 @@ export const LineChartOwner: React.FC<LineChartOwnerProps> = ({
     </div>
   );
 };
+
+// ===== Date Range Calendar Component =====
+interface DateRangeCalendarProps {
+  startDate: string;
+  endDate: string;
+  onStartChange: (val: string) => void;
+  onEndChange: (val: string) => void;
+  maxDays: number;
+}
+
+const DateRangeCalendar: React.FC<DateRangeCalendarProps> = ({
+  startDate,
+  endDate,
+  onStartChange,
+  onEndChange,
+  maxDays,
+}) => {
+  const [viewMonth, setViewMonth] = useState(() => {
+    const d = startDate ? new Date(startDate) : new Date();
+    return { year: d.getFullYear(), month: d.getMonth() };
+  });
+
+  const daysInMonth = new Date(viewMonth.year, viewMonth.month + 1, 0).getDate();
+  const firstDayOfWeek = new Date(viewMonth.year, viewMonth.month, 1).getDay();
+  const todayStr = getFormattedDate(new Date());
+
+  const prevMonth = () => setViewMonth(m => ({ year: m.month === 0 ? m.year - 1 : m.year, month: m.month === 0 ? 11 : m.month - 1 }));
+  const nextMonth = () => setViewMonth(m => ({ year: m.month === 11 ? m.year + 1 : m.year, month: m.month === 11 ? 0 : m.month + 1 }));
+
+  const isDateInRange = (dateStr: string) => {
+    if (!startDate || !endDate) return false;
+    return dateStr >= startDate && dateStr <= endDate;
+  };
+
+  const isDateSelected = (dateStr: string) => dateStr === startDate || dateStr === endDate;
+
+  const handleDayClick = (day: number) => {
+    const dateStr = `${viewMonth.year}-${String(viewMonth.month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    
+    if (!startDate || (startDate && endDate)) {
+      onStartChange(dateStr);
+      onEndChange(dateStr);
+    } else if (dateStr < startDate) {
+      onStartChange(dateStr);
+    } else {
+      const start = new Date(startDate);
+      const clicked = new Date(dateStr);
+      const diffDays = Math.floor((clicked.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+      
+      if (diffDays <= maxDays) {
+        onEndChange(dateStr);
+      } else {
+        const maxEnd = new Date(start);
+        maxEnd.setDate(start.getDate() + maxDays);
+        onEndChange(getFormattedDate(maxEnd));
+      }
+    }
+  };
+
+  const isDisabled = (day: number) => {
+    if (!startDate) return false;
+    const dateStr = `${viewMonth.year}-${String(viewMonth.month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const start = new Date(startDate);
+    const clicked = new Date(dateStr);
+    const diffDays = Math.floor((clicked.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+    return diffDays > maxDays;
+  };
+
+  return (
+    <div className="bg-[var(--kartu)] rounded-xl border border-[var(--garis)] p-3">
+      <div className="flex items-center justify-between mb-2">
+        <button type="button" onClick={prevMonth} className="p-1 rounded hover:bg-[var(--latar)] text-[var(--teks)]" aria-label="Bulan sebelumnya">
+          <ChevronLeft className="w-5 h-5" />
+        </button>
+        <span className="font-semibold text-sm text-[var(--teks)] capitalize">
+          {new Date(viewMonth.year, viewMonth.month).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
+        </span>
+        <button type="button" onClick={nextMonth} className="p-1 rounded hover:bg-[var(--latar)] text-[var(--teks)]" aria-label="Bulan berikutnya">
+          <ChevronRight className="w-5 h-5" />
+        </button>
+      </div>
+
+      <div className="grid grid-cols-7 gap-0.5 mb-1">
+        {['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'].map((d, i) => (
+          <div key={i} className="text-center text-[10px] font-semibold text-[var(--redup)] py-1">{d}</div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-7 gap-0.5">
+        {Array.from({ length: firstDayOfWeek }).map((_, i) => (
+          <div key={`empty-${i}`} className="aspect-square" />
+        ))}
+        {Array.from({ length: daysInMonth }, (_, i) => {
+          const day = i + 1;
+          const dateStr = `${viewMonth.year}-${String(viewMonth.month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+          const inRange = isDateInRange(dateStr);
+          const selected = isDateSelected(dateStr);
+          const disabled = isDisabled(day);
+          const isToday = dateStr === todayStr;
+
+          return (
+            <button
+              key={day}
+              type="button"
+              onClick={() => !disabled && handleDayClick(day)}
+              disabled={disabled}
+              className={`aspect-square relative rounded-lg text-xs font-medium transition-all active:scale-95 ${
+                selected ? 'bg-[var(--utama)] text-white shadow-xs z-10'
+                : inRange ? 'bg-[var(--utama-muda)]/50 text-[var(--utama-teks)]'
+                : disabled ? 'text-[var(--garis)] cursor-not-allowed'
+                : 'text-[var(--teks)] hover:bg-[var(--latar)]'
+              } ${isToday && !selected && !inRange ? 'ring-2 ring-[var(--utama-teks)]' : ''}`}
+            >
+              {day}
+              {inRange && !selected && <div className="absolute left-0 right-0 top-1/2 h-0.5 bg-[var(--utama)]/30 -translate-y-1/2" />}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="flex items-center gap-3 mt-3 text-[10px] text-[var(--redup)]">
+        <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded bg-[var(--utama)]" /> Dipilih</span>
+        <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded bg-[var(--utama-muda)]/50 border border-[var(--garis)]" /> Dalam Rentang</span>
+        <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded border border-[var(--utama-teks)]" /> Hari Ini</span>
+      </div>
+    </div>
+  );
+};
+
 

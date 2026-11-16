@@ -14,6 +14,9 @@ import {
   FileText,
   Clock,
   Store,
+  ChevronDown,
+  X,
+  File,
 } from 'lucide-react';
 import { db, getFormattedDate } from '../../db';
 import type { Transaksi, DetailTransaksi } from '../../types';
@@ -50,6 +53,7 @@ export const EksporDataView: React.FC = () => {
   const [totalOmzet, setTotalOmzet] = useState(0);
   const [totalTxCount, setTotalTxCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
 
   // Fetch data matching current date range & branch filter
   const loadData = async () => {
@@ -135,6 +139,20 @@ export const EksporDataView: React.FC = () => {
     loadData();
   }, [startDate, endDate, selectedCabangFilter]);
 
+  // Close export menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('[data-export-menu]')) {
+        setShowExportMenu(false);
+      }
+    };
+    if (showExportMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showExportMenu]);
+
   const handleExportCSV = () => {
     if (previewRows.length === 0) {
       showToast('Tidak ada data transaksi pada rentang tanggal tersebut.', 'error');
@@ -195,6 +213,68 @@ export const EksporDataView: React.FC = () => {
     URL.revokeObjectURL(url);
 
     showToast(`File CSV ${selectedCabangFilter} siap diunduh dan dibuka di Excel/Sheets!`, 'success');
+    setShowExportMenu(false);
+  };
+
+  const handleExportXLSX = () => {
+    if (previewRows.length === 0) {
+      showToast('Tidak ada data transaksi pada rentang tanggal tersebut.', 'error');
+      return;
+    }
+
+    // Create workbook using simple HTML table approach (Excel can open it)
+    const headers = [
+      'Tanggal',
+      'Waktu',
+      'Cabang',
+      'ID Transaksi',
+      'Nama Item',
+      'Jumlah',
+      'Harga Satuan',
+      'Subtotal',
+      'Total Transaksi',
+      'Metode Pembayaran',
+      'Kasir',
+    ];
+
+    const rows = previewRows.map((r) => [
+      r.tanggal,
+      r.waktu,
+      r.cabang,
+      r.id_transaksi,
+      r.nama_item,
+      r.jumlah,
+      r.harga_satuan,
+      r.subtotal,
+      r.total_transaksi,
+      r.metode_pembayaran,
+      r.kasir,
+    ]);
+
+    // Build HTML table
+    let html = '<table border="1">';
+    html += '<tr>' + headers.map(h => `<th>${h}</th>`).join('') + '</tr>';
+    for (const row of rows) {
+      html += '<tr>' + row.map(c => `<td>${c}</td>`).join('') + '</tr>';
+    }
+    html += '</table>';
+
+    const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement('a');
+    const startStr = startDate.replace(/-/g, '');
+    const endStr = endDate.replace(/-/g, '');
+    const cabangSuffix = selectedCabangFilter === 'Semua' ? 'semua' : selectedCabangFilter.toLowerCase().replace(/\s+/g, '_');
+    link.href = url;
+    link.setAttribute('download', `transaksi_${cabangSuffix}_${startStr}_${endStr}.xls`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    showToast(`File Excel ${selectedCabangFilter} siap diunduh!`, 'success');
+    setShowExportMenu(false);
   };
 
   return (
@@ -202,39 +282,66 @@ export const EksporDataView: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
         <div>
-          <h2 className="text-xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
-            <FileSpreadsheet className="w-6 h-6 text-[#FF6038]" />
-            <span>Ekspor Data Transaksi (CSV)</span>
+          <h2 className="text-xl font-extrabold text-[var(--teks)] tracking-tight flex items-center gap-2">
+            <FileSpreadsheet className="w-6 h-6 text-[var(--utama-teks)]" />
+            <span>Ekspor Data Transaksi</span>
           </h2>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Unduh laporan penjualan berformat CSV standar untuk diolah di Excel, Google Sheets, atau dikirim via WhatsApp.
+          <p className="text-xs text-[var(--redup)] mt-0.5">
+            Unduh laporan penjualan berformat CSV atau XLS untuk diolah di Excel, Google Sheets, atau dikirim via WhatsApp.
           </p>
         </div>
 
-        <button
-          onClick={handleExportCSV}
-          disabled={previewRows.length === 0}
-          className="self-start sm:self-auto flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-[#FF6038] hover:bg-[#E04620] active:scale-95 text-white text-xs font-bold transition shadow-md shadow-orange-500/20 disabled:opacity-50"
-        >
-          <Download className="w-4 h-4" />
-          <span>Unduh File CSV ({previewRows.length} Baris)</span>
-        </button>
+        <div className="relative self-start sm:self-auto">
+          <button
+            type="button"
+            onClick={() => setShowExportMenu(!showExportMenu)}
+            disabled={previewRows.length === 0}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-[var(--utama)] hover:bg-[var(--utama-tua)] active:bg-[var(--utama)] text-white text-xs font-bold transition shadow-md shadow-[var(--utama)]/20 disabled:opacity-50"
+          >
+            <Download className="w-4 h-4" />
+            <span>Unduh Data ({previewRows.length} Baris)</span>
+            <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showExportMenu ? 'rotate-180' : ''}`} />
+          </button>
+          {showExportMenu && (
+            <div data-export-menu className="absolute bottom-full right-0 mb-2 z-10 animate-in fade-in-20 zoom-in-95">
+              <div className="bg-[var(--kartu)] rounded-2xl border border-[var(--garis)] shadow-lg overflow-hidden min-w-[180px]">
+                <button
+                  type="button"
+                  onClick={handleExportCSV}
+                  className="w-full px-4 py-2.5 text-left text-xs font-semibold text-[var(--teks)] hover:bg-[var(--latar)] transition flex items-center gap-2"
+                >
+                  <FileText className="w-4 h-4 text-green-600" />
+                  <span>CSV (Excel/Sheets)</span>
+                </button>
+                <div className="border-t border-[var(--garis)]" />
+                <button
+                  type="button"
+                  onClick={handleExportXLSX}
+                  className="w-full px-4 py-2.5 text-left text-xs font-semibold text-[var(--teks)] hover:bg-[var(--latar)] transition flex items-center gap-2"
+                >
+                  <File className="w-4 h-4 text-green-600" />
+                  <span>XLS (Excel 97-2003)</span>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Date Range Picker & Filter Card */}
-      <div className="bg-white rounded-3xl p-5 border border-slate-200/90 shadow-2xs mb-5">
+      <div className="bg-[var(--kartu)] rounded-3xl p-5 border border-[var(--garis)]/90 shadow-2xs mb-5">
         {/* Cabang Filter Pills */}
-        <div className="mb-4 pb-3 border-b border-slate-100 flex items-center gap-2 flex-wrap">
-          <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 mr-1">
-            <Store className="w-4 h-4 text-[#FF6038]" />
+        <div className="mb-4 pb-3 border-b border-[var(--garis)] flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-1.5 text-xs font-bold text-[var(--teks)] mr-1">
+            <Store className="w-4 h-4 text-[var(--utama-teks)]" />
             <span>Pilih Cabang:</span>
           </div>
           <button
             onClick={() => setSelectedCabangFilter('Semua')}
             className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
               selectedCabangFilter === 'Semua'
-                ? 'bg-slate-900 text-white shadow-xs'
-                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                ? 'bg-[var(--utama)] text-white shadow-xs shadow-[var(--utama)]/20'
+                : 'bg-[var(--latar)] text-[var(--teks)] hover:bg-[var(--garis)]'
             }`}
           >
             Semua Cabang (Gabungan)
@@ -245,8 +352,8 @@ export const EksporDataView: React.FC = () => {
               onClick={() => setSelectedCabangFilter(c)}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
                 selectedCabangFilter === c
-                  ? 'bg-[#FF6038] text-white shadow-xs shadow-orange-500/20'
-                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  ? 'bg-[var(--utama)] text-white shadow-xs shadow-[var(--utama)]/20'
+                  : 'bg-[var(--latar)] text-[var(--teks)] hover:bg-[var(--garis)]'
               }`}
             >
               {c}
@@ -254,13 +361,13 @@ export const EksporDataView: React.FC = () => {
           ))}
         </div>
 
-        <h3 className="font-bold text-xs text-slate-700 uppercase tracking-wider mb-3">
+        <h3 className="font-bold text-xs text-[var(--teks)] uppercase tracking-wider mb-3">
           Pilih Rentang Tanggal
         </h3>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1">
+            <label className="block text-xs font-semibold text-[var(--redup)] mb-1">
               Tanggal Mulai
             </label>
             <div className="relative">
@@ -268,13 +375,13 @@ export const EksporDataView: React.FC = () => {
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#FF6038]/30 focus:border-[#FF6038] outline-none"
+                className="w-full px-3 py-2 text-xs border border-[var(--garis)] rounded-xl focus:ring-2 focus:ring-[var(--utama-teks)]/30 focus:border-[var(--utama-teks)] outline-none"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1">
+            <label className="block text-xs font-semibold text-[var(--redup)] mb-1">
               Tanggal Selesai
             </label>
             <div className="relative">
@@ -282,63 +389,25 @@ export const EksporDataView: React.FC = () => {
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#FF6038]/30 focus:border-[#FF6038] outline-none"
+                className="w-full px-3 py-2 text-xs border border-[var(--garis)] rounded-xl focus:ring-2 focus:ring-[var(--utama-teks)]/30 focus:border-[var(--utama-teks)] outline-none"
               />
             </div>
-          </div>
-
-          {/* Quick presets */}
-          <div className="lg:col-span-2 flex items-end gap-2 pb-0.5">
-            <button
-              onClick={() => {
-                const t = new Date();
-                setStartDate(getFormattedDate(t));
-                setEndDate(getFormattedDate(t));
-              }}
-              className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition"
-            >
-              Hari Ini
-            </button>
-            <button
-              onClick={() => {
-                const t = new Date();
-                const p = new Date(t);
-                p.setDate(t.getDate() - 7);
-                setStartDate(getFormattedDate(p));
-                setEndDate(getFormattedDate(t));
-              }}
-              className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition"
-            >
-              7 Hari
-            </button>
-            <button
-              onClick={() => {
-                const t = new Date();
-                const p = new Date(t);
-                p.setDate(t.getDate() - 30);
-                setStartDate(getFormattedDate(p));
-                setEndDate(getFormattedDate(t));
-              }}
-              className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition"
-            >
-              30 Hari
-            </button>
           </div>
         </div>
 
         {/* Stats Summary */}
-        <div className="grid grid-cols-3 gap-2 pt-4 mt-4 border-t border-slate-100 text-center">
-          <div className="p-2.5 rounded-2xl bg-slate-50">
-            <div className="text-[11px] text-slate-500">Total Transaksi</div>
-            <div className="text-base font-extrabold text-slate-900">{totalTxCount}</div>
+        <div className="grid grid-cols-3 gap-2 pt-4 mt-4 border-t border-[var(--garis)] text-center">
+          <div className="p-2.5 rounded-2xl bg-[var(--latar)]">
+            <div className="text-[11px] text-[var(--redup)]">Total Transaksi</div>
+            <div className="text-base font-extrabold text-[var(--teks)]">{totalTxCount}</div>
           </div>
-          <div className="p-2.5 rounded-2xl bg-slate-50">
-            <div className="text-[11px] text-slate-500">Item Terjual (Baris)</div>
-            <div className="text-base font-extrabold text-slate-900">{previewRows.length}</div>
+          <div className="p-2.5 rounded-2xl bg-[var(--latar)]">
+            <div className="text-[11px] text-[var(--redup)]">Item Terjual (Baris)</div>
+            <div className="text-base font-extrabold text-[var(--teks)]">{previewRows.length}</div>
           </div>
-          <div className="p-2.5 rounded-2xl bg-orange-50/60 border border-orange-100">
-            <div className="text-[11px] text-orange-800">Total Penjualan ({selectedCabangFilter})</div>
-            <div className="text-base font-extrabold text-[#FF6038]">
+          <div className="p-2.5 rounded-2xl bg-[var(--utama-muda)]/60 border border-[var(--garis)]">
+            <div className="text-[11px] text-[var(--utama-teks)]">Total Penjualan ({selectedCabangFilter})</div>
+            <div className="text-base font-extrabold text-[var(--utama-teks)]">
               {formatRupiah(totalOmzet)}
             </div>
           </div>
@@ -346,25 +415,25 @@ export const EksporDataView: React.FC = () => {
       </div>
 
       {/* CSV Preview Table */}
-      <div className="bg-white rounded-3xl border border-slate-200/90 shadow-2xs overflow-hidden">
-        <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+      <div className="bg-[var(--kartu)] rounded-3xl border border-[var(--garis)]/90 shadow-2xs overflow-hidden">
+        <div className="p-4 border-b border-[var(--garis)] flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Eye className="w-4 h-4 text-slate-400" />
-            <h4 className="font-bold text-xs text-slate-800 uppercase tracking-wider">
+            <Eye className="w-4 h-4 text-[var(--redup)]" />
+            <h4 className="font-bold text-xs text-[var(--teks)] uppercase tracking-wider">
               Preview Data CSV ({selectedCabangFilter} - Maks. 50 Baris)
             </h4>
           </div>
-          <span className="text-xs text-slate-400">Format: UTF-8 Comma Delimited</span>
+          <span className="text-xs text-[var(--redup)]">Format: UTF-8 Comma Delimited</span>
         </div>
 
         {previewRows.length === 0 ? (
-          <div className="text-center py-12 p-6 text-xs text-slate-400">
+          <div className="text-center py-12 p-6 text-xs text-[var(--redup)]">
             Tidak ada transaksi pada rentang tanggal dan cabang ini.
           </div>
         ) : (
           <div className="overflow-x-auto max-h-96">
             <table className="w-full text-left text-[11px]">
-              <thead className="bg-slate-50 border-b border-slate-200 font-mono text-slate-500 uppercase sticky top-0">
+              <thead className="bg-[var(--latar)] border-b border-[var(--garis)] font-mono text-[var(--redup)] uppercase sticky top-0">
                 <tr>
                   <th className="py-2.5 px-3">Tanggal</th>
                   <th className="py-2.5 px-3">Waktu</th>
@@ -378,11 +447,11 @@ export const EksporDataView: React.FC = () => {
                   <th className="py-2.5 px-3">Kasir</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 font-mono">
+              <tbody className="divide-y divide-[var(--garis)] font-mono">
                 {previewRows.slice(0, 50).map((row, i) => (
-                  <tr key={i} className="hover:bg-slate-50 transition">
-                    <td className="py-2 px-3 text-slate-700">{row.tanggal}</td>
-                    <td className="py-2 px-3 text-slate-500">{row.waktu}</td>
+                  <tr key={i} className="hover:bg-[var(--latar)] transition">
+                    <td className="py-2 px-3 text-[var(--teks)]">{row.tanggal}</td>
+                    <td className="py-2 px-3 text-[var(--redup)]">{row.waktu}</td>
                     <td className="py-2 px-3">
                       <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-black ${
                         row.cabang === 'Cabang 1'
@@ -392,19 +461,19 @@ export const EksporDataView: React.FC = () => {
                         {row.cabang}
                       </span>
                     </td>
-                    <td className="py-2 px-3 text-slate-800 font-bold">#{row.id_transaksi}</td>
-                    <td className="py-2 px-3 font-sans font-semibold text-slate-800">
+                    <td className="py-2 px-3 text-[var(--teks)] font-bold">#{row.id_transaksi}</td>
+                    <td className="py-2 px-3 font-sans font-semibold text-[var(--teks)]">
                       {row.nama_item}
                     </td>
                     <td className="py-2 px-3 text-center font-bold">{row.jumlah}</td>
                     <td className="py-2 px-3 text-right">{row.harga_satuan.toLocaleString()}</td>
-                    <td className="py-2 px-3 text-right font-bold text-slate-900">
+                    <td className="py-2 px-3 text-right font-bold text-[var(--teks)]">
                       {row.subtotal.toLocaleString()}
                     </td>
-                    <td className="py-2 px-3 font-sans text-slate-600">
+                    <td className="py-2 px-3 font-sans text-[var(--redup)]">
                       {row.metode_pembayaran}
                     </td>
-                    <td className="py-2 px-3 font-sans text-slate-600">{row.kasir}</td>
+                    <td className="py-2 px-3 font-sans text-[var(--redup)]">{row.kasir}</td>
                   </tr>
                 ))}
               </tbody>

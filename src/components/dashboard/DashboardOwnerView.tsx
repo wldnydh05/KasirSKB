@@ -65,7 +65,9 @@ export const DashboardOwnerView: React.FC<DashboardOwnerViewProps> = ({ onNaviga
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
   const [period, setPeriod] = useState<ChartPeriod>('7-hari');
   const [selectedMonth, setSelectedMonth] = useState<number>(() => new Date().getMonth() + 1);
+  const [selectedMonthEnd, setSelectedMonthEnd] = useState<number>(() => new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState<number>(() => new Date().getFullYear());
+  const [selectedYearEnd, setSelectedYearEnd] = useState<number>(() => new Date().getFullYear());
   const [monthViewMode, setMonthViewMode] = useState<MonthViewMode>('daily');
 
   // Custom date range states
@@ -181,26 +183,32 @@ export const DashboardOwnerView: React.FC<DashboardOwnerViewProps> = ({ onNaviga
             dateBuckets.push({ dateStr, label });
           }
         } else if (period === 'bulan') {
-          if (monthViewMode === 'daily') {
-            // Daily for the selected month
-            const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
-            const monthStr = String(selectedMonth).padStart(2, '0');
-            for (let day = 1; day <= daysInMonth; day++) {
-              const dayStr = String(day).padStart(2, '0');
-              const dateStr = `${selectedYear}-${monthStr}-${dayStr}`;
-              const label = `${day} ${BULAN_NAMES[selectedMonth - 1].slice(0, 3)}`;
-              dateBuckets.push({ dateStr, label });
-            }
-          } else {
-            // 12 Months comparison for the selected year
-            for (let m = 1; m <= 12; m++) {
-              const mStr = String(m).padStart(2, '0');
-              dateBuckets.push({
-                dateStr: `${selectedYear}-${mStr}`,
-                label: BULAN_NAMES[m - 1],
-                isMonthlyAggregate: true,
-                monthNum: m,
-              });
+          // Month range: monthly aggregates supporting cross-year (e.g., Jul 2026 - Jul 2027)
+          const startYear = selectedYear;
+          const endYear = selectedYearEnd;
+          const startMonth = selectedMonth;
+          const endMonth = selectedMonthEnd;
+
+          // Generate months from startYear/startMonth to endYear/endMonth
+          let currentYear = startYear;
+          let currentMonth = startMonth;
+
+          while (true) {
+            const mStr = String(currentMonth).padStart(2, '0');
+            dateBuckets.push({
+              dateStr: `${currentYear}-${mStr}`,
+              label: `${BULAN_NAMES[currentMonth - 1]} ${currentYear}`,
+              isMonthlyAggregate: true,
+              monthNum: currentMonth,
+              year: currentYear,
+            });
+
+            if (currentYear === endYear && currentMonth === endMonth) break;
+
+            currentMonth++;
+            if (currentMonth > 12) {
+              currentMonth = 1;
+              currentYear++;
             }
           }
         } else if (period === 'custom') {
@@ -213,10 +221,10 @@ export const DashboardOwnerView: React.FC<DashboardOwnerViewProps> = ({ onNaviga
             end = tmp;
           }
 
-          // Generate days between start and end (capped at 90 days max)
+          // Generate days between start and end (capped at 30 days max)
           const curr = new Date(start);
           let count = 0;
-          while (curr <= end && count < 90) {
+          while (curr <= end && count < 30) {
             const dateStr = getFormattedDate(curr);
             const label = `${curr.getDate()} ${BULAN_NAMES[curr.getMonth()].slice(0, 3)}`;
             dateBuckets.push({ dateStr, label });
@@ -234,9 +242,9 @@ export const DashboardOwnerView: React.FC<DashboardOwnerViewProps> = ({ onNaviga
         let queryStartStr = dateBuckets[0].dateStr;
         let queryEndStr = dateBuckets[dateBuckets.length - 1].dateStr;
 
-        if (period === 'bulan' && monthViewMode === 'yearly') {
-          queryStartStr = `${selectedYear}-01-01`;
-          queryEndStr = `${selectedYear}-12-31`;
+        if (period === 'bulan') {
+          queryStartStr = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01`;
+          queryEndStr = `${selectedYearEnd}-${String(selectedMonthEnd).padStart(2, '0')}-31`;
         }
 
         // Fetch transactions for the entire date range
@@ -284,9 +292,9 @@ export const DashboardOwnerView: React.FC<DashboardOwnerViewProps> = ({ onNaviga
           let dayTx: Transaksi[] = [];
           let dayOperasional = 0;
 
-          if (bucket.isMonthlyAggregate && bucket.monthNum) {
-            // Aggregate all transactions in this month
-            const monthPrefix = `${selectedYear}-${String(bucket.monthNum).padStart(2, '0')}`;
+          if (bucket.isMonthlyAggregate && bucket.monthNum && bucket.year) {
+            // Aggregate all transactions in this month (supports cross-year)
+            const monthPrefix = `${bucket.year}-${String(bucket.monthNum).padStart(2, '0')}`;
             dayTx = txList.filter((t) => t.tanggal.startsWith(monthPrefix));
             // Aggregate operational costs in this month
             for (const b of biayaList) {
@@ -314,7 +322,8 @@ export const DashboardOwnerView: React.FC<DashboardOwnerViewProps> = ({ onNaviga
             }
           }
 
-          const dayLaba = dayPenjualan - (dayBahanCost + dayOperasional);
+          const dayLabaKotor = dayPenjualan - dayBahanCost;
+          const dayLaba = dayLabaKotor - dayOperasional;
 
           return {
             tanggal: bucket.dateStr,
@@ -322,6 +331,7 @@ export const DashboardOwnerView: React.FC<DashboardOwnerViewProps> = ({ onNaviga
             penjualan: dayPenjualan,
             biayaBahan: dayBahanCost,
             biayaOperasional: dayOperasional,
+            labaKotor: dayLabaKotor,
             labaBersih: dayLaba,
             totalTransaksi: dayTx.length,
           };
@@ -336,7 +346,7 @@ export const DashboardOwnerView: React.FC<DashboardOwnerViewProps> = ({ onNaviga
     }
 
     loadChartData();
-  }, [period, selectedMonth, selectedYear, monthViewMode, customStartDate, customEndDate, selectedCabangFilter]);
+  }, [period, selectedMonth, selectedMonthEnd, selectedYear, selectedYearEnd, monthViewMode, customStartDate, customEndDate, selectedCabangFilter]);
 
   const totalCombinedToday = branchComparison.cabang1Sales + branchComparison.cabang2Sales;
   const c1Percent = totalCombinedToday > 0 ? Math.round((branchComparison.cabang1Sales / totalCombinedToday) * 100) : 50;
@@ -347,23 +357,23 @@ export const DashboardOwnerView: React.FC<DashboardOwnerViewProps> = ({ onNaviga
       {/* Dashboard Top Header & Branch Switcher Bar */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-5">
         <div>
-          <h2 className="text-xl font-bold text-gray-900">
+          <h2 className="text-xl font-bold text-[var(--teks)]">
             Dashboard Pemilik Usaha
           </h2>
-          <p className="text-xs text-gray-500 mt-0.5">
+          <p className="text-xs text-[var(--redup)] mt-0.5">
             Laporan penjualan, grafik keuangan, dan komparasi performa antar cabang warung.
           </p>
         </div>
 
         {/* Multi-Branch Filter Tabs Sederhana */}
-        <div className="flex items-center gap-1 p-1 bg-gray-100 rounded-lg border border-gray-300 self-start md:self-auto text-xs">
+        <div className="flex items-center gap-1 p-1 bg-[var(--latar)] rounded-lg border border-[var(--garis-kuat)] self-start md:self-auto text-xs">
           <button
             type="button"
             onClick={() => setSelectedCabangFilter('Semua')}
             className={`px-3 py-1.5 rounded font-medium transition cursor-pointer ${
               selectedCabangFilter === 'Semua'
-                ? 'bg-orange-600 text-white font-semibold shadow-xs'
-                : 'text-gray-700 hover:text-gray-900'
+                ? 'bg-[var(--utama)] text-white font-semibold shadow-xs'
+                : 'text-[var(--teks)] hover:text-[var(--teks)]'
             }`}
           >
             Semua Cabang
@@ -378,8 +388,8 @@ export const DashboardOwnerView: React.FC<DashboardOwnerViewProps> = ({ onNaviga
                 onClick={() => setSelectedCabangFilter(cabang)}
                 className={`px-3 py-1.5 rounded font-medium transition cursor-pointer ${
                   isSelected
-                    ? 'bg-orange-600 text-white font-semibold shadow-xs'
-                    : 'text-gray-700 hover:text-gray-900'
+                    ? 'bg-[var(--utama)] text-white font-semibold shadow-xs'
+                    : 'text-[var(--teks)] hover:text-[var(--teks)]'
                 }`}
               >
                 {cabang}
@@ -389,23 +399,24 @@ export const DashboardOwnerView: React.FC<DashboardOwnerViewProps> = ({ onNaviga
         </div>
       </div>
 
-      {/* Perbandingan Penjualan Antar Cabang (Tampilan Tabel Mahasiswa / Sistem Informasi) */}
-      <div className="mb-5 bg-white rounded-lg border border-gray-300 shadow-sm overflow-hidden">
-        <div className="p-4 bg-gray-50 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+      {/* Perbandingan penjualan dipindahkan ke filter cabang di Navbar. */}
+      {false && (
+        <>
+        <div className="p-4 bg-[var(--latar)] border-b border-[var(--garis)] flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
-            <h3 className="font-bold text-sm sm:text-base text-gray-800 flex items-center gap-2">
-              <Store className="w-4 h-4 text-orange-600" />
+            <h3 className="font-bold text-sm sm:text-base text-[var(--teks)] flex items-center gap-2">
+              <Store className="w-4 h-4 text-[var(--utama-teks)]" />
               <span>Tabel Perbandingan Penjualan Antar Cabang (Hari Ini)</span>
             </h3>
-            <p className="text-xs text-gray-500 mt-0.5">
+            <p className="text-xs text-[var(--redup)] mt-0.5">
               Rekap perolehan omzet dan volume transaksi harian per kasir cabang
             </p>
           </div>
 
           <div className="flex items-center gap-2 text-left sm:text-right">
             <div>
-              <span className="text-[11px] text-gray-500 block uppercase font-medium">Total Omzet Gabungan</span>
-              <span className="text-base font-bold text-gray-900">
+              <span className="text-[11px] text-[var(--redup)] block uppercase font-medium">Total Omzet Gabungan</span>
+              <span className="text-base font-bold text-[var(--teks)]">
                 {formatRupiah(totalCombinedToday)}
               </span>
             </div>
@@ -415,7 +426,7 @@ export const DashboardOwnerView: React.FC<DashboardOwnerViewProps> = ({ onNaviga
         {/* Tabel Komparasi Cabang */}
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs sm:text-sm border-collapse">
-            <thead className="bg-gray-100/90 text-gray-700 text-xs font-semibold uppercase tracking-wider border-b border-gray-200">
+            <thead className="bg-[var(--latar)]/90 text-[var(--teks)] text-xs font-semibold uppercase tracking-wider border-b border-[var(--garis)]">
               <tr>
                 <th className="px-4 py-3">Nama Cabang</th>
                 <th className="px-4 py-3">Kasir Bertugas</th>
@@ -426,32 +437,32 @@ export const DashboardOwnerView: React.FC<DashboardOwnerViewProps> = ({ onNaviga
                 <th className="px-4 py-3 text-center">Aksi Filter</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200 text-gray-700">
+            <tbody className="divide-y divide-[var(--garis)] text-[var(--teks)]">
               {/* Row Cabang 1 */}
-              <tr className={`hover:bg-gray-50/80 transition ${selectedCabangFilter === 'Cabang 1' ? 'bg-orange-50/60 font-medium' : ''}`}>
-                <td className="px-4 py-3.5 font-semibold text-gray-900 flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-orange-600 inline-block"></span>
+              <tr className={`hover:bg-[var(--latar)]/80 transition ${selectedCabangFilter === 'Cabang 1' ? 'bg-[var(--utama-muda)]/60 font-medium' : ''}`}>
+                <td className="px-4 py-3.5 font-semibold text-[var(--teks)] flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[var(--utama)] inline-block"></span>
                   Cabang 1
                 </td>
                 <td className="px-4 py-3.5">
-                  <span className="text-gray-900 font-medium">Siti</span>
-                  <span className="text-xs text-gray-400 block font-normal">user: kasir1</span>
+                  <span className="text-[var(--teks)] font-medium">Siti</span>
+                  <span className="text-xs text-[var(--redup)] block font-normal">user: kasir1</span>
                 </td>
                 <td className="px-4 py-3.5 text-center font-medium">
                   {branchComparison.cabang1Count} Transaksi
                 </td>
-                <td className="px-4 py-3.5 text-right font-bold text-gray-900">
+                <td className="px-4 py-3.5 text-right font-bold text-[var(--teks)]">
                   {formatRupiah(branchComparison.cabang1Sales)}
                 </td>
-                <td className="px-4 py-3.5 text-center text-gray-600">
+                <td className="px-4 py-3.5 text-center text-[var(--redup)]">
                   {formatRupiah(branchComparison.cabang1Count > 0 ? Math.round(branchComparison.cabang1Sales / branchComparison.cabang1Count) : 0)}
                 </td>
                 <td className="px-4 py-3.5">
                   <div className="flex items-center gap-2">
-                    <div className="w-24 bg-gray-200 rounded h-2 overflow-hidden">
-                      <div style={{ width: `${c1Percent}%` }} className="bg-orange-600 h-full"></div>
+                    <div className="w-24 bg-[var(--latar)] rounded h-2 overflow-hidden">
+                      <div style={{ width: `${c1Percent}%` }} className="bg-[var(--utama)] h-full"></div>
                     </div>
-                    <span className="text-xs font-semibold text-gray-700 w-10 text-right">{c1Percent}%</span>
+                    <span className="text-xs font-semibold text-[var(--teks)] w-10 text-right">{c1Percent}%</span>
                   </div>
                 </td>
                 <td className="px-4 py-3.5 text-center">
@@ -460,8 +471,8 @@ export const DashboardOwnerView: React.FC<DashboardOwnerViewProps> = ({ onNaviga
                     onClick={() => setSelectedCabangFilter(selectedCabangFilter === 'Cabang 1' ? 'Semua' : 'Cabang 1')}
                     className={`px-3 py-1 text-xs rounded border cursor-pointer font-medium transition ${
                       selectedCabangFilter === 'Cabang 1'
-                        ? 'bg-orange-600 text-white border-orange-600'
-                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'
+                        ? 'bg-[var(--utama)] text-white border-[var(--utama-teks)]'
+                        : 'bg-[var(--kartu)] text-[var(--teks)] border-[var(--garis-kuat)] hover:bg-[var(--latar)]'
                     }`}
                   >
                     {selectedCabangFilter === 'Cabang 1' ? 'Sedang Dipilih ✓' : 'Filter Cabang'}
@@ -470,30 +481,30 @@ export const DashboardOwnerView: React.FC<DashboardOwnerViewProps> = ({ onNaviga
               </tr>
 
               {/* Row Cabang 2 */}
-              <tr className={`hover:bg-gray-50/80 transition ${selectedCabangFilter === 'Cabang 2' ? 'bg-orange-50/60 font-medium' : ''}`}>
-                <td className="px-4 py-3.5 font-semibold text-gray-900 flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-slate-600 inline-block"></span>
+              <tr className={`hover:bg-[var(--latar)]/80 transition ${selectedCabangFilter === 'Cabang 2' ? 'bg-[var(--utama-muda)]/60 font-medium' : ''}`}>
+                <td className="px-4 py-3.5 font-semibold text-[var(--teks)] flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[var(--nav)] inline-block"></span>
                   Cabang 2
                 </td>
                 <td className="px-4 py-3.5">
-                  <span className="text-gray-900 font-medium">Rian</span>
-                  <span className="text-xs text-gray-400 block font-normal">user: kasir2</span>
+                  <span className="text-[var(--teks)] font-medium">Rian</span>
+                  <span className="text-xs text-[var(--redup)] block font-normal">user: kasir2</span>
                 </td>
                 <td className="px-4 py-3.5 text-center font-medium">
                   {branchComparison.cabang2Count} Transaksi
                 </td>
-                <td className="px-4 py-3.5 text-right font-bold text-gray-900">
+                <td className="px-4 py-3.5 text-right font-bold text-[var(--teks)]">
                   {formatRupiah(branchComparison.cabang2Sales)}
                 </td>
-                <td className="px-4 py-3.5 text-center text-gray-600">
+                <td className="px-4 py-3.5 text-center text-[var(--redup)]">
                   {formatRupiah(branchComparison.cabang2Count > 0 ? Math.round(branchComparison.cabang2Sales / branchComparison.cabang2Count) : 0)}
                 </td>
                 <td className="px-4 py-3.5">
                   <div className="flex items-center gap-2">
-                    <div className="w-24 bg-gray-200 rounded h-2 overflow-hidden">
-                      <div style={{ width: `${c2Percent}%` }} className="bg-slate-600 h-full"></div>
+                    <div className="w-24 bg-[var(--latar)] rounded h-2 overflow-hidden">
+                      <div style={{ width: `${c2Percent}%` }} className="bg-[var(--nav)] h-full"></div>
                     </div>
-                    <span className="text-xs font-semibold text-gray-700 w-10 text-right">{c2Percent}%</span>
+                    <span className="text-xs font-semibold text-[var(--teks)] w-10 text-right">{c2Percent}%</span>
                   </div>
                 </td>
                 <td className="px-4 py-3.5 text-center">
@@ -502,8 +513,8 @@ export const DashboardOwnerView: React.FC<DashboardOwnerViewProps> = ({ onNaviga
                     onClick={() => setSelectedCabangFilter(selectedCabangFilter === 'Cabang 2' ? 'Semua' : 'Cabang 2')}
                     className={`px-3 py-1 text-xs rounded border cursor-pointer font-medium transition ${
                       selectedCabangFilter === 'Cabang 2'
-                        ? 'bg-orange-600 text-white border-orange-600'
-                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'
+                        ? 'bg-[var(--utama)] text-white border-[var(--utama-teks)]'
+                        : 'bg-[var(--kartu)] text-[var(--teks)] border-[var(--garis-kuat)] hover:bg-[var(--latar)]'
                     }`}
                   >
                     {selectedCabangFilter === 'Cabang 2' ? 'Sedang Dipilih ✓' : 'Filter Cabang'}
@@ -511,7 +522,7 @@ export const DashboardOwnerView: React.FC<DashboardOwnerViewProps> = ({ onNaviga
                 </td>
               </tr>
             </tbody>
-            <tfoot className="bg-gray-50 border-t-2 border-gray-300 font-semibold text-gray-900">
+            <tfoot className="bg-[var(--latar)] border-t-2 border-[var(--garis-kuat)] font-semibold text-[var(--teks)]">
               <tr>
                 <td className="px-4 py-3" colSpan={2}>
                   Total Gabungan Semua Cabang
@@ -519,17 +530,17 @@ export const DashboardOwnerView: React.FC<DashboardOwnerViewProps> = ({ onNaviga
                 <td className="px-4 py-3 text-center">
                   {branchComparison.cabang1Count + branchComparison.cabang2Count} Transaksi
                 </td>
-                <td className="px-4 py-3 text-right text-orange-700 font-bold">
+                <td className="px-4 py-3 text-right text-[var(--utama-teks)] font-bold">
                   {formatRupiah(totalCombinedToday)}
                 </td>
-                <td className="px-4 py-3 text-center text-gray-700">
+                <td className="px-4 py-3 text-center text-[var(--teks)]">
                   {formatRupiah(
                     branchComparison.cabang1Count + branchComparison.cabang2Count > 0
                       ? Math.round(totalCombinedToday / (branchComparison.cabang1Count + branchComparison.cabang2Count))
                       : 0
                   )}
                 </td>
-                <td className="px-4 py-3 text-xs text-gray-500 font-normal">
+                <td className="px-4 py-3 text-xs text-[var(--redup)] font-normal">
                   100% (Akumulasi)
                 </td>
                 <td className="px-4 py-3 text-center">
@@ -537,12 +548,12 @@ export const DashboardOwnerView: React.FC<DashboardOwnerViewProps> = ({ onNaviga
                     <button
                       type="button"
                       onClick={() => setSelectedCabangFilter('Semua')}
-                      className="px-2.5 py-1 text-xs rounded bg-gray-200 text-gray-700 hover:bg-gray-300 cursor-pointer font-medium"
+                      className="px-2.5 py-1 text-xs rounded bg-[var(--latar)] text-[var(--teks)] hover:bg-[var(--garis)] cursor-pointer font-medium"
                     >
                       Tampilkan Semua
                     </button>
                   ) : (
-                    <span className="text-xs text-gray-400 font-normal">Semua Terpilih</span>
+                    <span className="text-xs text-[var(--redup)] font-normal">Semua Terpilih</span>
                   )}
                 </td>
               </tr>
@@ -551,40 +562,41 @@ export const DashboardOwnerView: React.FC<DashboardOwnerViewProps> = ({ onNaviga
         </div>
 
         {/* Visual Rasio Sederhana */}
-        <div className="p-3.5 bg-gray-50 border-t border-gray-200 text-xs">
+        <div className="p-3.5 bg-[var(--latar)] border-t border-[var(--garis)] text-xs">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-2">
-            <span className="font-semibold text-gray-700">Grafik Rasio Kontribusi Penjualan:</span>
-            <div className="flex flex-wrap items-center gap-4 text-xs text-gray-600">
+            <span className="font-semibold text-[var(--teks)]">Grafik Rasio Kontribusi Penjualan:</span>
+            <div className="flex flex-wrap items-center gap-4 text-xs text-[var(--redup)]">
               <span className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 bg-orange-600 rounded-sm inline-block"></span>
+                <span className="w-2.5 h-2.5 bg-[var(--utama)] rounded-sm inline-block"></span>
                 <span>Cabang 1: {c1Percent}% ({formatRupiah(branchComparison.cabang1Sales)})</span>
               </span>
               <span className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 bg-slate-600 rounded-sm inline-block"></span>
+                <span className="w-2.5 h-2.5 bg-[var(--nav)] rounded-sm inline-block"></span>
                 <span>Cabang 2: {c2Percent}% ({formatRupiah(branchComparison.cabang2Sales)})</span>
               </span>
             </div>
           </div>
-          <div className="h-3 w-full bg-gray-200 rounded flex overflow-hidden">
+          <div className="h-3 w-full bg-[var(--latar)] rounded flex overflow-hidden">
             <div
               style={{ width: `${c1Percent}%` }}
-              className="bg-orange-600 h-full transition-all duration-300"
+              className="bg-[var(--utama)] h-full transition-all duration-300"
               title={`Cabang 1: ${c1Percent}%`}
             />
             <div
               style={{ width: `${c2Percent}%` }}
-              className="bg-slate-600 h-full transition-all duration-300"
+              className="bg-[var(--nav)] h-full transition-all duration-300"
               title={`Cabang 2: ${c2Percent}%`}
             />
           </div>
         </div>
-      </div>
+      </>
+      )}
 
       {/* Active Filter Notice Sederhana */}
-      <div className="flex items-center justify-between mb-4 bg-white px-3.5 py-2.5 rounded-lg border border-gray-200 text-xs">
-        <div className="flex items-center gap-2 text-gray-700">
-          <span className="font-medium text-gray-500">Filter Aktif:</span>
-          <span className="px-2 py-0.5 rounded bg-orange-50 text-orange-700 font-semibold border border-orange-200">
+      <div className="flex items-center justify-between mb-4 bg-[var(--kartu)] px-3.5 py-2.5 rounded-lg border border-[var(--garis)] text-xs">
+        <div className="flex items-center gap-2 text-[var(--teks)]">
+          <span className="font-medium text-[var(--redup)]">Filter Aktif:</span>
+          <span className="px-2 py-0.5 rounded bg-[var(--utama-muda)] text-[var(--utama-teks)] font-semibold border border-[var(--garis)]">
             {selectedCabangFilter === 'Semua' ? 'Semua Cabang (Data Gabungan)' : `Data ${selectedCabangFilter}`}
           </span>
         </div>
@@ -593,7 +605,7 @@ export const DashboardOwnerView: React.FC<DashboardOwnerViewProps> = ({ onNaviga
           <button
             type="button"
             onClick={() => setSelectedCabangFilter('Semua')}
-            className="text-xs font-semibold text-orange-600 hover:text-orange-800 hover:underline cursor-pointer"
+            className="text-xs font-semibold text-[var(--utama-teks)] hover:text-[var(--utama-teks)] hover:underline cursor-pointer"
           >
             ← Tampilkan Semua Cabang
           </button>
@@ -603,49 +615,49 @@ export const DashboardOwnerView: React.FC<DashboardOwnerViewProps> = ({ onNaviga
       {/* 3 KPI Cards - Sederhana & Jelas */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-5">
         {/* Card 1: Penjualan Hari Ini */}
-        <div className="bg-white rounded-xl p-4 sm:p-5 border border-gray-200 shadow-xs">
+        <div className="bg-[var(--kartu)] rounded-xl p-4 sm:p-5 border border-[var(--garis)] shadow-xs">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-medium text-gray-500">
+            <span className="text-xs font-medium text-[var(--redup)]">
               Total Penjualan Hari Ini
             </span>
-            <div className="w-8 h-8 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-[var(--utama-muda)] text-[var(--utama-teks)] flex items-center justify-center">
               <TrendingUp className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">
+          <div className="text-2xl sm:text-3xl font-bold text-[var(--teks)] tracking-tight">
             {formatRupiah(todayPenjualan)}
           </div>
-          <div className="mt-1.5 flex items-center gap-1.5 text-xs text-gray-500">
-            <span className="font-medium text-gray-700">{todayTransaksiCount} transaksi</span>
+          <div className="mt-1.5 flex items-center gap-1.5 text-xs text-[var(--redup)]">
+            <span className="font-medium text-[var(--teks)]">{todayTransaksiCount} transaksi</span>
             <span>({selectedCabangFilter === 'Semua' ? 'Semua Cabang' : selectedCabangFilter})</span>
           </div>
         </div>
 
         {/* Card 2: Total Transaksi */}
-        <div className="bg-white rounded-xl p-4 sm:p-5 border border-gray-200 shadow-xs">
+        <div className="bg-[var(--kartu)] rounded-xl p-4 sm:p-5 border border-[var(--garis)] shadow-xs">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-medium text-gray-500">
+            <span className="text-xs font-medium text-[var(--redup)]">
               Total Transaksi Hari Ini
             </span>
-            <div className="w-8 h-8 rounded-lg bg-gray-100 text-gray-700 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-[var(--latar)] text-[var(--teks)] flex items-center justify-center">
               <Receipt className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">
-            {todayTransaksiCount} <span className="text-base font-medium text-gray-500">Pesanan</span>
+          <div className="text-2xl sm:text-3xl font-bold text-[var(--teks)] tracking-tight">
+            {todayTransaksiCount} <span className="text-base font-medium text-[var(--redup)]">Pesanan</span>
           </div>
-          <div className="mt-1.5 text-xs text-gray-500">
+          <div className="mt-1.5 text-xs text-[var(--redup)]">
             Rata-rata:{' '}
-            <span className="font-semibold text-gray-700">
+            <span className="font-semibold text-[var(--teks)]">
               {formatRupiah(todayTransaksiCount > 0 ? todayPenjualan / todayTransaksiCount : 0)}
             </span>
           </div>
         </div>
 
         {/* Card 3: Laba / Rugi Hari Ini */}
-        <div className="bg-white rounded-xl p-4 sm:p-5 border border-gray-200 shadow-xs">
+        <div className="bg-[var(--kartu)] rounded-xl p-4 sm:p-5 border border-[var(--garis)] shadow-xs">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-medium text-gray-500">
+            <span className="text-xs font-medium text-[var(--redup)]">
               Laba / Rugi Bersih Hari Ini
             </span>
             <div
@@ -669,8 +681,8 @@ export const DashboardOwnerView: React.FC<DashboardOwnerViewProps> = ({ onNaviga
           >
             {formatRupiah(todayLabaRugi)}
           </div>
-          <div className="mt-1.5 text-[11px] text-gray-500 flex items-center gap-1">
-            <Info className="w-3 h-3 text-gray-400 shrink-0" />
+          <div className="mt-1.5 text-[11px] text-[var(--redup)] flex items-center gap-1">
+            <Info className="w-3 h-3 text-[var(--redup)] shrink-0" />
             <span>Omzet - (Biaya Bahan + Operasional)</span>
           </div>
         </div>
@@ -683,8 +695,12 @@ export const DashboardOwnerView: React.FC<DashboardOwnerViewProps> = ({ onNaviga
         onPeriodChange={setPeriod}
         selectedMonth={selectedMonth}
         onMonthChange={setSelectedMonth}
+        selectedMonthEnd={selectedMonthEnd}
+        onMonthEndChange={setSelectedMonthEnd}
         selectedYear={selectedYear}
         onYearChange={setSelectedYear}
+        selectedYearEnd={selectedYearEnd}
+        onYearEndChange={setSelectedYearEnd}
         monthViewMode={monthViewMode}
         onMonthViewModeChange={setMonthViewMode}
         customStartDate={customStartDate}
@@ -698,54 +714,54 @@ export const DashboardOwnerView: React.FC<DashboardOwnerViewProps> = ({ onNaviga
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <button
           onClick={() => onNavigate('terlaris')}
-          className="p-4 rounded-xl bg-white border border-gray-200 hover:border-orange-400 hover:shadow-xs transition text-left group"
+          className="p-4 rounded-xl bg-[var(--kartu)] border border-[var(--garis)] hover:border-[var(--garis-kuat)] hover:shadow-xs transition text-left group"
         >
-          <div className="w-9 h-9 rounded-lg bg-orange-50 text-orange-700 flex items-center justify-center mb-2">
+          <div className="w-9 h-9 rounded-lg bg-[var(--utama-muda)] text-[var(--utama-teks)] flex items-center justify-center mb-2">
             <TrendingUp className="w-4 h-4" />
           </div>
-          <h4 className="font-semibold text-xs sm:text-sm text-gray-900 group-hover:text-orange-600 transition">
+          <h4 className="font-semibold text-xs sm:text-sm text-[var(--teks)] group-hover:text-[var(--utama-teks)] transition">
             Menu Terlaris
           </h4>
-          <p className="text-[11px] text-gray-500 mt-0.5">Top 10 menu terpopuler</p>
+          <p className="text-[11px] text-[var(--redup)] mt-0.5">Top 10 menu terpopuler</p>
         </button>
 
         <button
           onClick={() => onNavigate('biaya')}
-          className="p-4 rounded-xl bg-white border border-gray-200 hover:border-orange-400 hover:shadow-xs transition text-left group"
+          className="p-4 rounded-xl bg-[var(--kartu)] border border-[var(--garis)] hover:border-[var(--garis-kuat)] hover:shadow-xs transition text-left group"
         >
           <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center mb-2">
             <DollarSign className="w-4 h-4" />
           </div>
-          <h4 className="font-semibold text-xs sm:text-sm text-gray-900 group-hover:text-orange-600 transition">
+          <h4 className="font-semibold text-xs sm:text-sm text-[var(--teks)] group-hover:text-[var(--utama-teks)] transition">
             Pengaturan Biaya
           </h4>
-          <p className="text-[11px] text-gray-500 mt-0.5">Bahan baku & operasional</p>
+          <p className="text-[11px] text-[var(--redup)] mt-0.5">Bahan baku & operasional</p>
         </button>
 
         <button
           onClick={() => onNavigate('ekspor')}
-          className="p-4 rounded-xl bg-white border border-gray-200 hover:border-orange-400 hover:shadow-xs transition text-left group"
+          className="p-4 rounded-xl bg-[var(--kartu)] border border-[var(--garis)] hover:border-[var(--garis-kuat)] hover:shadow-xs transition text-left group"
         >
-          <div className="w-9 h-9 rounded-lg bg-gray-100 text-gray-700 flex items-center justify-center mb-2">
+          <div className="w-9 h-9 rounded-lg bg-[var(--latar)] text-[var(--teks)] flex items-center justify-center mb-2">
             <Receipt className="w-4 h-4" />
           </div>
-          <h4 className="font-semibold text-xs sm:text-sm text-gray-900 group-hover:text-orange-600 transition">
+          <h4 className="font-semibold text-xs sm:text-sm text-[var(--teks)] group-hover:text-[var(--utama-teks)] transition">
             Ekspor CSV
           </h4>
-          <p className="text-[11px] text-gray-500 mt-0.5">Download laporan transaksi</p>
+          <p className="text-[11px] text-[var(--redup)] mt-0.5">Download laporan transaksi</p>
         </button>
 
         <button
           onClick={() => onNavigate('promo')}
-          className="p-4 rounded-xl bg-white border border-gray-200 hover:border-orange-400 hover:shadow-xs transition text-left group"
+          className="p-4 rounded-xl bg-[var(--kartu)] border border-[var(--garis)] hover:border-[var(--garis-kuat)] hover:shadow-xs transition text-left group"
         >
           <div className="w-9 h-9 rounded-lg bg-purple-50 text-purple-700 flex items-center justify-center mb-2">
             <Tag className="w-4 h-4" />
           </div>
-          <h4 className="font-semibold text-xs sm:text-sm text-gray-900 group-hover:text-orange-600 transition">
+          <h4 className="font-semibold text-xs sm:text-sm text-[var(--teks)] group-hover:text-[var(--utama-teks)] transition">
             Kelola Promo
           </h4>
-          <p className="text-[11px] text-gray-500 mt-0.5">Diskon & voucher toko</p>
+          <p className="text-[11px] text-[var(--redup)] mt-0.5">Diskon & voucher toko</p>
         </button>
       </div>
     </div>

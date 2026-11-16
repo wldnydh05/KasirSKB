@@ -30,6 +30,7 @@ export interface Menu {
   gambar_url?: string;
   biaya_bahan_baku?: number;
   aktif: boolean;
+  cabang?: string; // 'Cabang 1' | 'Cabang 2'
   created_at: string;
   updated_at: string;
 }

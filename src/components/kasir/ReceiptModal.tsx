@@ -36,12 +36,12 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
     const custInfo = transaksi.nama_pelanggan
       ? ` | Pelanggan: ${transaksi.nama_pelanggan} (${tipeLayanan}${transaksi.nomor_meja ? ` Meja ${transaksi.nomor_meja}` : ''})`
       : ` | ${tipeLayanan}${transaksi.nomor_meja ? ` Meja ${transaksi.nomor_meja}` : ''}`;
-    const shareText = `Struk ${orderIdentifier}${branchInfo}${custInfo} | ${formatDateIndo(transaksi.tanggal)} ${transaksi.waktu} | Total: ${formatRupiah(transaksi.total)} (${transaksi.metode_pembayaran || 'Lunas'}). Terima kasih telah berbelanja di BukuPOS!`;
+    const shareText = `Struk ${orderIdentifier}${branchInfo}${custInfo} | ${formatDateIndo(transaksi.tanggal)} ${transaksi.waktu} | Total: ${formatRupiah(transaksi.total)} (${transaksi.metode_pembayaran || 'Lunas'}). Terima kasih telah berbelanja di Ayam Bebek S.K.B!`;
 
     if (navigator.share) {
       try {
         await navigator.share({
-          title: `Struk Transaksi ${orderIdentifier} - BukuPOS`,
+          title: `Struk Transaksi ${orderIdentifier} - Ayam Bebek S.K.B`,
           text: shareText,
         });
       } catch (err) {
@@ -71,7 +71,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
             {transaksi.nomor_pesanan ? `Struk Pesanan ${transaksi.nomor_pesanan}` : 'Struk Transaksi'}
           </h3>
           <p className="text-xs text-white/90">
-            BukuPOS {transaksi.cabang ? `(${transaksi.cabang})` : ''} - Struk Resmi Pembayaran
+            Ayam Bebek S.K.B {transaksi.cabang ? `(${transaksi.cabang})` : ''} - Struk Resmi Pembayaran
           </p>
         </div>
 
@@ -79,12 +79,12 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
         <div className="printable-receipt p-4 sm:p-5 font-mono text-xs text-slate-700 bg-white border-b-2 border-dashed border-slate-200 overflow-y-auto flex-1 overscroll-contain">
           <div className="text-center mb-3">
             <img
-              src="/logo.png"
-              alt="BukuPOS"
+              src="/LogoSKB.png"
+              alt="Ayam Bebek S.K.B"
               className="h-10 mx-auto object-contain mb-1.5 grayscale contrast-125"
             />
             <h4 className="text-sm font-extrabold uppercase tracking-widest text-slate-900 font-sans">
-              BukuPOS {transaksi.cabang ? `- ${transaksi.cabang}` : 'UMKM'}
+              Ayam Bebek S.K.B {transaksi.cabang ? `- ${transaksi.cabang}` : ''}
             </h4>
             <p className="text-[10px] text-slate-500 font-sans">Jl. Kuliner Bahagia No. 12</p>
             <div className="my-2 border-b border-dashed border-slate-300" />
@@ -172,7 +172,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
           <div className="pt-1">
             <div className="flex justify-between text-sm font-black text-slate-900">
               <span>TOTAL</span>
-              <span className="text-[#FF6038] text-base font-black">{formatRupiah(transaksi.total)}</span>
+              <span className="text-[var(--utama)] text-base font-black">{formatRupiah(transaksi.total)}</span>
             </div>
           </div>
 
@@ -199,7 +199,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
           </button>
           <button
             onClick={onNewTransaction}
-            className="col-span-2 flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-[#FF6038] hover:bg-[#E04620] text-xs font-bold text-white transition shadow-sm active:scale-95"
+            className="col-span-2 flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-[var(--utama)] hover:bg-[var(--utama-tua)] active:bg-[var(--utama)] text-xs font-bold text-white transition shadow-sm active:scale-95"
           >
             <PlusCircle className="w-4 h-4" />
             <span>Selesai / Transaksi Baru</span>

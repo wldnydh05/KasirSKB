@@ -1,0 +1,91 @@
+/* kredit-maliki: Sistem design token diadopsi dari Kasir UMKM — Template oleh Maliki Saputra (@malikisaputra).
+   Lisensi Nonkomersial Maliki Studio: wajib kredit, dilarang dijual (lihat LICENSE). */
+/* TOKENS — satu sumber kebenaran warna, radius, font, bayangan, motion.
+   Warna lain diturunkan otomatis lewat color-mix(). Mode gelap: [data-mode="gelap"]. */
+:root {
+  --utama: var(--tema-utama, #1f5f3f);
+  --utama-tua: color-mix(in srgb, var(--utama) 80%, #000);
+  --utama-muda: color-mix(in srgb, var(--utama) 11%, var(--kartu));
+  --utama-teks: color-mix(in srgb, var(--utama) 92%, #000);
+  --aksen: var(--tema-aksen, #f2b33d);
+  --aksen-tua: color-mix(in srgb, var(--aksen) 55%, #000);
+  --aksen-muda: color-mix(in srgb, var(--aksen) 22%, var(--kartu));
+  --aksen-teks: color-mix(in srgb, var(--aksen) 80%, #000);
+  --bahaya: #c2410c; --bahaya-muda: #fdeee6; --bahaya-teks: #9a3412;
+  --latar: var(--tema-latar, #f3f4ef); --kartu: var(--tema-panel, #fff); --teks: var(--tema-teks, #17201a);
+  --nav: var(--tema-nav, #173f2b);
+  --redup: color-mix(in srgb, var(--teks) 68%, var(--kartu)); --garis: color-mix(in srgb, var(--teks) 9%, var(--kartu)); --garis-kuat: color-mix(in srgb, var(--teks) 18%, var(--kartu));
+  --kepala-tabel: color-mix(in srgb, var(--teks) 3%, var(--kartu)); --balik: var(--kartu);
+  --nav-teks: #000; --nav-redup: color-mix(in srgb, var(--nav-teks) 70%, var(--nav)); --nav-garis: color-mix(in srgb, var(--nav-teks) 12%, var(--nav));
+  --isi-utama: var(--tema-utama-teks, #fff);
+  --radius: var(--tema-radius, 16px); --r-kecil: calc(var(--radius) * .7); --r-besar: calc(var(--radius) + 8px);
+  --bayang: 0 1px 2px rgba(23, 32, 26, .04), 0 6px 20px -8px rgba(23, 32, 26, .12);
+  --bayang-tinggi: 0 2px 4px rgba(23, 32, 26, .05), 0 18px 40px -12px rgba(23, 32, 26, .22);
+  --font: var(--tema-font, "DM Sans"), system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-sans: var(--font); /* override Tailwind .font-sans agar pakai DM Sans */
+  --pegas: cubic-bezier(.22, 1, .36, 1); --halus: cubic-bezier(.2, .7, .2, 1);
+  color-scheme: light;
+}
+
+/* Nilai tema default — bisa di-override oleh berkas tema.js/JS kustomisasi */
+:root {
+  --tema-utama: #dc2626;
+  --tema-aksen: #f2b33d;
+  --tema-radius: 16px;
+  --tema-font: "DM Sans", system-ui, sans-serif;
+  --tema-latar: #f3f4ef;
+  --tema-panel: #ffffff;
+  --tema-nav: var(--kartu);
+  --tema-teks: #17201a;
+}
+
+[data-mode="gelap"] {
+  --latar: #0e1210; --kartu: #171c19; --teks: #e9eee9; --nav: #0b100d; --nav-teks: #fff;
+  /* --utama-tua TIDAK diubah: selalu jadi latar tombol/gradien dengan teks putih
+     (hover:bg-[var(--utama-tua)]), jadi harus tetap gelap di mode gelap. */
+  --utama-muda: color-mix(in srgb, var(--utama) 26%, var(--kartu));
+  --utama-teks: color-mix(in srgb, var(--utama) 35%, #fff);
+  --aksen-tua: color-mix(in srgb, var(--aksen) 75%, #fff);
+  --aksen-muda: color-mix(in srgb, var(--aksen) 20%, var(--kartu));
+  --aksen-teks: color-mix(in srgb, var(--aksen) 88%, #fff);
+  --bahaya: #fb923c; --bahaya-muda: #3a1a10; --bahaya-teks: #fdba8c;
+  --kepala-tabel: #1c221e;
+  --bayang: 0 1px 2px rgba(0, 0, 0, .3), 0 6px 20px -8px rgba(0, 0, 0, .5);
+  --bayang-tinggi: 0 18px 40px -12px rgba(0, 0, 0, .7);
+
+  /* Palet semantik Tailwind (--color-*) disetel ulang untuk gelap:
+     tint (50/100) jadi gelap menyatu ke kartu, border (200) lebih terang,
+     teks gelap (700-950) dinaikkan terang agar kontras AA di latar gelap.
+     Langkah solid (400-600) dibiarkan agar latar tombol + teks putih aman. */
+  --color-emerald-50: color-mix(in srgb, var(--color-emerald-600) 10%, var(--kartu));
+  --color-emerald-100: color-mix(in srgb, var(--color-emerald-600) 15%, var(--kartu));
+  --color-emerald-200: color-mix(in srgb, var(--color-emerald-600) 28%, var(--kartu));
+  --color-emerald-300: color-mix(in srgb, var(--color-emerald-600) 42%, var(--kartu));
+  --color-emerald-700: color-mix(in srgb, var(--color-emerald-600) 55%, #fff);
+  --color-emerald-800: color-mix(in srgb, var(--color-emerald-600) 66%, #fff);
+  --color-emerald-900: color-mix(in srgb, var(--color-emerald-600) 76%, #fff);
+  --color-rose-50: color-mix(in srgb, var(--color-rose-600) 10%, var(--kartu));
+  --color-rose-100: color-mix(in srgb, var(--color-rose-600) 15%, var(--kartu));
+  --color-rose-200: color-mix(in srgb, var(--color-rose-600) 28%, var(--kartu));
+  --color-rose-700: color-mix(in srgb, var(--color-rose-600) 55%, #fff);
+  --color-amber-50: color-mix(in srgb, var(--color-amber-600) 10%, var(--kartu));
+  --color-amber-100: color-mix(in srgb, var(--color-amber-600) 15%, var(--kartu));
+  --color-amber-200: color-mix(in srgb, var(--color-amber-600) 28%, var(--kartu));
+  --color-amber-700: color-mix(in srgb, var(--color-amber-500) 62%, #fff);
+  --color-amber-800: color-mix(in srgb, var(--color-amber-500) 72%, #fff);
+  --color-amber-900: color-mix(in srgb, var(--color-amber-500) 80%, #fff);
+  --color-amber-950: color-mix(in srgb, var(--color-amber-500) 88%, #fff);
+  --color-red-50: color-mix(in srgb, var(--color-red-600) 10%, var(--kartu));
+  --color-red-200: color-mix(in srgb, var(--color-red-600) 28%, var(--kartu));
+  --color-red-700: color-mix(in srgb, var(--color-red-600) 55%, #fff);
+  --color-sky-50: color-mix(in srgb, var(--color-sky-600) 10%, var(--kartu));
+  --color-sky-100: color-mix(in srgb, var(--color-sky-600) 15%, var(--kartu));
+  --color-sky-200: color-mix(in srgb, var(--color-sky-600) 28%, var(--kartu));
+  --color-sky-800: color-mix(in srgb, var(--color-sky-600) 60%, #fff);
+  --color-indigo-100: color-mix(in srgb, var(--color-indigo-600) 15%, var(--kartu));
+  --color-indigo-200: color-mix(in srgb, var(--color-indigo-600) 28%, var(--kartu));
+  --color-indigo-900: color-mix(in srgb, var(--color-indigo-600) 70%, #fff);
+  --color-purple-50: color-mix(in srgb, var(--color-purple-600) 10%, var(--kartu));
+  --color-purple-700: color-mix(in srgb, var(--color-purple-600) 55%, #fff);
+  color-scheme: dark;
+}

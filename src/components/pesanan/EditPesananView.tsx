@@ -209,28 +209,28 @@ export const EditPesananView: React.FC<EditPesananViewProps> = ({
   return (
     <div className="pb-36 max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 pt-2 sm:pt-4 animate-in fade-in duration-150">
       {/* Top Header with Back button */}
-      <div className="bg-white rounded-3xl p-3.5 sm:p-4 border border-slate-200/90 shadow-xs mb-4 flex items-center justify-between gap-3">
+      <div className="bg-[var(--kartu)] rounded-3xl p-3.5 sm:p-4 border border-[var(--garis)]/90 shadow-xs mb-4 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
           <button
             type="button"
             onClick={() => setIsCancelDialogOpen(true)}
-            className="flex items-center gap-1.5 py-2 px-3 sm:px-3.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition active:scale-95 shrink-0"
+            className="flex items-center gap-1.5 py-2 px-3 sm:px-3.5 rounded-2xl bg-[var(--latar)] hover:bg-[var(--garis)] text-[var(--teks)] text-xs font-bold transition active:scale-95 shrink-0"
             title="Kembali dan batalkan perubahan"
           >
-            <ArrowLeft className="w-4 h-4 text-slate-700" />
+            <ArrowLeft className="w-4 h-4 text-[var(--teks)]" />
             <span className="hidden sm:inline">Kembali</span>
           </button>
 
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <span className="font-mono text-xs font-black text-slate-900 bg-slate-100 px-2.5 py-0.5 rounded-lg">
+              <span className="font-mono text-xs font-black text-[var(--teks)] bg-[var(--latar)] px-2.5 py-0.5 rounded-lg">
                 #{order.nomor_pesanan}
               </span>
               <span className="text-[11px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
                 Mode Ubah Pesanan
               </span>
             </div>
-            <h2 className="text-sm sm:text-base font-black text-slate-900 truncate mt-0.5">
+            <h2 className="text-sm sm:text-base font-black text-[var(--teks)] truncate mt-0.5">
               Ubah Item Pesanan: {order.nama_pelanggan}
             </h2>
           </div>
@@ -250,13 +250,13 @@ export const EditPesananView: React.FC<EditPesananViewProps> = ({
         {/* Left Column (Items in order & Customer details) */}
         <div className="lg:col-span-5 space-y-4 order-2 lg:order-1">
           {/* Customer & Table details */}
-          <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200/90 shadow-2xs space-y-3">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+          <div className="bg-[var(--kartu)] rounded-3xl p-4 sm:p-5 border border-[var(--garis)]/90 shadow-2xs space-y-3">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--redup)]">
               Informasi Pelanggan & Meja
             </h3>
             <div className="space-y-2.5">
               <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                <label className="block text-[11px] font-bold text-[var(--teks)] mb-1">
                   Nama Pelanggan
                 </label>
                 <input
@@ -264,13 +264,13 @@ export const EditPesananView: React.FC<EditPesananViewProps> = ({
                   value={namaPelanggan}
                   onChange={(e) => setNamaPelanggan(e.target.value)}
                   placeholder="Nama Pelanggan"
-                  className="w-full px-3 py-2 text-xs font-bold text-slate-900 border border-slate-200 rounded-xl outline-none focus:border-[#FF6038]"
+                  className="w-full px-3 py-2 text-xs font-bold text-[var(--teks)] border border-[var(--garis)] rounded-xl outline-none focus:border-[var(--utama-teks)]"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                  <label className="block text-[11px] font-bold text-[var(--teks)] mb-1">
                     Nomor Meja
                   </label>
                   <input
@@ -278,11 +278,11 @@ export const EditPesananView: React.FC<EditPesananViewProps> = ({
                     value={nomorMeja}
                     onChange={(e) => setNomorMeja(e.target.value)}
                     placeholder="Contoh: 04"
-                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl outline-none focus:border-[#FF6038]"
+                    className="w-full px-3 py-2 text-xs border border-[var(--garis)] rounded-xl outline-none focus:border-[var(--utama-teks)]"
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                  <label className="block text-[11px] font-bold text-[var(--teks)] mb-1">
                     Catatan Pesanan
                   </label>
                   <input
@@ -290,7 +290,7 @@ export const EditPesananView: React.FC<EditPesananViewProps> = ({
                     value={catatan}
                     onChange={(e) => setCatatan(e.target.value)}
                     placeholder="Contoh: Kurang manis"
-                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl outline-none focus:border-[#FF6038]"
+                    className="w-full px-3 py-2 text-xs border border-[var(--garis)] rounded-xl outline-none focus:border-[var(--utama-teks)]"
                   />
                 </div>
               </div>
@@ -298,39 +298,39 @@ export const EditPesananView: React.FC<EditPesananViewProps> = ({
           </div>
 
           {/* Current Items in the order */}
-          <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200/90 shadow-2xs flex flex-col">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
-                <ShoppingBag className="w-4 h-4 text-[#FF6038]" />
+          <div className="bg-[var(--kartu)] rounded-3xl p-4 sm:p-5 border border-[var(--garis)]/90 shadow-2xs flex flex-col">
+            <div className="flex items-center justify-between pb-3 border-b border-[var(--garis)]">
+              <h3 className="text-sm font-black text-[var(--teks)] flex items-center gap-2">
+                <ShoppingBag className="w-4 h-4 text-[var(--utama-teks)]" />
                 <span>Daftar Menu Pesanan ({totalItemCount} item)</span>
               </h3>
-              <span className="text-xs font-extrabold text-[#FF6038]">
+              <span className="text-xs font-extrabold text-[var(--utama-teks)]">
                 {formatRupiah(total)}
               </span>
             </div>
 
             {items.length === 0 ? (
-              <div className="py-8 text-center text-xs text-slate-400">
+              <div className="py-8 text-center text-xs text-[var(--redup)]">
                 Tidak ada menu dalam pesanan. Silakan pilih menu di samping untuk menambahkan.
               </div>
             ) : (
-              <div className="divide-y divide-slate-100 max-h-[360px] overflow-y-auto pr-1">
+              <div className="divide-y divide-[var(--garis)] max-h-[360px] overflow-y-auto pr-1">
                 {items.map((item, idx) => (
                   <div key={idx} className="py-3 flex items-center justify-between gap-3">
                     <div className="min-w-0 flex-1">
-                      <div className="text-xs font-bold text-slate-900 truncate">{item.nama}</div>
-                      <div className="text-[11px] text-slate-500">
+                      <div className="text-xs font-bold text-[var(--teks)] truncate">{item.nama}</div>
+                      <div className="text-[11px] text-[var(--redup)]">
                         {formatRupiah(item.harga)} x {item.jumlah} ={' '}
-                        <strong className="text-slate-800">{formatRupiah(item.subtotal)}</strong>
+                        <strong className="text-[var(--teks)]">{formatRupiah(item.subtotal)}</strong>
                       </div>
                     </div>
 
                     {/* Quantity Stepper */}
-                    <div className="flex items-center gap-1.5 shrink-0 bg-slate-100 p-1 rounded-xl">
+                    <div className="flex items-center gap-1.5 shrink-0 bg-[var(--latar)] p-1 rounded-xl">
                       <button
                         type="button"
                         onClick={() => handleUpdateQty(idx, -1)}
-                        className="w-7 h-7 rounded-lg bg-white hover:bg-rose-50 text-slate-700 hover:text-rose-600 flex items-center justify-center transition shadow-2xs active:scale-95"
+                        className="w-7 h-7 rounded-lg bg-[var(--kartu)] hover:bg-rose-50 text-[var(--teks)] hover:text-rose-600 flex items-center justify-center transition shadow-2xs active:scale-95"
                         title="Kurangi"
                       >
                         {item.jumlah === 1 ? (
@@ -340,14 +340,14 @@ export const EditPesananView: React.FC<EditPesananViewProps> = ({
                         )}
                       </button>
 
-                      <span className="w-6 text-center text-xs font-black text-slate-900">
+                      <span className="w-6 text-center text-xs font-black text-[var(--teks)]">
                         {item.jumlah}
                       </span>
 
                       <button
                         type="button"
                         onClick={() => handleUpdateQty(idx, 1)}
-                        className="w-7 h-7 rounded-lg bg-white hover:bg-orange-50 text-slate-700 hover:text-[#FF6038] flex items-center justify-center transition shadow-2xs active:scale-95"
+                        className="w-7 h-7 rounded-lg bg-[var(--kartu)] hover:bg-[var(--utama-muda)] text-[var(--teks)] hover:text-[var(--utama-teks)] flex items-center justify-center transition shadow-2xs active:scale-95"
                         title="Tambah"
                       >
                         <Plus className="w-3.5 h-3.5" />
@@ -357,7 +357,7 @@ export const EditPesananView: React.FC<EditPesananViewProps> = ({
                     <button
                       type="button"
                       onClick={() => handleRemoveItem(idx)}
-                      className="p-1.5 rounded-lg text-slate-300 hover:text-rose-600 hover:bg-rose-50 transition"
+                      className="p-1.5 rounded-lg text-[var(--redup)] hover:text-rose-600 hover:bg-rose-50 transition"
                       title="Hapus Item"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -368,17 +368,17 @@ export const EditPesananView: React.FC<EditPesananViewProps> = ({
             )}
 
             {/* Total summary and Save Button */}
-            <div className="pt-4 mt-3 border-t border-slate-100 space-y-3">
+            <div className="pt-4 mt-3 border-t border-[var(--garis)] space-y-3">
               <div className="flex justify-between items-baseline">
-                <span className="text-xs text-slate-500 font-semibold">Total Tagihan Baru:</span>
-                <span className="text-xl font-black text-[#FF6038]">{formatRupiah(total)}</span>
+                <span className="text-xs text-[var(--redup)] font-semibold">Total Tagihan Baru:</span>
+                <span className="text-xl font-black text-[var(--utama-teks)]">{formatRupiah(total)}</span>
               </div>
 
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
                   onClick={() => setIsCancelDialogOpen(true)}
-                  className="py-3 px-3 rounded-2xl border border-slate-200 bg-slate-100 hover:bg-slate-200 text-xs font-bold text-slate-700 transition active:scale-95 text-center"
+                  className="py-3 px-3 rounded-2xl border border-[var(--garis)] bg-[var(--latar)] hover:bg-[var(--garis)] text-xs font-bold text-[var(--teks)] transition active:scale-95 text-center"
                 >
                   Batalkan
                 </button>
@@ -386,7 +386,7 @@ export const EditPesananView: React.FC<EditPesananViewProps> = ({
                   type="button"
                   disabled={isSaving || items.length === 0}
                   onClick={handleSaveOrder}
-                  className="py-3 px-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-xs sm:text-sm font-black text-white shadow-lg shadow-emerald-600/30 transition flex items-center justify-center gap-1.5 active:scale-95 disabled:opacity-50"
+                  className="py-3 px-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:brightness-90 text-xs sm:text-sm font-black text-white shadow-lg shadow-emerald-600/30 transition flex items-center justify-center gap-1.5 active:scale-95 disabled:opacity-50"
                 >
                   <Save className="w-4 h-4" />
                   <span>{isSaving ? 'Menyimpan...' : 'Simpan Perubahan'}</span>
@@ -398,27 +398,27 @@ export const EditPesananView: React.FC<EditPesananViewProps> = ({
 
         {/* Right Column: Menu Catalog to Add Items */}
         <div className="lg:col-span-7 space-y-4 order-1 lg:order-2">
-          <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200/90 shadow-2xs space-y-3">
+          <div className="bg-[var(--kartu)] rounded-3xl p-4 sm:p-5 border border-[var(--garis)]/90 shadow-2xs space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
               <div>
-                <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
-                  <Utensils className="w-4 h-4 text-[#FF6038]" />
+                <h3 className="text-sm font-black text-[var(--teks)] flex items-center gap-2">
+                  <Utensils className="w-4 h-4 text-[var(--utama-teks)]" />
                   <span>Tambah Menu ke Pesanan</span>
                 </h3>
-                <p className="text-[11px] text-slate-500">
+                <p className="text-[11px] text-[var(--redup)]">
                   Klik menu di bawah untuk menambahkan langsung ke daftar pesanan ini
                 </p>
               </div>
 
               {/* Search catalog */}
               <div className="relative w-full sm:w-56">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--redup)]" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Cari menu..."
-                  className="w-full pl-9 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 outline-none focus:border-[#FF6038]"
+                  className="w-full pl-9 pr-3 py-1.5 text-xs rounded-xl border border-[var(--garis)] outline-none focus:border-[var(--utama-teks)]"
                 />
               </div>
             </div>
@@ -432,8 +432,8 @@ export const EditPesananView: React.FC<EditPesananViewProps> = ({
                   onClick={() => setSelectedCategory(cat)}
                   className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition ${
                     selectedCategory === cat
-                      ? 'bg-[#FF6038] text-white shadow-xs'
-                      : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                      ? 'bg-[var(--utama)] text-white shadow-xs'
+                      : 'bg-[var(--latar)] hover:bg-[var(--garis)] text-[var(--teks)]'
                   }`}
                 >
                   {cat}
@@ -444,7 +444,7 @@ export const EditPesananView: React.FC<EditPesananViewProps> = ({
             {/* Catalog Grid */}
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 max-h-[500px] overflow-y-auto pr-1 pt-1">
               {filteredCatalog.length === 0 ? (
-                <div className="col-span-full py-8 text-center text-xs text-slate-400">
+                <div className="col-span-full py-8 text-center text-xs text-[var(--redup)]">
                   Menu tidak ditemukan.
                 </div>
               ) : (
@@ -454,10 +454,10 @@ export const EditPesananView: React.FC<EditPesananViewProps> = ({
                     <div
                       key={menu.id}
                       onClick={() => handleAddMenuItem(menu)}
-                      className="group bg-slate-50 hover:bg-orange-50/50 border border-slate-200 hover:border-orange-300 rounded-2xl p-3 flex flex-col justify-between transition cursor-pointer active:scale-98 relative"
+                      className="group bg-[var(--latar)] hover:bg-[var(--utama-muda)]/50 border border-[var(--garis)] hover:border-[var(--garis-kuat)] rounded-2xl p-3 flex flex-col justify-between transition cursor-pointer active:scale-98 relative"
                     >
                       {alreadyInOrder && (
-                        <span className="absolute top-2 right-2 w-5 h-5 rounded-full bg-[#FF6038] text-white text-[10px] font-black flex items-center justify-center shadow-xs">
+                        <span className="absolute top-2 right-2 w-5 h-5 rounded-full bg-[var(--utama)] text-white text-[10px] font-black flex items-center justify-center shadow-xs">
                           {alreadyInOrder.jumlah}
                         </span>
                       )}
@@ -470,24 +470,24 @@ export const EditPesananView: React.FC<EditPesananViewProps> = ({
                             className="w-full h-20 object-cover rounded-xl mb-2"
                           />
                         ) : (
-                          <div className="w-full h-16 rounded-xl bg-slate-100 border border-slate-200 text-slate-400 flex flex-col items-center justify-center mb-2 p-1 text-center">
-                            <ImageOff className="w-4 h-4 text-slate-300 mb-0.5" />
-                            <span className="text-[8px] font-bold text-slate-400">Gambar tidak ada</span>
+                          <div className="w-full h-16 rounded-xl bg-[var(--latar)] border border-[var(--garis)] text-[var(--redup)] flex flex-col items-center justify-center mb-2 p-1 text-center">
+                            <ImageOff className="w-4 h-4 text-[var(--redup)] mb-0.5" />
+                            <span className="text-[8px] font-bold text-[var(--redup)]">Gambar tidak ada</span>
                           </div>
                         )}
-                        <h4 className="text-xs font-bold text-slate-900 group-hover:text-[#FF6038] line-clamp-1">
+                        <h4 className="text-xs font-bold text-[var(--teks)] group-hover:text-[var(--utama-teks)] line-clamp-1">
                           {menu.nama}
                         </h4>
-                        <span className="text-[10px] text-slate-400">{menu.kategori}</span>
+                        <span className="text-[10px] text-[var(--redup)]">{menu.kategori}</span>
                       </div>
 
-                      <div className="mt-2 pt-2 border-t border-slate-200/60 flex items-center justify-between">
-                        <span className="text-xs font-black text-slate-900">
+                      <div className="mt-2 pt-2 border-t border-[var(--garis)]/60 flex items-center justify-between">
+                        <span className="text-xs font-black text-[var(--teks)]">
                           {formatRupiah(menu.harga)}
                         </span>
                         <button
                           type="button"
-                          className="w-6 h-6 rounded-lg bg-white border border-slate-200 group-hover:bg-[#FF6038] group-hover:text-white group-hover:border-[#FF6038] text-slate-700 flex items-center justify-center transition shadow-2xs"
+                          className="w-6 h-6 rounded-lg bg-[var(--kartu)] border border-[var(--garis)] group-hover:bg-[var(--utama)] group-hover:text-white group-hover:border-[var(--utama-teks)] text-[var(--teks)] flex items-center justify-center transition shadow-2xs"
                         >
                           <Plus className="w-3.5 h-3.5" />
                         </button>
@@ -504,15 +504,15 @@ export const EditPesananView: React.FC<EditPesananViewProps> = ({
       {/* POPUP CONFIRMATION: "Yakin ingin batalkan ubah pesanan?" */}
       {isCancelDialogOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-in fade-in">
-          <div className="w-full max-w-sm rounded-3xl bg-white shadow-2xl p-6 border border-slate-100 text-center animate-in zoom-in-95">
+          <div className="w-full max-w-sm rounded-3xl bg-[var(--kartu)] shadow-2xl p-6 border border-[var(--garis)] text-center animate-in zoom-in-95">
             <div className="w-14 h-14 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center mx-auto mb-3.5">
               <AlertCircle className="w-7 h-7" />
             </div>
 
-            <h3 className="text-base font-black text-slate-900 mb-1.5 leading-snug">
+            <h3 className="text-base font-black text-[var(--teks)] mb-1.5 leading-snug">
               Yakin ingin batalkan ubah pesanan?
             </h3>
-            <p className="text-xs text-slate-500 mb-6 leading-relaxed">
+            <p className="text-xs text-[var(--redup)] mb-6 leading-relaxed">
               Perubahan item dan rincian pesanan yang belum disimpan akan hilang dan pesanan tetap seperti semula.
             </p>
 
@@ -520,7 +520,7 @@ export const EditPesananView: React.FC<EditPesananViewProps> = ({
               <button
                 type="button"
                 onClick={() => setIsCancelDialogOpen(false)}
-                className="py-3 px-3 rounded-2xl border border-slate-200 bg-slate-100 hover:bg-slate-200 text-xs font-bold text-slate-700 transition active:scale-95"
+                className="py-3 px-3 rounded-2xl border border-[var(--garis)] bg-[var(--latar)] hover:bg-[var(--garis)] text-xs font-bold text-[var(--teks)] transition active:scale-95"
               >
                 Lanjut Mengubah
               </button>
@@ -531,7 +531,7 @@ export const EditPesananView: React.FC<EditPesananViewProps> = ({
                   setIsCancelDialogOpen(false);
                   onBack();
                 }}
-                className="py-3 px-3 rounded-2xl bg-rose-600 hover:bg-rose-700 text-xs font-black text-white shadow-md shadow-rose-600/30 transition active:scale-95"
+                className="py-3 px-3 rounded-2xl bg-rose-600 hover:brightness-90 text-xs font-black text-white shadow-md shadow-rose-600/30 transition active:scale-95"
               >
                 Ya, Batalkan
               </button>

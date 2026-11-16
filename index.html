@@ -3,24 +3,42 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <title>BukuPOS - Aplikasi Kasir & Dashboard Pemilik</title>
-    <meta name="description" content="Aplikasi Kasir UMKM & Dashboard Pemilik Offline-First dengan Dexie IndexedDB, Laba/Rugi Real-Time, dan Ekspor CSV." />
-    <meta property="og:title" content="BukuPOS - Aplikasi Kasir UMKM & Dashboard Pemilik" />
-    <meta property="og:description" content="Aplikasi Kasir UMKM & Dashboard Pemilik Offline-First dengan Dexie IndexedDB, Laba/Rugi Real-Time, dan Ekspor CSV." />
+    <title>Kasir Ayam Bebek S.K.B - Aplikasi Kasir & Laporan Cabang</title>
+    <meta name="description" content="Aplikasi kasir & dashboard pemilik Rumah Makan Ayam Bebek S.K.B (2 cabang): transaksi offline-first, laba/rugi real-time, dan ekspor CSV." />
+    <meta property="og:title" content="Kasir Ayam Bebek S.K.B - Aplikasi Kasir & Laporan Cabang" />
+    <meta property="og:description" content="Aplikasi kasir & dashboard pemilik Rumah Makan Ayam Bebek S.K.B (2 cabang): transaksi offline-first, laba/rugi real-time, dan ekspor CSV." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
     
+    <!-- Font: DM Sans (design token --tema-font) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link id="fontTema" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
     <!-- PWA Settings -->
-    <meta name="theme-color" content="#FF6038" />
+    <meta name="theme-color" content="#173f2b" />
+    <meta name="color-scheme" content="light dark" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="BukuPOS" />
+    <meta name="apple-mobile-web-app-title" content="S.K.B" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="icon" type="image/png" href="/favicon.png" />
-    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+
+    <!-- Mode gelap: terapkan sebelum paint pertama (anti-flash).
+         Pilihan tersimpan di localStorage 'tema-mode'; kalau belum pernah
+         dipilih, ikuti preferensi sistem. -->
+    <script>
+      (function () {
+        try {
+          var s = localStorage.getItem('tema-mode');
+          var gelap = s ? s === 'gelap' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+          if (gelap) document.documentElement.setAttribute('data-mode', 'gelap');
+        } catch (e) {}
+      })();
+    </script>
   </head>
-  <body class="bg-[#F7F8FA] text-slate-800 antialiased select-none font-sans">
+  <body class="antialiased select-none">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

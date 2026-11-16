@@ -7,8 +7,9 @@ import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
 import { ToastProvider, useToast } from './context/ToastContext';
-import { Navbar, type NavTab } from './components/common/Navbar';
+import { grupTab, type NavTab } from './components/common/Navbar';
 import { LoginPage } from './components/auth/LoginPage';
+import { ProfileModal } from './components/auth/ProfileModal';
 
 // Views
 import { KasirView } from './components/kasir/KasirView';
@@ -21,6 +22,18 @@ import { EksporDataView } from './components/owner/EksporDataView';
 import { KelolaMenuView } from './components/menu/KelolaMenuView';
 
 import { BottomNav } from './components/common/BottomNav';
+import { Sidebar } from './components/common/Sidebar';
+
+const labelTab: Record<NavTab, string> = {
+  dashboard: 'Dashboard',
+  terlaris: 'Menu Terlaris',
+  biaya: 'Biaya',
+  promo: 'Promo',
+  ekspor: 'Ekspor',
+  kasir: 'Kasir',
+  riwayat: 'Riwayat',
+  menu: 'Produk',
+};
 
 function MainLayout() {
   const { user, isLoading } = useAuth();
@@ -30,6 +43,8 @@ function MainLayout() {
   const [currentTab, setCurrentTab] = useState<NavTab>(() =>
     user?.role === 'owner' ? 'dashboard' : 'kasir'
   );
+  // Modal "Pengaturan Akun & Profil" — dibuka dari nav bawah (mobile) & header (desktop)
+  const [profilOpen, setProfilOpen] = useState(false);
 
   // Set appropriate starting tab based on role
   useEffect(() => {
@@ -37,7 +52,7 @@ function MainLayout() {
       if (user.role === 'owner') {
         setCurrentTab((prev) => (prev === 'kasir' ? 'dashboard' : prev));
       } else {
-        const ownerOnlyTabs: NavTab[] = ['dashboard', 'terlaris', 'biaya', 'promo', 'ekspor'];
+        const ownerOnlyTabs: NavTab[] = ['menu', 'dashboard', 'terlaris', 'biaya', 'promo', 'ekspor'];
         setCurrentTab((prev) => (ownerOnlyTabs.includes(prev) ? 'kasir' : prev));
       }
     }
@@ -52,7 +67,7 @@ function MainLayout() {
       return;
     }
 
-    const ownerOnlyTabs: NavTab[] = ['dashboard', 'terlaris', 'biaya', 'promo', 'ekspor'];
+    const ownerOnlyTabs: NavTab[] = ['menu', 'dashboard', 'terlaris', 'biaya', 'promo', 'ekspor'];
     if (!isOwner && ownerOnlyTabs.includes(tab)) {
       showToast('Akses ditolak: Menu ini hanya dapat diakses oleh Pemilik Usaha (Owner).', 'error');
       setCurrentTab('kasir');
@@ -63,14 +78,14 @@ function MainLayout() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--latar)]">
         <img
-          src="/logo.png"
-          alt="BukuPOS"
+          src="/LogoSKB.png"
+          alt="Ayam Bebek S.K.B"
           className="h-16 object-contain mb-4"
         />
-        <div className="w-8 h-8 border-3 border-orange-600 border-t-transparent rounded-full animate-spin mb-3" />
-        <p className="text-sm font-medium text-gray-600">Memuat data BukuPOS...</p>
+        <div className="w-8 h-8 border-3 border-[var(--utama-teks)] border-t-transparent rounded-full animate-spin mb-3" />
+        <p className="text-sm font-medium text-[var(--redup)]">Memuat data S.K.B...</p>
       </div>
     );
   }
@@ -79,11 +94,36 @@ function MainLayout() {
     return <LoginPage />;
   }
 
-  return (
-    <div className="min-h-screen bg-[#F7F8FA] flex flex-col font-sans pb-16">
-      <Navbar currentTab={currentTab} onSelectTab={handleSelectTab} />
+  // Sub-halaman dalam kelompok nav (Owner: Laporan & Atur) → pilih lewat .segmen
+  const grupAktif = isOwner ? Object.values(grupTab).find((g) => g.includes(currentTab)) : undefined;
 
-      <main className="flex-1 w-full">
+  return (
+    <div className="app-shell min-h-screen bg-[var(--latar)] flex flex-col pb-24 lg:pb-8">
+      {/* Side bar kiri — hanya ≥761px (CSS .sisi); ≤760px memakai BottomNav */}
+      <Sidebar
+        currentTab={currentTab}
+        onSelectTab={handleSelectTab}
+        onOpenProfil={() => setProfilOpen(true)}
+      />
+
+      {grupAktif && (
+        <div className="segmen-wrap w-full max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 pt-4">
+          <div className="segmen">
+            {grupAktif.map((id) => (
+              <button
+                key={id}
+                type="button"
+                className={currentTab === id ? 'aktif' : ''}
+                onClick={() => handleSelectTab(id)}
+              >
+                {labelTab[id]}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <main className="flex-1 w-full max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 pt-4">
         {currentTab === 'kasir' && !isOwner && <KasirView />}
         {currentTab === 'riwayat' && (
           <PesananManagerView onNavigateToKasir={() => handleSelectTab(isOwner ? 'dashboard' : 'kasir')} />
@@ -93,11 +133,17 @@ function MainLayout() {
         {currentTab === 'biaya' && isOwner && <PengaturanBiayaView />}
         {currentTab === 'promo' && isOwner && <KelolaPromoView />}
         {currentTab === 'ekspor' && isOwner && <EksporDataView />}
-        {currentTab === 'menu' && <KelolaMenuView />}
+        {currentTab === 'menu' && isOwner && <KelolaMenuView />}
       </main>
 
-      {/* Android-style Bottom Navigation: Kiri: Pesanan, Kanan: Kasir */}
-      <BottomNav currentTab={currentTab} onSelectTab={handleSelectTab} />
+      {/* Android-style Bottom Navigation: role-based + entry Profil */}
+      <BottomNav
+        currentTab={currentTab}
+        onSelectTab={handleSelectTab}
+        onOpenProfil={() => setProfilOpen(true)}
+      />
+
+      <ProfileModal isOpen={profilOpen} onClose={() => setProfilOpen(false)} />
     </div>
   );
 }

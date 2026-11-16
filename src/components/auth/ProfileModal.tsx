@@ -23,10 +23,13 @@ import {
   AlertCircle,
   Eye,
   EyeOff,
+  Sun,
+  Moon,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { useCabang } from '../../context/CabangContext';
+import { useTema } from '../../hooks/useTema';
 import { compressImageFile } from '../../utils/imageUtils';
 import type { User as UserType } from '../../types';
 
@@ -48,6 +51,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
   } = useAuth();
   const { showToast } = useToast();
   const { cabangList } = useCabang();
+  const { mode, toggle } = useTema();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isOwner = user?.role === 'owner';
@@ -248,61 +252,61 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-3 sm:p-4">
-      <div className="w-full max-w-lg max-h-[90vh] flex flex-col rounded-xl bg-white shadow-xl overflow-hidden border border-gray-200 font-sans">
+      <div className="w-full max-w-lg max-h-[90vh] flex flex-col rounded-xl bg-[var(--kartu)] shadow-xl overflow-hidden border border-[var(--garis)] font-sans">
         {/* Header Modal */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-200 bg-gray-50 shrink-0">
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-[var(--garis)] bg-[var(--latar)] shrink-0">
           <div className="flex items-center gap-2">
-            <User className="w-4 h-4 text-orange-600" />
-            <h3 className="font-semibold text-sm text-gray-900">Pengaturan Akun & Profil</h3>
+            <User className="w-4 h-4 text-[var(--utama-teks)]" />
+            <h3 className="font-semibold text-sm text-[var(--teks)]">Pengaturan Akun & Profil</h3>
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-200 transition"
+            className="p-1 rounded-md text-[var(--redup)] hover:text-[var(--teks)] hover:bg-[var(--latar)] transition"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* User Card Preview Sederhana */}
-        <div className="px-5 py-3 bg-white flex items-center gap-3 border-b border-gray-100 shrink-0">
+        <div className="px-5 py-3 bg-[var(--kartu)] flex items-center gap-3 border-b border-[var(--garis)] shrink-0">
           {fotoUrl ? (
             <img
               src={fotoUrl}
               alt={user.username}
-              className="w-11 h-11 rounded-lg object-cover border border-gray-200"
+              className="w-11 h-11 rounded-lg object-cover border border-[var(--garis)]"
             />
           ) : (
-            <div className="w-11 h-11 rounded-lg bg-orange-600 text-white font-bold text-base flex items-center justify-center shrink-0">
+            <div className="w-11 h-11 rounded-lg bg-[var(--utama)] text-white font-bold text-base flex items-center justify-center shrink-0">
               {userInitial}
             </div>
           )}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <span className="font-semibold text-sm text-gray-900 truncate">
+              <span className="font-semibold text-sm text-[var(--teks)] truncate">
                 {namaLengkap || user.username}
               </span>
               <span
                 className={`text-[10px] font-medium px-2 py-0.5 rounded shrink-0 ${
                   user.role === 'owner'
-                    ? 'bg-orange-100 text-orange-800 border border-orange-200'
+                    ? 'bg-[var(--utama-muda)] text-[var(--utama-teks)] border border-[var(--garis)]'
                     : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
                 }`}
               >
                 {user.role === 'owner' ? 'Pemilik Usaha (Owner)' : 'Staf Kasir'}
               </span>
             </div>
-            <p className="text-xs text-gray-500 mt-0.5">@{user.username}</p>
+            <p className="text-xs text-[var(--redup)] mt-0.5">@{user.username}</p>
           </div>
         </div>
 
         {/* Tab switcher rapi */}
-        <div className="flex border-b border-gray-200 bg-gray-50 shrink-0 text-xs font-medium">
+        <div className="flex border-b border-[var(--garis)] bg-[var(--latar)] shrink-0 text-xs font-medium">
           <button
             onClick={() => setActiveTab('profile')}
             className={`flex-1 py-2.5 text-center border-b-2 transition ${
               activeTab === 'profile'
-                ? 'border-orange-600 text-orange-600 font-semibold bg-white'
-                : 'border-transparent text-gray-600 hover:text-gray-900'
+                ? 'border-[var(--utama-teks)] text-[var(--utama-teks)] font-semibold bg-[var(--kartu)]'
+                : 'border-transparent text-[var(--redup)] hover:text-[var(--teks)]'
             }`}
           >
             Profil Saya
@@ -311,8 +315,8 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
             onClick={() => setActiveTab('password')}
             className={`flex-1 py-2.5 text-center border-b-2 transition ${
               activeTab === 'password'
-                ? 'border-orange-600 text-orange-600 font-semibold bg-white'
-                : 'border-transparent text-gray-600 hover:text-gray-900'
+                ? 'border-[var(--utama-teks)] text-[var(--utama-teks)] font-semibold bg-[var(--kartu)]'
+                : 'border-transparent text-[var(--redup)] hover:text-[var(--teks)]'
             }`}
           >
             Ganti Password
@@ -322,13 +326,13 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
               onClick={() => setActiveTab('kasir')}
               className={`flex-1 py-2.5 text-center border-b-2 transition flex items-center justify-center gap-1.5 ${
                 activeTab === 'kasir'
-                  ? 'border-orange-600 text-orange-600 font-semibold bg-white'
-                  : 'border-transparent text-gray-600 hover:text-gray-900'
+                  ? 'border-[var(--utama-teks)] text-[var(--utama-teks)] font-semibold bg-[var(--kartu)]'
+                  : 'border-transparent text-[var(--redup)] hover:text-[var(--teks)]'
               }`}
             >
               <Users className="w-3.5 h-3.5" />
               <span>Kelola Kasir</span>
-              <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-orange-100 text-orange-800 font-bold">
+              <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-[var(--utama-muda)] text-[var(--utama-teks)] font-bold">
                 {kasirList.length}
               </span>
             </button>
@@ -336,34 +340,70 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
         </div>
 
         {/* Tab Body (Scrollable) */}
-        <div className="p-5 overflow-y-auto flex-1 text-gray-800">
+        <div className="p-5 overflow-y-auto flex-1 text-[var(--teks)]">
           {activeTab === 'profile' && (
             <form onSubmit={handleUpdateProfile} className="space-y-4">
+              {/* Theme Toggle */}
+              <div className="flex items-center justify-between p-3 bg-[var(--kartu)] rounded-lg border border-[var(--garis)] shadow-xs">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-[var(--utama-muda)] text-[var(--utama-teks)] flex items-center justify-center shrink-0">
+                    {mode === 'gelap' ? <Moon className="w-4.5 h-4.5" /> : <Sun className="w-4.5 h-4.5" />}
+                  </div>
+                  <div>
+                    <span className="text-sm font-semibold text-[var(--teks)]">Mode Tampilan</span>
+                    <p className="text-[11px] text-[var(--redup)] mt-0.5">
+                      {mode === 'gelap' ? 'Mode gelap aktif' : 'Mode terang aktif'}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={toggle}
+                  className={`relative inline-flex h-7 w-13 flex-shrink-0 cursor-pointer rounded-full transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[var(--utama-teks)] focus:ring-offset-2 focus:ring-offset-[var(--kartu)] ${
+                    mode === 'gelap'
+                      ? 'bg-[var(--utama)] border-2 border-[var(--utama-teks)]'
+                      : 'bg-[var(--garis-kuat)] border-2 border-[var(--garis)]'
+                  }`}
+                  role="switch"
+                  aria-checked={mode === 'gelap'}
+                  aria-label={mode === 'gelap' ? 'Ganti ke mode terang' : 'Ganti ke mode gelap'}
+                >
+                  <span
+                    aria-hidden="true"
+                    className="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition-transform duration-200 ease-in-out"
+                    style={{
+                      transform: mode === 'gelap' ? 'translateX(26px)' : 'translateX(2px)',
+                      boxShadow: mode === 'gelap' ? '0 2px 6px rgba(0,0,0,0.3)' : '0 2px 4px rgba(0,0,0,0.2)',
+                    }}
+                  />
+                </button>
+              </div>
+
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                <label className="block text-xs font-medium text-[var(--teks)] mb-1.5">
                   Foto Profil
                 </label>
-                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                <div className="flex items-center gap-3 p-3 bg-[var(--latar)] rounded-lg border border-[var(--garis)]">
                   {fotoUrl ? (
                     <div className="relative shrink-0">
                       <img
                         src={fotoUrl}
                         alt="Foto Profil"
-                        className="w-12 h-12 rounded-lg object-cover border border-gray-300"
+                        className="w-12 h-12 rounded-lg object-cover border border-[var(--garis-kuat)]"
                       />
                     </div>
                   ) : (
-                    <div className="w-12 h-12 rounded-lg bg-white border border-gray-300 flex flex-col items-center justify-center text-gray-400 shrink-0">
-                      <User className="w-5 h-5 text-gray-400" />
+                    <div className="w-12 h-12 rounded-lg bg-[var(--kartu)] border border-[var(--garis-kuat)] flex flex-col items-center justify-center text-[var(--redup)] shrink-0">
+                      <User className="w-5 h-5 text-[var(--redup)]" />
                     </div>
                   )}
 
                   <div className="flex-1 min-w-0 space-y-1">
-                    <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white hover:bg-gray-50 border border-gray-300 text-gray-700 text-xs font-medium transition cursor-pointer shadow-2xs">
+                    <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--kartu)] hover:bg-[var(--latar)] border border-[var(--garis-kuat)] text-[var(--teks)] text-xs font-medium transition cursor-pointer shadow-2xs">
                       {isUploadingPhoto ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin text-orange-600" />
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-[var(--utama-teks)]" />
                       ) : (
-                        <Camera className="w-3.5 h-3.5 text-gray-600" />
+                        <Camera className="w-3.5 h-3.5 text-[var(--redup)]" />
                       )}
                       <span>{isUploadingPhoto ? 'Memproses...' : 'Pilih Foto dari Perangkat'}</span>
                       <input
@@ -393,14 +433,14 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
+                <label className="block text-xs font-medium text-[var(--teks)] mb-1">
                   Nama Lengkap
                 </label>
                 <input
                   type="text"
                   value={namaLengkap}
                   onChange={(e) => setNamaLengkap(e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg focus:border-orange-600 focus:ring-1 focus:ring-orange-600 outline-none"
+                  className="w-full px-3 py-2 text-sm bg-[var(--kartu)] border border-[var(--garis-kuat)] rounded-lg focus:border-[var(--utama-teks)] focus:ring-1 focus:ring-[var(--utama-teks)] outline-none"
                   placeholder="Nama Lengkap"
                 />
               </div>
@@ -421,7 +461,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-4 py-2 rounded-lg text-xs font-medium text-white bg-orange-600 hover:bg-orange-700 transition disabled:opacity-50 cursor-pointer"
+                  className="px-4 py-2 rounded-lg text-xs font-medium text-white bg-[var(--utama)] hover:bg-[var(--utama-tua)] active:bg-[var(--utama)] transition disabled:opacity-50 cursor-pointer"
                 >
                   {isSubmitting ? 'Menyimpan...' : 'Simpan Profil'}
                 </button>
@@ -432,42 +472,42 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
           {activeTab === 'password' && (
             <form onSubmit={handleChangePassword} className="space-y-3.5">
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
+                <label className="block text-xs font-medium text-[var(--teks)] mb-1">
                   Password Lama
                 </label>
                 <input
                   type="password"
                   value={oldPassword}
                   onChange={(e) => setOldPassword(e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg focus:border-orange-600 focus:ring-1 focus:ring-orange-600 outline-none"
+                  className="w-full px-3 py-2 text-sm bg-[var(--kartu)] border border-[var(--garis-kuat)] rounded-lg focus:border-[var(--utama-teks)] focus:ring-1 focus:ring-[var(--utama-teks)] outline-none"
                   placeholder="Masukkan password saat ini"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
+                <label className="block text-xs font-medium text-[var(--teks)] mb-1">
                   Password Baru
                 </label>
                 <input
                   type="password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg focus:border-orange-600 focus:ring-1 focus:ring-orange-600 outline-none"
+                  className="w-full px-3 py-2 text-sm bg-[var(--kartu)] border border-[var(--garis-kuat)] rounded-lg focus:border-[var(--utama-teks)] focus:ring-1 focus:ring-[var(--utama-teks)] outline-none"
                   placeholder="Minimal 4 karakter"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
+                <label className="block text-xs font-medium text-[var(--teks)] mb-1">
                   Konfirmasi Password Baru
                 </label>
                 <input
                   type="password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg focus:border-orange-600 focus:ring-1 focus:ring-orange-600 outline-none"
+                  className="w-full px-3 py-2 text-sm bg-[var(--kartu)] border border-[var(--garis-kuat)] rounded-lg focus:border-[var(--utama-teks)] focus:ring-1 focus:ring-[var(--utama-teks)] outline-none"
                   placeholder="Ketik ulang password baru"
                   required
                 />
@@ -477,7 +517,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full py-2.5 rounded-lg text-xs font-medium text-white bg-orange-600 hover:bg-orange-700 transition cursor-pointer"
+                  className="w-full py-2.5 rounded-lg text-xs font-medium text-white bg-[var(--utama)] hover:bg-[var(--utama-tua)] active:bg-[var(--utama)] transition cursor-pointer"
                 >
                   {isSubmitting ? 'Memproses...' : 'Perbarui Password'}
                 </button>
@@ -488,9 +528,9 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
           {activeTab === 'kasir' && isOwner && (
             <div className="space-y-4">
               {/* Info banner wewenang owner */}
-              <div className="p-3 rounded-lg bg-orange-50 border border-orange-200 text-orange-900 text-xs">
-                <p className="font-semibold text-orange-900">Hak Akses Pemilik Usaha (Owner)</p>
-                <p className="text-orange-800 mt-0.5 leading-relaxed">
+              <div className="p-3 rounded-lg bg-[var(--utama-muda)] border border-[var(--garis)] text-[var(--utama-teks)] text-xs">
+                <p className="font-semibold text-[var(--utama-teks)]">Hak Akses Pemilik Usaha (Owner)</p>
+                <p className="text-[var(--utama-teks)] mt-0.5 leading-relaxed">
                   Hanya akun Owner yang memiliki wewenang untuk mendaftarkan akun kasir, mengatur penempatan cabang, dan mereset password kasir.
                 </p>
               </div>
@@ -498,14 +538,14 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
               {/* Action bar */}
               <div className="flex items-center justify-between">
                 <div>
-                  <h4 className="text-sm font-semibold text-gray-900">Daftar Akun Kasir</h4>
-                  <p className="text-xs text-gray-500">Staf yang berwenang melayani transaksi kasir</p>
+                  <h4 className="text-sm font-semibold text-[var(--teks)]">Daftar Akun Kasir</h4>
+                  <p className="text-xs text-[var(--redup)]">Staf yang berwenang melayani transaksi kasir</p>
                 </div>
 
                 <button
                   type="button"
                   onClick={() => setShowAddKasirForm(!showAddKasirForm)}
-                  className="px-3 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-700 text-white text-xs font-medium transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+                  className="px-3 py-1.5 rounded-lg bg-[var(--utama)] hover:bg-[var(--utama-tua)] active:bg-[var(--utama)] text-white text-xs font-medium transition flex items-center gap-1.5 cursor-pointer shadow-xs"
                 >
                   {showAddKasirForm ? (
                     <>
@@ -525,14 +565,14 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
               {showAddKasirForm && (
                 <form
                   onSubmit={handleAddKasirSubmit}
-                  className="p-3.5 bg-gray-50 rounded-lg border border-gray-200 space-y-3"
+                  className="p-3.5 bg-[var(--latar)] rounded-lg border border-[var(--garis)] space-y-3"
                 >
-                  <div className="text-xs font-semibold text-gray-800">
+                  <div className="text-xs font-semibold text-[var(--teks)]">
                     Form Pendaftaran Kasir Baru
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                    <label className="block text-xs font-medium text-[var(--teks)] mb-1">
                       Nama Lengkap Kasir
                     </label>
                     <input
@@ -540,14 +580,14 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
                       value={newKasirNama}
                       onChange={(e) => setNewKasirNama(e.target.value)}
                       placeholder="Contoh: Siti Rahmawati"
-                      className="w-full px-3 py-1.5 text-xs bg-white border border-gray-300 rounded-lg focus:border-orange-600 outline-none"
+                      className="w-full px-3 py-1.5 text-xs bg-[var(--kartu)] border border-[var(--garis-kuat)] rounded-lg focus:border-[var(--utama-teks)] outline-none"
                       required
                     />
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                      <label className="block text-xs font-medium text-[var(--teks)] mb-1">
                         Username Kasir
                       </label>
                       <input
@@ -555,19 +595,19 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
                         value={newKasirUsername}
                         onChange={(e) => setNewKasirUsername(e.target.value)}
                         placeholder="Contoh: kasir_siti"
-                        className="w-full px-3 py-1.5 text-xs bg-white border border-gray-300 rounded-lg focus:border-orange-600 outline-none"
+                        className="w-full px-3 py-1.5 text-xs bg-[var(--kartu)] border border-[var(--garis-kuat)] rounded-lg focus:border-[var(--utama-teks)] outline-none"
                         required
                       />
                     </div>
 
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                      <label className="block text-xs font-medium text-[var(--teks)] mb-1">
                         Cabang Penempatan
                       </label>
                       <select
                         value={newKasirCabang}
                         onChange={(e) => setNewKasirCabang(e.target.value)}
-                        className="w-full px-3 py-1.5 text-xs bg-white border border-gray-300 rounded-lg focus:border-orange-600 outline-none"
+                        className="w-full px-3 py-1.5 text-xs bg-[var(--kartu)] border border-[var(--garis-kuat)] rounded-lg focus:border-[var(--utama-teks)] outline-none"
                       >
                         {cabangList.map((c) => (
                           <option key={c} value={c}>
@@ -579,7 +619,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                    <label className="block text-xs font-medium text-[var(--teks)] mb-1">
                       Password Kasir
                     </label>
                     <div className="relative">
@@ -588,13 +628,13 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
                         value={newKasirPassword}
                         onChange={(e) => setNewKasirPassword(e.target.value)}
                         placeholder="Minimal 4 karakter"
-                        className="w-full pl-3 pr-8 py-1.5 text-xs bg-white border border-gray-300 rounded-lg focus:border-orange-600 outline-none"
+                        className="w-full pl-3 pr-8 py-1.5 text-xs bg-[var(--kartu)] border border-[var(--garis-kuat)] rounded-lg focus:border-[var(--utama-teks)] outline-none"
                         required
                       />
                       <button
                         type="button"
                         onClick={() => setShowNewKasirPassword(!showNewKasirPassword)}
-                        className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-gray-400 hover:text-gray-600"
+                        className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-[var(--redup)] hover:text-[var(--redup)]"
                       >
                         {showNewKasirPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                       </button>
@@ -605,14 +645,14 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
                     <button
                       type="button"
                       onClick={() => setShowAddKasirForm(false)}
-                      className="px-3 py-1.5 rounded-lg border border-gray-300 text-xs font-medium text-gray-600 hover:bg-gray-100"
+                      className="px-3 py-1.5 rounded-lg border border-[var(--garis-kuat)] text-xs font-medium text-[var(--redup)] hover:bg-[var(--latar)]"
                     >
                       Batal
                     </button>
                     <button
                       type="submit"
                       disabled={isSubmitting}
-                      className="px-4 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-700 text-white text-xs font-medium disabled:opacity-50 cursor-pointer"
+                      className="px-4 py-1.5 rounded-lg bg-[var(--utama)] hover:bg-[var(--utama-tua)] active:bg-[var(--utama)] text-white text-xs font-medium disabled:opacity-50 cursor-pointer"
                     >
                       {isSubmitting ? 'Menyimpan...' : 'Simpan Kasir'}
                     </button>
@@ -622,14 +662,14 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
 
               {/* Kasir List */}
               {isLoadingKasir ? (
-                <div className="py-6 text-center text-xs text-gray-500 flex items-center justify-center gap-2">
-                  <Loader2 className="w-4 h-4 animate-spin text-orange-600" />
+                <div className="py-6 text-center text-xs text-[var(--redup)] flex items-center justify-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin text-[var(--utama-teks)]" />
                   <span>Memuat daftar kasir...</span>
                 </div>
               ) : kasirList.length === 0 ? (
-                <div className="py-6 text-center bg-gray-50 rounded-lg border border-dashed border-gray-300 p-4">
-                  <p className="text-xs font-medium text-gray-700">Belum ada akun kasir terdaftar</p>
-                  <p className="text-[11px] text-gray-400 mt-0.5">
+                <div className="py-6 text-center bg-[var(--latar)] rounded-lg border border-dashed border-[var(--garis-kuat)] p-4">
+                  <p className="text-xs font-medium text-[var(--teks)]">Belum ada akun kasir terdaftar</p>
+                  <p className="text-[11px] text-[var(--redup)] mt-0.5">
                     Silakan klik tombol "+ Tambah Kasir" untuk mendaftarkan akun staf pertama.
                   </p>
                 </div>
@@ -642,33 +682,33 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
                     return (
                       <div
                         key={kasir.id}
-                        className="p-3 rounded-lg bg-white border border-gray-200 hover:border-gray-300 transition"
+                        className="p-3 rounded-lg bg-[var(--kartu)] border border-[var(--garis)] hover:border-[var(--garis-kuat)] transition"
                       >
                         {isEditing ? (
                           <div className="space-y-2.5">
-                            <div className="text-xs font-semibold text-gray-800">
+                            <div className="text-xs font-semibold text-[var(--teks)]">
                               Edit Kasir: @{kasir.username}
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                               <div>
-                                <label className="block text-[11px] font-medium text-gray-600 mb-1">
+                                <label className="block text-[11px] font-medium text-[var(--redup)] mb-1">
                                   Nama Lengkap
                                 </label>
                                 <input
                                   type="text"
                                   value={editKasirNama}
                                   onChange={(e) => setEditKasirNama(e.target.value)}
-                                  className="w-full px-2.5 py-1 text-xs border border-gray-300 rounded-md outline-none focus:border-orange-600"
+                                  className="w-full px-2.5 py-1 text-xs border border-[var(--garis-kuat)] rounded-md outline-none focus:border-[var(--utama-teks)]"
                                 />
                               </div>
                               <div>
-                                <label className="block text-[11px] font-medium text-gray-600 mb-1">
+                                <label className="block text-[11px] font-medium text-[var(--redup)] mb-1">
                                   Cabang
                                 </label>
                                 <select
                                   value={editKasirCabang}
                                   onChange={(e) => setEditKasirCabang(e.target.value)}
-                                  className="w-full px-2.5 py-1 text-xs border border-gray-300 rounded-md outline-none focus:border-orange-600"
+                                  className="w-full px-2.5 py-1 text-xs border border-[var(--garis-kuat)] rounded-md outline-none focus:border-[var(--utama-teks)]"
                                 >
                                   {cabangList.map((c) => (
                                     <option key={c} value={c}>
@@ -680,7 +720,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
                             </div>
 
                             <div>
-                              <label className="block text-[11px] font-medium text-gray-600 mb-1">
+                              <label className="block text-[11px] font-medium text-[var(--redup)] mb-1">
                                 Reset Password Baru (Kosongkan bila tidak diubah)
                               </label>
                               <div className="relative">
@@ -689,12 +729,12 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
                                   value={editKasirNewPassword}
                                   onChange={(e) => setEditKasirNewPassword(e.target.value)}
                                   placeholder="Password baru kasir"
-                                  className="w-full pl-2.5 pr-8 py-1 text-xs border border-gray-300 rounded-md outline-none focus:border-orange-600"
+                                  className="w-full pl-2.5 pr-8 py-1 text-xs border border-[var(--garis-kuat)] rounded-md outline-none focus:border-[var(--utama-teks)]"
                                 />
                                 <button
                                   type="button"
                                   onClick={() => setShowEditKasirPassword(!showEditKasirPassword)}
-                                  className="absolute inset-y-0 right-0 pr-2 flex items-center text-gray-400"
+                                  className="absolute inset-y-0 right-0 pr-2 flex items-center text-[var(--redup)]"
                                 >
                                   {showEditKasirPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                                 </button>
@@ -705,7 +745,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
                               <button
                                 type="button"
                                 onClick={() => setEditingKasirId(null)}
-                                className="px-2.5 py-1 rounded-md border border-gray-300 text-xs text-gray-600 hover:bg-gray-100"
+                                className="px-2.5 py-1 rounded-md border border-[var(--garis-kuat)] text-xs text-[var(--redup)] hover:bg-[var(--latar)]"
                               >
                                 Batal
                               </button>
@@ -713,7 +753,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
                                 type="button"
                                 onClick={() => handleSaveEditKasir(kasir.id!)}
                                 disabled={isSubmitting}
-                                className="px-3 py-1 rounded-md bg-orange-600 text-white text-xs font-medium hover:bg-orange-700"
+                                className="px-3 py-1 rounded-md bg-[var(--utama)] text-white text-xs font-medium hover:bg-[var(--utama-tua)]"
                               >
                                 Simpan
                               </button>
@@ -722,19 +762,19 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
                         ) : (
                           <div className="flex items-center justify-between gap-3">
                             <div className="flex items-center gap-2.5 min-w-0">
-                              <div className="w-8 h-8 rounded-md bg-gray-100 text-gray-700 font-semibold text-xs flex items-center justify-center shrink-0 border border-gray-200">
+                              <div className="w-8 h-8 rounded-md bg-[var(--latar)] text-[var(--teks)] font-semibold text-xs flex items-center justify-center shrink-0 border border-[var(--garis)]">
                                 {initial}
                               </div>
                               <div className="min-w-0">
                                 <div className="flex items-center gap-2">
-                                  <span className="text-xs font-semibold text-gray-900 truncate">
+                                  <span className="text-xs font-semibold text-[var(--teks)] truncate">
                                     {kasir.nama_lengkap || kasir.username}
                                   </span>
-                                  <span className="text-[10px] px-1.5 py-0.5 rounded font-medium bg-gray-100 text-gray-700 border border-gray-200 shrink-0">
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded font-medium bg-[var(--latar)] text-[var(--teks)] border border-[var(--garis)] shrink-0">
                                     {kasir.cabang || 'Cabang 1'}
                                   </span>
                                 </div>
-                                <div className="text-[11px] text-gray-500">
+                                <div className="text-[11px] text-[var(--redup)]">
                                   @{kasir.username}
                                 </div>
                               </div>
@@ -745,7 +785,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
                                 type="button"
                                 onClick={() => handleStartEditKasir(kasir)}
                                 title="Edit info kasir"
-                                className="p-1 rounded-md text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition"
+                                className="p-1 rounded-md text-[var(--redup)] hover:text-[var(--teks)] hover:bg-[var(--latar)] transition"
                               >
                                 <Edit2 className="w-3.5 h-3.5" />
                               </button>

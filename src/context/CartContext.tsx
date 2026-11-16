@@ -36,7 +36,6 @@ export interface ProcessCheckoutResult {
 interface CartContextType {
   items: CartItem[];
   addItem: (menu: Menu) => void;
-  addManualItem: (nama: string, harga: number, jumlah: number, kode?: string) => void;
   updateQuantity: (index: number, delta: number) => void;
   removeItem: (index: number) => void;
   clearCart: () => void;
@@ -142,22 +141,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         ];
       }
     });
-  };
-
-  const addManualItem = (nama: string, harga: number, jumlah: number, kode?: string) => {
-    const itemName = kode ? `[${kode}] ${nama}` : nama;
-    setItems((prev) => [
-      ...prev,
-      {
-        menu_id: null,
-        nama: itemName,
-        harga,
-        biaya_bahan_baku: Math.round(harga * 0.5),
-        jumlah: Math.max(1, jumlah),
-        subtotal: harga * Math.max(1, jumlah),
-        is_manual: true,
-      },
-    ]);
   };
 
   const updateQuantity = (index: number, delta: number) => {
@@ -521,7 +504,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       value={{
         items,
         addItem,
-        addManualItem,
         updateQuantity,
         removeItem,
         clearCart,

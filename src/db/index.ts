@@ -16,7 +16,7 @@ import type {
   PesananAktif,
 } from '../types';
 
-export class BukuPOSDatabase extends Dexie {
+export class SkbDatabase extends Dexie {
   users!: Table<User, number>;
   menus!: Table<Menu, number>;
   transaksi!: Table<Transaksi, number>;
@@ -30,7 +30,7 @@ export class BukuPOSDatabase extends Dexie {
     super('BukuPOS_DB');
     this.version(1).stores({
       users: '++id, &username, role, created_at',
-      menus: '++id, nama, kategori, aktif, created_at',
+      menus: '++id, nama, kategori, aktif, cabang, created_at',
       transaksi: '++id, tanggal, user_id, created_at',
       detail_transaksi: '++id, transaksi_id, menu_id, is_manual',
       biaya: '++id, tanggal, created_at',
@@ -45,10 +45,13 @@ export class BukuPOSDatabase extends Dexie {
       transaksi: '++id, tanggal, user_id, cabang, created_at',
       pesanan_aktif: '++id, nomor_pesanan, cabang, status, tanggal, created_at',
     });
+    this.version(4).stores({
+      menus: '++id, nama, kategori, aktif, cabang, created_at',
+    });
   }
 }
 
-export const db = new BukuPOSDatabase();
+export const db = new SkbDatabase();
 
 // Format date helper: YYYY-MM-DD
 export function getFormattedDate(d: Date = new Date()): string {
@@ -183,7 +186,7 @@ export async function seedDatabaseIfEmpty() {
     username: 'owner',
     password_hash: defaultPasswordHash,
     role: 'owner',
-    nama_lengkap: 'Bapak Agus (Pemilik)',
+    nama_lengkap: 'Bapak Agus (Pemilik S.K.B)',
     cabang: 'Semua Cabang',
     foto_url: '',
     created_at: nowIso,
@@ -232,106 +235,36 @@ export async function seedDatabaseIfEmpty() {
 
   // 3. Seed Menus (tanpa gambar dummy, upload gambar bersifat opsional)
   const initialMenus: Omit<Menu, 'id'>[] = [
-    {
-      nama: 'Nasi Goreng Spesial',
-      harga: 25000,
-      kategori: 'Makanan',
-      biaya_bahan_baku: 11000,
-      aktif: true,
-      gambar_url: '',
-      created_at: nowIso,
-      updated_at: nowIso,
-    },
-    {
-      nama: 'Ayam Geprek Sambal Bawang',
-      harga: 22000,
-      kategori: 'Makanan',
-      biaya_bahan_baku: 10000,
-      aktif: true,
-      gambar_url: '',
-      created_at: nowIso,
-      updated_at: nowIso,
-    },
-    {
-      nama: 'Mie Goreng Jawa',
-      harga: 20000,
-      kategori: 'Makanan',
-      biaya_bahan_baku: 8500,
-      aktif: true,
-      gambar_url: '',
-      created_at: nowIso,
-      updated_at: nowIso,
-    },
-    {
-      nama: 'Sate Ayam Madura (10 Tusuk)',
-      harga: 28000,
-      kategori: 'Makanan',
-      biaya_bahan_baku: 13000,
-      aktif: true,
-      gambar_url: '',
-      created_at: nowIso,
-      updated_at: nowIso,
-    },
-    {
-      nama: 'Kopi Susu Gula Aren',
-      harga: 18000,
-      kategori: 'Minuman',
-      biaya_bahan_baku: 6000,
-      aktif: true,
-      gambar_url: '',
-      created_at: nowIso,
-      updated_at: nowIso,
-    },
-    {
-      nama: 'Es Teh Manis Jumbo',
-      harga: 6000,
-      kategori: 'Minuman',
-      biaya_bahan_baku: 1500,
-      aktif: true,
-      gambar_url: '',
-      created_at: nowIso,
-      updated_at: nowIso,
-    },
-    {
-      nama: 'Jus Alpukat Kocok',
-      harga: 16000,
-      kategori: 'Minuman',
-      biaya_bahan_baku: 7000,
-      aktif: true,
-      gambar_url: '',
-      created_at: nowIso,
-      updated_at: nowIso,
-    },
-    {
-      nama: 'Pisang Goreng Keju',
-      harga: 15000,
-      kategori: 'Makanan',
-      biaya_bahan_baku: 5000,
-      aktif: true,
-      gambar_url: '',
-      created_at: nowIso,
-      updated_at: nowIso,
-    },
-    {
-      nama: 'Kentang Goreng Crispy',
-      harga: 14000,
-      kategori: 'Makanan',
-      biaya_bahan_baku: 5000,
-      aktif: true,
-      gambar_url: '',
-      created_at: nowIso,
-      updated_at: nowIso,
-    },
-    {
-      nama: 'Cireng Bumbu Rujak',
-      harga: 12000,
-      kategori: 'Makanan',
-      biaya_bahan_baku: 3500,
-      aktif: true,
-      gambar_url: '',
-      created_at: nowIso,
-      updated_at: nowIso,
-    },
+    // Cabang 1
+    { nama: 'Ayam', harga: 9000, kategori: 'Makanan', biaya_bahan_baku: 4000, aktif: true, gambar_url: '', cabang: 'Cabang 1', created_at: nowIso, updated_at: nowIso },
+    { nama: 'Sayap', harga: 5000, kategori: 'Makanan', biaya_bahan_baku: 2000, aktif: true, gambar_url: '', cabang: 'Cabang 1', created_at: nowIso, updated_at: nowIso },
+    { nama: 'Lele', harga: 7000, kategori: 'Makanan', biaya_bahan_baku: 3500, aktif: true, gambar_url: '', cabang: 'Cabang 1', created_at: nowIso, updated_at: nowIso },
+    { nama: 'Bebek', harga: 15000, kategori: 'Makanan', biaya_bahan_baku: 7000, aktif: true, gambar_url: '', cabang: 'Cabang 1', created_at: nowIso, updated_at: nowIso },
+    { nama: 'Tempe', harga: 1000, kategori: 'Makanan', biaya_bahan_baku: 500, aktif: true, gambar_url: '', cabang: 'Cabang 1', created_at: nowIso, updated_at: nowIso },
+    { nama: 'Kepala', harga: 2000, kategori: 'Makanan', biaya_bahan_baku: 1000, aktif: true, gambar_url: '', cabang: 'Cabang 1', created_at: nowIso, updated_at: nowIso },
+    { nama: 'Kulit', harga: 2000, kategori: 'Makanan', biaya_bahan_baku: 1000, aktif: true, gambar_url: '', cabang: 'Cabang 1', created_at: nowIso, updated_at: nowIso },
+    { nama: 'Ati', harga: 2000, kategori: 'Makanan', biaya_bahan_baku: 1000, aktif: true, gambar_url: '', cabang: 'Cabang 1', created_at: nowIso, updated_at: nowIso },
+    { nama: 'Usus', harga: 2000, kategori: 'Makanan', biaya_bahan_baku: 1000, aktif: true, gambar_url: '', cabang: 'Cabang 1', created_at: nowIso, updated_at: nowIso },
+    { nama: 'Tahu', harga: 1000, kategori: 'Makanan', biaya_bahan_baku: 500, aktif: true, gambar_url: '', cabang: 'Cabang 1', created_at: nowIso, updated_at: nowIso },
+    { nama: 'Nasi 1/2 Porsi', harga: 3000, kategori: 'Makanan', biaya_bahan_baku: 1500, aktif: true, gambar_url: '', cabang: 'Cabang 1', created_at: nowIso, updated_at: nowIso },
+    { nama: 'Nasi 1 Porsi', harga: 5000, kategori: 'Makanan', biaya_bahan_baku: 2000, aktif: true, gambar_url: '', cabang: 'Cabang 1', created_at: nowIso, updated_at: nowIso },
+    { nama: 'Es Teh', harga: 3000, kategori: 'Minuman', biaya_bahan_baku: 1000, aktif: true, gambar_url: '', cabang: 'Cabang 1', created_at: nowIso, updated_at: nowIso },
+    { nama: 'Es Jeruk', harga: 4000, kategori: 'Minuman', biaya_bahan_baku: 1500, aktif: true, gambar_url: '', cabang: 'Cabang 1', created_at: nowIso, updated_at: nowIso },
+    // Cabang 2
+    { nama: 'Ayam', harga: 9000, kategori: 'Makanan', biaya_bahan_baku: 4000, aktif: true, gambar_url: '', cabang: 'Cabang 2', created_at: nowIso, updated_at: nowIso },
+    { nama: 'Sayap', harga: 5000, kategori: 'Makanan', biaya_bahan_baku: 2000, aktif: true, gambar_url: '', cabang: 'Cabang 2', created_at: nowIso, updated_at: nowIso },
+    { nama: 'Lele', harga: 7000, kategori: 'Makanan', biaya_bahan_baku: 3500, aktif: true, gambar_url: '', cabang: 'Cabang 2', created_at: nowIso, updated_at: nowIso },
+    { nama: 'Bebek', harga: 15000, kategori: 'Makanan', biaya_bahan_baku: 7000, aktif: true, gambar_url: '', cabang: 'Cabang 2', created_at: nowIso, updated_at: nowIso },
+    { nama: 'Tempe', harga: 1000, kategori: 'Makanan', biaya_bahan_baku: 500, aktif: true, gambar_url: '', cabang: 'Cabang 2', created_at: nowIso, updated_at: nowIso },
+    { nama: 'Kepala', harga: 2000, kategori: 'Makanan', biaya_bahan_baku: 1000, aktif: true, gambar_url: '', cabang: 'Cabang 2', created_at: nowIso, updated_at: nowIso },
+    { nama: 'Kulit', harga: 2000, kategori: 'Makanan', biaya_bahan_baku: 1000, aktif: true, gambar_url: '', cabang: 'Cabang 2', created_at: nowIso, updated_at: nowIso },
+    { nama: 'Ati', harga: 2000, kategori: 'Makanan', biaya_bahan_baku: 1000, aktif: true, gambar_url: '', cabang: 'Cabang 2', created_at: nowIso, updated_at: nowIso },
+    { nama: 'Usus', harga: 2000, kategori: 'Makanan', biaya_bahan_baku: 1000, aktif: true, gambar_url: '', cabang: 'Cabang 2', created_at: nowIso, updated_at: nowIso },
+    { nama: 'Tahu', harga: 1000, kategori: 'Makanan', biaya_bahan_baku: 500, aktif: true, gambar_url: '', cabang: 'Cabang 2', created_at: nowIso, updated_at: nowIso },
+    { nama: 'Nasi 1/2 Porsi', harga: 3000, kategori: 'Makanan', biaya_bahan_baku: 1500, aktif: true, gambar_url: '', cabang: 'Cabang 2', created_at: nowIso, updated_at: nowIso },
+    { nama: 'Nasi 1 Porsi', harga: 5000, kategori: 'Makanan', biaya_bahan_baku: 2000, aktif: true, gambar_url: '', cabang: 'Cabang 2', created_at: nowIso, updated_at: nowIso },
+    { nama: 'Es Teh', harga: 3000, kategori: 'Minuman', biaya_bahan_baku: 1000, aktif: true, gambar_url: '', cabang: 'Cabang 2', created_at: nowIso, updated_at: nowIso },
+    { nama: 'Es Jeruk', harga: 4000, kategori: 'Minuman', biaya_bahan_baku: 1500, aktif: true, gambar_url: '', cabang: 'Cabang 2', created_at: nowIso, updated_at: nowIso },
   ];
 
   const menuIds: { id: number; nama: string; harga: number; bahan: number }[] = [];
@@ -349,14 +282,14 @@ export async function seedDatabaseIfEmpty() {
     await db.biaya.add({
       tanggal: dateStr,
       biaya_operasional: 150000, // Rp 150.000 / hari
-      keterangan: 'Listrik, gas dapur, kebersihan & sewa harian',
+      keterangan: 'Gas & listrik dapur, kebersihan, dan sewa harian S.K.B',
       created_at: date.toISOString(),
     });
   }
 
   // 5. Seed Promo
   await db.promo.add({
-    nama: 'Diskon UMKM Ceria 10%',
+    nama: 'Promo Pelanggan Setia S.K.B 10%',
     tipe: 'persen',
     nilai: 10,
     tanggal_mulai: getFormattedDate(new Date(today.getTime() - 7 * 86400000)),
@@ -436,25 +369,25 @@ export async function seedDatabaseIfEmpty() {
       catatan: 'Pedas sedang, es teh jangan terlalu manis',
       tanggal: todayStr,
       waktu: '12:15:00',
-      total: 62000,
+      total: 66000,
       status: 'menunggu_pembayaran',
       user_id: staffId,
       user_name: 'Siti (Kasir)',
       created_at: new Date(Date.now() - 25 * 60000).toISOString(),
       items: [
         {
-          nama: 'Nasi Goreng Spesial',
-          harga: 25000,
+          nama: 'Bebek Goreng',
+          harga: 28000,
           jumlah: 2,
-          subtotal: 50000,
-          biaya_bahan_baku: 11000,
+          subtotal: 56000,
+          biaya_bahan_baku: 13000,
           is_manual: false,
         },
         {
-          nama: 'Es Teh Manis Jumbo',
-          harga: 6000,
+          nama: 'Es Teh Manis',
+          harga: 5000,
           jumlah: 2,
-          subtotal: 12000,
+          subtotal: 10000,
           biaya_bahan_baku: 1500,
           is_manual: false,
         },
@@ -467,26 +400,26 @@ export async function seedDatabaseIfEmpty() {
       catatan: 'Bungkus pisah sambalnya',
       tanggal: todayStr,
       waktu: '12:35:00',
-      total: 37000,
+      total: 38000,
       status: 'menunggu_pembayaran',
       user_id: staffId,
       user_name: 'Siti (Kasir)',
       created_at: new Date(Date.now() - 10 * 60000).toISOString(),
       items: [
         {
-          nama: 'Ayam Geprek Sambal Bawang',
-          harga: 22000,
+          nama: 'Bebek Penyet',
+          harga: 30000,
           jumlah: 1,
-          subtotal: 22000,
-          biaya_bahan_baku: 10000,
+          subtotal: 30000,
+          biaya_bahan_baku: 14000,
           is_manual: false,
         },
         {
-          nama: 'Pisang Goreng Keju',
-          harga: 15000,
+          nama: 'Lalapan + Sambal Terasi',
+          harga: 8000,
           jumlah: 1,
-          subtotal: 15000,
-          biaya_bahan_baku: 5000,
+          subtotal: 8000,
+          biaya_bahan_baku: 3000,
           is_manual: false,
         },
       ],
@@ -496,7 +429,7 @@ export async function seedDatabaseIfEmpty() {
   // Also ensure 30 days data is populated
   await ensureThirtyDaysData();
 
-  console.log('BukuPOS Database seeded successfully with initial data and active orders!');
+  console.log('S.K.B Database seeded successfully with initial data and active orders!');
 }
 
 /**
@@ -538,7 +471,7 @@ export async function ensureThirtyDaysData() {
         await db.biaya.add({
           tanggal: dateStr,
           biaya_operasional: opsCost,
-          keterangan: 'Listrik, gas dapur & operasional harian',
+          keterangan: 'Operasional dapur S.K.B: gas, listrik & kebersihan',
           created_at: d.toISOString(),
         });
       }

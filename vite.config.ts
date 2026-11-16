@@ -11,14 +11,15 @@ export default defineConfig(() => {
       tailwindcss(),
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['icon.svg', 'apple-touch-icon.png', 'pwa-192x192.png', 'pwa-512x512.png'],
+        includeAssets: ['apple-touch-icon.png', 'pwa-192x192.png', 'pwa-512x512.png'],
         manifest: {
           id: '/',
-          name: 'BukuPOS - Kasir UMKM',
-          short_name: 'BukuPOS',
-          description: 'Aplikasi Web Kasir & Dashboard Pemilik Offline-First dengan Dexie IndexedDB',
-          theme_color: '#FF6038',
-          background_color: '#F7F8FA',
+          name: 'Kasir Ayam Bebek S.K.B',
+          short_name: 'Kasir SKB',
+          description: 'Aplikasi kasir & laporan Rumah Makan Ayam Bebek S.K.B — offline-first, laba/rugi 2 cabang, ekspor CSV.',
+          theme_color: '#173f2b',
+          background_color: '#f3f4ef',
+          lang: 'id',
           display: 'standalone',
           start_url: '/',
           scope: '/',
@@ -63,6 +64,10 @@ export default defineConfig(() => {
       hmr: process.env.DISABLE_HMR !== 'true',
       // Disable file watching when DISABLE_HMR is true to save CPU during agent edits.
       watch: process.env.DISABLE_HMR === 'true' ? null : {},
+      // Allow Vite dev server to be reached through cloudflared quick tunnels
+      // (npm run tunnel). The leading dot permits every *.trycloudflare.com
+      // subdomain, so a restarted tunnel with a new URL keeps working.
+      allowedHosts: ['.trycloudflare.com'],
     },
   };
 });

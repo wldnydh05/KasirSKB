@@ -428,25 +428,25 @@ export const PesananManagerView: React.FC<PesananManagerViewProps> = ({
       {/* Top Header - Clean, Phone-Friendly */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-            <Receipt className="w-6 h-6 text-[#FF6038] shrink-0" />
+          <h1 className="text-xl sm:text-2xl font-black text-[var(--teks)] tracking-tight flex items-center gap-2">
+            <Receipt className="w-6 h-6 text-[var(--utama-teks)] shrink-0" />
             <span>Pusat Pesanan</span>
           </h1>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <p className="text-xs text-[var(--redup)] mt-0.5">
             Kelola pesanan aktif yang diproses dapur dan riwayat transaksi pesanan.
           </p>
         </div>
       </div>
 
       {/* Segmented Switcher: Pesanan Aktif vs Riwayat Pesanan */}
-      <div className="grid grid-cols-2 gap-1.5 p-1.5 bg-slate-200/90 rounded-2xl mb-3 max-w-md mx-auto sm:mx-0 shadow-inner">
+      <div className="grid grid-cols-2 gap-1.5 p-1.5 bg-[var(--garis)]/90 rounded-2xl mb-3 max-w-md mx-auto sm:mx-0 shadow-inner">
         <button
           type="button"
           onClick={() => setActiveTab('aktif')}
           className={`relative flex items-center justify-center gap-2 min-h-[44px] py-2 px-3 rounded-xl text-xs sm:text-sm font-black transition-all duration-200 active:scale-95 ${
             activeTab === 'aktif'
-              ? 'bg-[#FF6038] text-white shadow-md shadow-orange-500/25 ring-2 ring-white/60'
-              : 'text-slate-700 hover:text-slate-900 hover:bg-slate-300/60'
+              ? 'bg-[var(--utama)] text-white shadow-md shadow-[var(--utama)]/25 ring-2 ring-white/60'
+              : 'text-[var(--teks)] hover:text-[var(--teks)] hover:bg-[var(--garis-kuat)]/60'
           }`}
         >
           <Clock className="w-4 h-4 shrink-0" />
@@ -454,7 +454,7 @@ export const PesananManagerView: React.FC<PesananManagerViewProps> = ({
           {displayedActiveOrders.length > 0 && (
             <span
               className={`px-1.5 py-0.5 min-w-[20px] text-center rounded-full text-[11px] font-black leading-none ${
-                activeTab === 'aktif' ? 'bg-slate-950 text-white' : 'bg-emerald-600 text-white'
+                activeTab === 'aktif' ? 'bg-[var(--nav)] text-white' : 'bg-emerald-600 text-white'
               }`}
             >
               {displayedActiveOrders.length}
@@ -467,8 +467,8 @@ export const PesananManagerView: React.FC<PesananManagerViewProps> = ({
           onClick={() => setActiveTab('selesai')}
           className={`relative flex items-center justify-center gap-2 min-h-[44px] py-2 px-3 rounded-xl text-xs sm:text-sm font-black transition-all duration-200 active:scale-95 ${
             activeTab === 'selesai'
-              ? 'bg-[#0F172A] text-white shadow-md ring-2 ring-white/60'
-              : 'text-slate-700 hover:text-slate-900 hover:bg-slate-300/60'
+              ? 'bg-[var(--nav)] text-white shadow-md ring-2 ring-white/60'
+              : 'text-[var(--teks)] hover:text-[var(--teks)] hover:bg-[var(--garis-kuat)]/60'
           }`}
         >
           <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
@@ -478,9 +478,9 @@ export const PesananManagerView: React.FC<PesananManagerViewProps> = ({
 
       {/* Branch Selector for Owner / Branch Indicator for Staff */}
       {isOwner ? (
-        <div className="flex items-center gap-1.5 p-1.5 bg-white border border-slate-200/90 rounded-2xl mb-4 overflow-x-auto shadow-2xs">
-          <div className="flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-slate-500 shrink-0">
-            <Store className="w-3.5 h-3.5 text-[#FF6038]" />
+        <div className="flex items-center gap-1.5 p-1.5 bg-[var(--kartu)] border border-[var(--garis)]/90 rounded-2xl mb-4 overflow-x-auto shadow-2xs">
+          <div className="flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-[var(--redup)] shrink-0">
+            <Store className="w-3.5 h-3.5 text-[var(--utama-teks)]" />
             <span>Pantau Cabang:</span>
           </div>
           <button
@@ -488,8 +488,8 @@ export const PesananManagerView: React.FC<PesananManagerViewProps> = ({
             onClick={() => setSelectedCabangFilter('Semua')}
             className={`min-h-[36px] px-3.5 py-1 rounded-xl text-xs font-black transition-all shrink-0 ${
               selectedCabangFilter === 'Semua'
-                ? 'bg-slate-900 text-white shadow-xs'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                ? 'bg-[var(--nav)] text-white shadow-xs'
+                : 'text-[var(--redup)] hover:text-[var(--teks)] hover:bg-[var(--latar)]'
             }`}
           >
             Semua Cabang
@@ -501,8 +501,8 @@ export const PesananManagerView: React.FC<PesananManagerViewProps> = ({
               onClick={() => setSelectedCabangFilter(c)}
               className={`min-h-[36px] px-3.5 py-1 rounded-xl text-xs font-black transition-all shrink-0 ${
                 selectedCabangFilter === c
-                  ? 'bg-[#FF6038] text-white shadow-xs shadow-orange-500/20'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                  ? 'bg-[var(--utama)] text-white shadow-xs shadow-[var(--utama)]/20'
+                  : 'text-[var(--redup)] hover:text-[var(--teks)] hover:bg-[var(--latar)]'
               }`}
             >
               {c}
@@ -511,8 +511,8 @@ export const PesananManagerView: React.FC<PesananManagerViewProps> = ({
         </div>
       ) : (
         <div className="flex items-center gap-2 p-2 px-3 bg-amber-50/80 border border-amber-200/80 rounded-2xl mb-4 text-xs font-bold text-amber-950 shadow-2xs">
-          <Store className="w-4 h-4 text-[#FF6038] shrink-0" />
-          <span>Akun Kasir Aktif: <strong className="text-slate-900 font-black">{activeCashierCabang}</strong></span>
+          <Store className="w-4 h-4 text-[var(--utama-teks)] shrink-0" />
+          <span>Akun Kasir Aktif: <strong className="text-[var(--teks)] font-black">{activeCashierCabang}</strong></span>
           <span className="text-[10px] text-amber-700 font-semibold ml-auto hidden sm:inline">(Hanya transaksi cabang ini)</span>
         </div>
       )}
@@ -531,16 +531,16 @@ export const PesananManagerView: React.FC<PesananManagerViewProps> = ({
           </div>
 
           {isLoadingActive ? (
-            <div className="py-12 text-center text-xs text-slate-400">Memuat pesanan aktif...</div>
+            <div className="py-12 text-center text-xs text-[var(--redup)]">Memuat pesanan aktif...</div>
           ) : displayedActiveOrders.length === 0 ? (
-            <div className="text-center py-16 bg-white rounded-3xl border border-dashed border-slate-200 p-6 sm:p-8">
+            <div className="text-center py-16 bg-[var(--kartu)] rounded-3xl border border-dashed border-[var(--garis)] p-6 sm:p-8">
               <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto mb-3">
                 <CheckCircle2 className="w-7 h-7" />
               </div>
-              <h4 className="text-base font-black text-slate-800">
+              <h4 className="text-base font-black text-[var(--teks)]">
                 {effectiveCabangFilter === 'Semua' ? 'Semua Pesanan Selesai!' : `Tidak Ada Pesanan Aktif di ${effectiveCabangFilter}`}
               </h4>
-              <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto leading-relaxed">
+              <p className="text-xs text-[var(--redup)] mt-1 max-w-sm mx-auto leading-relaxed">
                 {effectiveCabangFilter === 'Semua'
                   ? 'Tidak ada pesanan aktif saat ini. Pesanan baru dapat dibuat langsung melalui menu Kasir.'
                   : `Semua pesanan di ${effectiveCabangFilter} telah disajikan atau diselesaikan pembayarannya.`}
@@ -554,13 +554,13 @@ export const PesananManagerView: React.FC<PesananManagerViewProps> = ({
                 return (
                   <div
                     key={order.id}
-                    className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200/90 shadow-xs flex flex-col justify-between hover:shadow-md transition"
+                    className="bg-[var(--kartu)] rounded-3xl p-4 sm:p-5 border border-[var(--garis)]/90 shadow-xs flex flex-col justify-between hover:shadow-md transition"
                   >
                     <div>
                       {/* Header Card: Order # & Status */}
-                      <div className="flex items-center justify-between pb-3 border-b border-slate-100 gap-2">
+                      <div className="flex items-center justify-between pb-3 border-b border-[var(--garis)] gap-2">
                         <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
-                          <span className="font-mono font-black text-xs text-slate-900 bg-slate-100 px-2.5 py-1 rounded-lg shrink-0">
+                          <span className="font-mono font-black text-xs text-[var(--teks)] bg-[var(--latar)] px-2.5 py-1 rounded-lg shrink-0">
                             #{order.nomor_pesanan}
                           </span>
                           <span
@@ -585,7 +585,7 @@ export const PesananManagerView: React.FC<PesananManagerViewProps> = ({
                             </span>
                           )}
                         </div>
-                        <div className="flex items-center gap-1 text-xs text-slate-400 font-semibold shrink-0">
+                        <div className="flex items-center gap-1 text-xs text-[var(--redup)] font-semibold shrink-0">
                           <Clock className="w-3.5 h-3.5" />
                           <span>{order.waktu}</span>
                         </div>
@@ -594,7 +594,7 @@ export const PesananManagerView: React.FC<PesananManagerViewProps> = ({
                       {/* Customer & Service Type */}
                       <div className="mt-3">
                         <div className="flex items-center justify-between gap-2">
-                          <h3 className="font-black text-base text-slate-900 truncate">
+                          <h3 className="font-black text-base text-[var(--teks)] truncate">
                             {order.nama_pelanggan || 'Pelanggan'}
                           </h3>
                           {order.tipe_pesanan === 'Bungkus' || (!order.tipe_pesanan && !order.nomor_meja) ? (
@@ -603,8 +603,8 @@ export const PesananManagerView: React.FC<PesananManagerViewProps> = ({
                               <span>Bungkus</span>
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-700 bg-slate-100 border border-slate-200/80 px-2.5 py-0.5 rounded-lg shrink-0">
-                              <Utensils className="w-3.5 h-3.5 text-slate-600" />
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[var(--teks)] bg-[var(--latar)] border border-[var(--garis)]/80 px-2.5 py-0.5 rounded-lg shrink-0">
+                              <Utensils className="w-3.5 h-3.5 text-[var(--redup)]" />
                               <span>Meja {order.nomor_meja || '-'}</span>
                             </span>
                           )}
@@ -617,16 +617,16 @@ export const PesananManagerView: React.FC<PesananManagerViewProps> = ({
                       </div>
 
                       {/* Items List - Mobile friendly clean receipt style */}
-                      <div className="mt-3.5 bg-slate-50/70 rounded-2xl p-3 border border-slate-100 space-y-2">
+                      <div className="mt-3.5 bg-[var(--latar)]/70 rounded-2xl p-3 border border-[var(--garis)] space-y-2">
                         {order.items.map((it, idx) => (
                           <div key={idx} className="flex justify-between items-start text-xs gap-2">
-                            <span className="text-slate-800 font-medium leading-tight flex-1">
-                              <span className="font-black text-[#FF6038] bg-orange-100/80 px-1.5 py-0.5 rounded mr-1">
+                            <span className="text-[var(--teks)] font-medium leading-tight flex-1">
+                              <span className="font-black text-[var(--utama-teks)] bg-[var(--utama-muda)]/80 px-1.5 py-0.5 rounded mr-1">
                                 {it.jumlah}x
                               </span>{' '}
                               {it.nama}
                             </span>
-                            <span className="font-bold text-slate-900 shrink-0">
+                            <span className="font-bold text-[var(--teks)] shrink-0">
                               {formatRupiah(it.subtotal)}
                             </span>
                           </div>
@@ -635,14 +635,14 @@ export const PesananManagerView: React.FC<PesananManagerViewProps> = ({
                     </div>
 
                     {/* Total & Ergonomic Mobile Action Buttons */}
-                    <div className="mt-4 pt-3 border-t border-slate-100 space-y-3">
+                    <div className="mt-4 pt-3 border-t border-[var(--garis)] space-y-3">
                       <div className="flex justify-between items-baseline">
-                        <span className="text-xs text-slate-500 font-medium">
+                        <span className="text-xs text-[var(--redup)] font-medium">
                           {isPaid ? 'Total Transaksi:' : 'Tagihan Belum Dibayar:'}
                         </span>
                         <span
                           className={`text-lg font-black ${
-                            isPaid ? 'text-slate-900' : 'text-[#FF6038]'
+                            isPaid ? 'text-[var(--teks)]' : 'text-[var(--utama-teks)]'
                           }`}
                         >
                           {formatRupiah(order.total)}
@@ -664,8 +664,8 @@ export const PesananManagerView: React.FC<PesananManagerViewProps> = ({
                               <span>Cetak / Lihat Struk Pesanan</span>
                             </button>
 
-                            <div className="bg-slate-50 border border-slate-200/80 rounded-xl py-2 px-3 text-center">
-                              <span className="text-[11px] font-bold text-slate-500 flex items-center justify-center gap-1.5">
+                            <div className="bg-[var(--latar)] border border-[var(--garis)]/80 rounded-xl py-2 px-3 text-center">
+                              <span className="text-[11px] font-bold text-[var(--redup)] flex items-center justify-center gap-1.5">
                                 <span
                                   className={`w-2 h-2 rounded-full ${
                                     isPaid ? 'bg-emerald-500' : 'bg-amber-400 animate-pulse'
@@ -683,10 +683,10 @@ export const PesananManagerView: React.FC<PesananManagerViewProps> = ({
                               <button
                                 type="button"
                                 onClick={() => handleEditActiveOrder(order)}
-                                className="flex-1 min-h-[44px] py-2 px-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 active:scale-95 text-xs font-bold text-slate-700 flex items-center justify-center gap-1.5 transition shadow-2xs"
+                                className="flex-1 min-h-[44px] py-2 px-2.5 rounded-xl border border-[var(--garis)] bg-[var(--kartu)] hover:bg-[var(--latar)] active:scale-95 text-xs font-bold text-[var(--teks)] flex items-center justify-center gap-1.5 transition shadow-2xs"
                                 title="Ubah item pesanan"
                               >
-                                <Edit className="w-3.5 h-3.5 text-slate-600 shrink-0" />
+                                <Edit className="w-3.5 h-3.5 text-[var(--redup)] shrink-0" />
                                 <span>Ubah Item</span>
                               </button>
 
@@ -716,7 +716,7 @@ export const PesananManagerView: React.FC<PesananManagerViewProps> = ({
                               <button
                                 type="button"
                                 onClick={() => handleMarkOrderCompleted(order)}
-                                className="w-full min-h-[48px] py-3 px-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 active:scale-[0.98] text-xs sm:text-sm font-black text-white flex items-center justify-center gap-2 shadow-md shadow-emerald-600/30 transition"
+                                className="w-full min-h-[48px] py-3 px-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:brightness-90 active:scale-[0.98] text-xs sm:text-sm font-black text-white flex items-center justify-center gap-2 shadow-md shadow-emerald-600/30 transition"
                               >
                                 <CheckCircle2 className="w-4 h-4 shrink-0" />
                                 <span>Pesanan Selesai Disajikan</span>
@@ -725,7 +725,7 @@ export const PesananManagerView: React.FC<PesananManagerViewProps> = ({
                               <button
                                 type="button"
                                 onClick={() => handleOpenQuickPay(order)}
-                                className="w-full min-h-[48px] py-3 px-4 rounded-2xl bg-gradient-to-r from-[#FF6038] to-[#E04620] hover:brightness-105 active:scale-[0.98] text-xs sm:text-sm font-black text-white flex items-center justify-center gap-2 shadow-md shadow-orange-500/30 transition"
+                                className="w-full min-h-[48px] py-3 px-4 rounded-2xl bg-gradient-to-r from-[var(--utama)] to-[var(--utama-tua)] hover:brightness-105 active:scale-[0.98] text-xs sm:text-sm font-black text-white flex items-center justify-center gap-2 shadow-md shadow-[var(--utama)]/30 transition"
                               >
                                 <DollarSign className="w-4 h-4 shrink-0" />
                                 <span>Selesaikan Transaksi (Bayar)</span>
@@ -747,10 +747,10 @@ export const PesananManagerView: React.FC<PesananManagerViewProps> = ({
       {activeTab === 'selesai' && (
         <div className="space-y-3.5 animate-in fade-in duration-150">
           {/* Filters, Search & Metrics - Phone Friendly */}
-          <div className="bg-white rounded-3xl p-3.5 sm:p-5 border border-slate-200/90 shadow-2xs space-y-3">
+          <div className="bg-[var(--kartu)] rounded-3xl p-3.5 sm:p-5 border border-[var(--garis)]/90 shadow-2xs space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
               {/* Period chips */}
-              <div className="grid grid-cols-3 gap-1 bg-slate-100 p-1 rounded-2xl w-full sm:w-auto">
+              <div className="grid grid-cols-3 gap-1 bg-[var(--latar)] p-1 rounded-2xl w-full sm:w-auto">
                 {(
                   [
                     { id: 'hari-ini' as const, label: 'Hari Ini' },
@@ -763,11 +763,11 @@ export const PesananManagerView: React.FC<PesananManagerViewProps> = ({
                     onClick={() => setPeriod(p.id)}
                     className={`min-h-[38px] px-2 py-1.5 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-1.5 whitespace-nowrap ${
                       period === p.id
-                        ? 'bg-white text-slate-900 shadow-xs'
-                        : 'text-slate-600 hover:text-slate-900'
+                        ? 'bg-[var(--kartu)] text-[var(--teks)] shadow-xs'
+                        : 'text-[var(--redup)] hover:text-[var(--teks)]'
                     }`}
                   >
-                    {p.id === 'custom' && <Calendar className="w-3.5 h-3.5 text-[#FF6038]" />}
+                    {p.id === 'custom' && <Calendar className="w-3.5 h-3.5 text-[var(--utama-teks)]" />}
                     <span>{p.label}</span>
                   </button>
                 ))}
@@ -775,18 +775,18 @@ export const PesananManagerView: React.FC<PesananManagerViewProps> = ({
 
               {/* Search */}
               <div className="relative w-full sm:w-72">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--redup)]" />
                 <input
                   type="text"
                   value={searchHistory}
                   onChange={(e) => setSearchHistory(e.target.value)}
                   placeholder="Cari ID nota, kasir, atau menu..."
-                  className="w-full min-h-[40px] pl-9 pr-8 py-2 text-xs rounded-xl border border-slate-200 outline-none focus:border-[#FF6038] bg-slate-50/50 focus:bg-white transition"
+                  className="w-full min-h-[40px] pl-9 pr-8 py-2 text-xs rounded-xl border border-[var(--garis)] outline-none focus:border-[var(--utama-teks)] bg-[var(--latar)]/50 focus:bg-[var(--kartu)] transition"
                 />
                 {searchHistory && (
                   <button
                     onClick={() => setSearchHistory('')}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs p-1"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--redup)] hover:text-[var(--redup)] text-xs p-1"
                   >
                     ✕
                   </button>
@@ -796,28 +796,28 @@ export const PesananManagerView: React.FC<PesananManagerViewProps> = ({
 
             {/* Custom Date Range Picker */}
             {period === 'custom' && (
-              <div className="bg-orange-50/70 border border-orange-200/80 rounded-2xl p-3 sm:p-3.5 space-y-2 w-full min-w-0 overflow-hidden animate-in fade-in">
-                <div className="flex items-center gap-1.5 text-xs font-bold text-orange-950">
-                  <Calendar className="w-4 h-4 text-[#FF6038] shrink-0" />
+              <div className="bg-[var(--utama-muda)]/70 border border-[var(--garis)]/80 rounded-2xl p-3 sm:p-3.5 space-y-2 w-full min-w-0 overflow-hidden animate-in fade-in">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-[var(--utama-teks)]">
+                  <Calendar className="w-4 h-4 text-[var(--utama-teks)] shrink-0" />
                   <span>Pilih Rentang Tanggal:</span>
                 </div>
                 <div className="grid grid-cols-2 gap-2 sm:gap-3 w-full min-w-0">
                   <div className="min-w-0">
-                    <label className="text-[10px] font-semibold text-slate-500 block mb-1 truncate">Dari Tanggal</label>
+                    <label className="text-[10px] font-semibold text-[var(--redup)] block mb-1 truncate">Dari Tanggal</label>
                     <input
                       type="date"
                       value={customStartDate}
                       onChange={(e) => setCustomStartDate(e.target.value)}
-                      className="w-full min-w-0 max-w-full min-h-[40px] px-2 py-1.5 text-[11px] sm:text-xs font-bold bg-white rounded-xl border border-slate-200 outline-none focus:border-[#FF6038] text-slate-800 box-border"
+                      className="w-full min-w-0 max-w-full min-h-[40px] px-2 py-1.5 text-[11px] sm:text-xs font-bold bg-[var(--kartu)] rounded-xl border border-[var(--garis)] outline-none focus:border-[var(--utama-teks)] text-[var(--teks)] box-border"
                     />
                   </div>
                   <div className="min-w-0">
-                    <label className="text-[10px] font-semibold text-slate-500 block mb-1 truncate">Sampai Tanggal</label>
+                    <label className="text-[10px] font-semibold text-[var(--redup)] block mb-1 truncate">Sampai Tanggal</label>
                     <input
                       type="date"
                       value={customEndDate}
                       onChange={(e) => setCustomEndDate(e.target.value)}
-                      className="w-full min-w-0 max-w-full min-h-[40px] px-2 py-1.5 text-[11px] sm:text-xs font-bold bg-white rounded-xl border border-slate-200 outline-none focus:border-[#FF6038] text-slate-800 box-border"
+                      className="w-full min-w-0 max-w-full min-h-[40px] px-2 py-1.5 text-[11px] sm:text-xs font-bold bg-[var(--kartu)] rounded-xl border border-[var(--garis)] outline-none focus:border-[var(--utama-teks)] text-[var(--teks)] box-border"
                     />
                   </div>
                 </div>
@@ -825,10 +825,10 @@ export const PesananManagerView: React.FC<PesananManagerViewProps> = ({
             )}
 
             {/* Total Omzet & Pesanan Summary */}
-            <div className="grid grid-cols-2 gap-2 pt-3 border-t border-slate-100">
-              <div className="p-2.5 bg-slate-50 rounded-2xl">
-                <span className="text-[11px] text-slate-500 font-semibold block">Total Selesai</span>
-                <span className="text-sm sm:text-base font-black text-slate-900">
+            <div className="grid grid-cols-2 gap-2 pt-3 border-t border-[var(--garis)]">
+              <div className="p-2.5 bg-[var(--latar)] rounded-2xl">
+                <span className="text-[11px] text-[var(--redup)] font-semibold block">Total Selesai</span>
+                <span className="text-sm sm:text-base font-black text-[var(--teks)]">
                   {filteredHistory.length} Pesanan
                 </span>
               </div>
@@ -843,12 +843,12 @@ export const PesananManagerView: React.FC<PesananManagerViewProps> = ({
 
           {/* History List - Mobile Friendly Card Layout */}
           {isLoadingHistory ? (
-            <div className="py-12 text-center text-xs text-slate-400">Memuat riwayat pesanan...</div>
+            <div className="py-12 text-center text-xs text-[var(--redup)]">Memuat riwayat pesanan...</div>
           ) : filteredHistory.length === 0 ? (
-            <div className="text-center py-16 bg-white rounded-3xl border border-dashed border-slate-200 p-6 sm:p-8">
-              <Receipt className="w-12 h-12 text-slate-300 mx-auto mb-2" />
-              <h4 className="text-base font-black text-slate-700">Belum Ada Riwayat Pesanan</h4>
-              <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto leading-relaxed">
+            <div className="text-center py-16 bg-[var(--kartu)] rounded-3xl border border-dashed border-[var(--garis)] p-6 sm:p-8">
+              <Receipt className="w-12 h-12 text-[var(--redup)] mx-auto mb-2" />
+              <h4 className="text-base font-black text-[var(--teks)]">Belum Ada Riwayat Pesanan</h4>
+              <p className="text-xs text-[var(--redup)] mt-1 max-w-sm mx-auto leading-relaxed">
                 Pesanan yang telah diselesaikan pembayarannya akan tercatat rapi secara permanen di sini.
               </p>
             </div>
@@ -872,12 +872,12 @@ export const PesananManagerView: React.FC<PesananManagerViewProps> = ({
                       setSelectedTxItems(items);
                       setIsReceiptOpen(true);
                     }}
-                    className="bg-white rounded-2xl p-3.5 sm:p-4 border border-slate-200/90 hover:border-emerald-300 hover:shadow-xs transition cursor-pointer active:scale-[0.99] group"
+                    className="bg-[var(--kartu)] rounded-2xl p-3.5 sm:p-4 border border-[var(--garis)]/90 hover:border-emerald-300 hover:shadow-xs transition cursor-pointer active:scale-[0.99] group"
                   >
                     {/* Top Row: ID, Badges, Time */}
                     <div className="flex items-center justify-between gap-2 mb-2">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="font-mono font-bold text-xs text-slate-900 bg-slate-100 px-2 py-0.5 rounded-md">
+                        <span className="font-mono font-bold text-xs text-[var(--teks)] bg-[var(--latar)] px-2 py-0.5 rounded-md">
                           #{tx.id}
                         </span>
                         <span
@@ -894,27 +894,27 @@ export const PesananManagerView: React.FC<PesananManagerViewProps> = ({
                           <CheckCircle2 className="w-3 h-3 text-emerald-600" />
                           Lunas
                         </span>
-                        <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-slate-100 text-slate-700">
+                        <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-[var(--latar)] text-[var(--teks)]">
                           {tx.metode_pembayaran || 'Tunai'}
                         </span>
                       </div>
-                      <span className="text-[11px] text-slate-400 font-medium shrink-0">
+                      <span className="text-[11px] text-[var(--redup)] font-medium shrink-0">
                         {tx.waktu}
                       </span>
                     </div>
 
                     {/* Middle Row: Items summary & customer */}
                     <div className="mb-2.5">
-                      <p className="text-xs text-slate-800 font-bold leading-tight">
+                      <p className="text-xs text-[var(--teks)] font-bold leading-tight">
                         {itemSummary}
                       </p>
-                      <div className="flex items-center gap-2 text-[11px] text-slate-400 mt-1 flex-wrap">
+                      <div className="flex items-center gap-2 text-[11px] text-[var(--redup)] mt-1 flex-wrap">
                         {tx.nama_pelanggan && (
-                          <span className="text-slate-600 font-semibold truncate">
+                          <span className="text-[var(--redup)] font-semibold truncate">
                             Pelanggan: {tx.nama_pelanggan}
                           </span>
                         )}
-                        <span className="inline-flex items-center gap-1 font-semibold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded text-[10px]">
+                        <span className="inline-flex items-center gap-1 font-semibold text-[var(--teks)] bg-[var(--latar)] px-1.5 py-0.5 rounded text-[10px]">
                           {tx.tipe_pesanan === 'Bungkus' || (!tx.tipe_pesanan && !tx.nomor_meja) ? (
                             <>
                               <ShoppingBag className="w-3 h-3 text-amber-600" />
@@ -922,7 +922,7 @@ export const PesananManagerView: React.FC<PesananManagerViewProps> = ({
                             </>
                           ) : (
                             <>
-                              <Utensils className="w-3 h-3 text-slate-600" />
+                              <Utensils className="w-3 h-3 text-[var(--redup)]" />
                               <span>Meja {tx.nomor_meja || '-'}</span>
                             </>
                           )}
@@ -932,10 +932,10 @@ export const PesananManagerView: React.FC<PesananManagerViewProps> = ({
                     </div>
 
                     {/* Bottom Row: Total & Action Buttons */}
-                    <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+                    <div className="pt-2 border-t border-[var(--garis)] flex items-center justify-between gap-2">
                       <div>
-                        <span className="text-[10px] text-slate-400 font-medium block">Total Bayar</span>
-                        <span className="text-sm font-black text-slate-900 group-hover:text-emerald-600 transition">
+                        <span className="text-[10px] text-[var(--redup)] font-medium block">Total Bayar</span>
+                        <span className="text-sm font-black text-[var(--teks)] group-hover:text-emerald-600 transition">
                           {formatRupiah(tx.total)}
                         </span>
                       </div>
@@ -949,7 +949,7 @@ export const PesananManagerView: React.FC<PesananManagerViewProps> = ({
                             setSelectedTxItems(items);
                             setIsReceiptOpen(true);
                           }}
-                          className="min-h-[38px] px-3 py-1.5 rounded-xl bg-slate-50 group-hover:bg-emerald-50 text-slate-700 group-hover:text-emerald-700 border border-slate-200 group-hover:border-emerald-200 text-xs font-extrabold flex items-center gap-1.5 transition active:scale-95"
+                          className="min-h-[38px] px-3 py-1.5 rounded-xl bg-[var(--latar)] group-hover:bg-emerald-50 text-[var(--teks)] group-hover:text-emerald-700 border border-[var(--garis)] group-hover:border-emerald-200 text-xs font-extrabold flex items-center gap-1.5 transition active:scale-95"
                         >
                           <Printer className="w-3.5 h-3.5" />
                           <span>Lihat Struk</span>
@@ -982,35 +982,35 @@ export const PesananManagerView: React.FC<PesananManagerViewProps> = ({
       {/* QUICK PAY MODAL FOR ACTIVE ORDER */}
       {payingOrder && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-sm rounded-3xl bg-white shadow-2xl p-5 border border-slate-100 animate-in fade-in zoom-in-95">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+          <div className="w-full max-w-sm rounded-3xl bg-[var(--kartu)] shadow-2xl p-5 border border-[var(--garis)] animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between pb-3 border-b border-[var(--garis)]">
               <div>
                 <span className="text-[11px] font-bold text-amber-700 uppercase tracking-wider">
                   Selesaikan Transaksi
                 </span>
-                <h3 className="text-base font-black text-slate-900">
+                <h3 className="text-base font-black text-[var(--teks)]">
                   {payingOrder.nama_pelanggan || 'Pelanggan'}
                 </h3>
               </div>
               <button
                 onClick={() => setPayingOrder(null)}
-                className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center text-sm font-bold transition"
+                className="w-8 h-8 rounded-xl bg-[var(--latar)] hover:bg-[var(--garis)] text-[var(--redup)] flex items-center justify-center text-sm font-bold transition"
               >
                 ✕
               </button>
             </div>
 
             <div className="py-3 space-y-3 text-xs">
-              <div className="p-3 bg-orange-50 rounded-2xl flex justify-between items-center">
-                <span className="font-semibold text-orange-950">Total Tagihan:</span>
-                <span className="text-lg font-black text-[#FF6038]">
+              <div className="p-3 bg-[var(--utama-muda)] rounded-2xl flex justify-between items-center">
+                <span className="font-semibold text-[var(--utama-teks)]">Total Tagihan:</span>
+                <span className="text-lg font-black text-[var(--utama-teks)]">
                   {formatRupiah(payingOrder.total)}
                 </span>
               </div>
 
               {/* Payment Method */}
               <div>
-                <label className="block text-slate-600 font-semibold mb-1">
+                <label className="block text-[var(--redup)] font-semibold mb-1">
                   Metode Pembayaran
                 </label>
                 <div className="grid grid-cols-3 gap-1.5">
@@ -1021,8 +1021,8 @@ export const PesananManagerView: React.FC<PesananManagerViewProps> = ({
                       onClick={() => setMetodeBayar(m)}
                       className={`min-h-[42px] py-2 text-xs font-bold rounded-xl border transition active:scale-95 ${
                         metodeBayar === m
-                          ? 'bg-[#FF6038] text-white border-[#FF6038] shadow-xs'
-                          : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                          ? 'bg-[var(--utama)] text-white border-[var(--utama-teks)] shadow-xs'
+                          : 'bg-[var(--latar)] border-[var(--garis)] text-[var(--teks)] hover:bg-[var(--latar)]'
                       }`}
                     >
                       {m}
@@ -1034,7 +1034,7 @@ export const PesananManagerView: React.FC<PesananManagerViewProps> = ({
               {/* Cash given if Tunai */}
               {metodeBayar === 'Tunai' && (
                 <div>
-                  <label className="block text-slate-600 font-semibold mb-1">
+                  <label className="block text-[var(--redup)] font-semibold mb-1">
                     Uang Tunai Diterima (Rp)
                   </label>
                   <input
@@ -1043,10 +1043,10 @@ export const PesananManagerView: React.FC<PesananManagerViewProps> = ({
                     onChange={(e) =>
                       setNominalDiterima(e.target.value === '' ? '' : Number(e.target.value))
                     }
-                    className="w-full min-h-[44px] px-3 py-2 text-sm font-black border border-slate-200 rounded-xl outline-none focus:border-[#FF6038]"
+                    className="w-full min-h-[44px] px-3 py-2 text-sm font-black border border-[var(--garis)] rounded-xl outline-none focus:border-[var(--utama-teks)]"
                   />
                   {typeof nominalDiterima === 'number' && (
-                    <div className="mt-1 flex justify-between text-[11px] text-slate-500">
+                    <div className="mt-1 flex justify-between text-[11px] text-[var(--redup)]">
                       <span>Kembalian:</span>
                       <strong className="text-emerald-600 font-bold">
                         {formatRupiah(Math.max(0, nominalDiterima - payingOrder.total))}
@@ -1061,7 +1061,7 @@ export const PesananManagerView: React.FC<PesananManagerViewProps> = ({
               <button
                 type="button"
                 onClick={() => setPayingOrder(null)}
-                className="min-h-[44px] py-2.5 px-3 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 active:scale-95 transition"
+                className="min-h-[44px] py-2.5 px-3 rounded-xl border border-[var(--garis)] text-xs font-bold text-[var(--teks)] hover:bg-[var(--latar)] active:scale-95 transition"
               >
                 Batal
               </button>
@@ -1069,7 +1069,7 @@ export const PesananManagerView: React.FC<PesananManagerViewProps> = ({
                 type="button"
                 disabled={isProcessingPay}
                 onClick={handleProcessQuickPay}
-                className="min-h-[44px] py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold shadow-md flex items-center justify-center gap-1.5 disabled:opacity-50 active:scale-95 transition"
+                className="min-h-[44px] py-2.5 px-3 rounded-xl bg-emerald-600 hover:brightness-90 text-white text-xs font-extrabold shadow-md flex items-center justify-center gap-1.5 disabled:opacity-50 active:scale-95 transition"
               >
                 <CheckCircle2 className="w-4 h-4" />
                 <span>{isProcessingPay ? 'Memproses...' : 'Lunas & Cetak'}</span>
@@ -1082,17 +1082,17 @@ export const PesananManagerView: React.FC<PesananManagerViewProps> = ({
       {/* CANCEL ACTIVE ORDER CONFIRMATION MODAL - Phone Friendly */}
       {orderToCancel && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-in fade-in">
-          <div className="w-full max-w-sm rounded-3xl bg-white shadow-2xl p-6 border border-slate-100 text-center animate-in zoom-in-95">
+          <div className="w-full max-w-sm rounded-3xl bg-[var(--kartu)] shadow-2xl p-6 border border-[var(--garis)] text-center animate-in zoom-in-95">
             <div className="w-14 h-14 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto mb-3.5">
               <Trash2 className="w-7 h-7" />
             </div>
 
-            <h3 className="text-base font-black text-slate-900 mb-1.5 leading-snug">
+            <h3 className="text-base font-black text-[var(--teks)] mb-1.5 leading-snug">
               Batalkan Pesanan #{orderToCancel.nomor_pesanan}?
             </h3>
-            <p className="text-xs text-slate-500 mb-5 leading-relaxed">
-              Pesanan atas nama <strong className="text-slate-800">{orderToCancel.nama_pelanggan}</strong> senilai{' '}
-              <strong className="text-[#FF6038] font-bold">{formatRupiah(orderToCancel.total)}</strong> akan dibatalkan dan dihapus dari daftar pesanan aktif.
+            <p className="text-xs text-[var(--redup)] mb-5 leading-relaxed">
+              Pesanan atas nama <strong className="text-[var(--teks)]">{orderToCancel.nama_pelanggan}</strong> senilai{' '}
+              <strong className="text-[var(--utama-teks)] font-bold">{formatRupiah(orderToCancel.total)}</strong> akan dibatalkan dan dihapus dari daftar pesanan aktif.
             </p>
 
             <div className="grid grid-cols-2 gap-2.5">
@@ -1100,7 +1100,7 @@ export const PesananManagerView: React.FC<PesananManagerViewProps> = ({
                 type="button"
                 disabled={isCancelling}
                 onClick={() => setOrderToCancel(null)}
-                className="min-h-[46px] py-3 px-3 rounded-2xl border border-slate-200 bg-slate-100 hover:bg-slate-200 text-xs font-bold text-slate-700 transition active:scale-95 disabled:opacity-50"
+                className="min-h-[46px] py-3 px-3 rounded-2xl border border-[var(--garis)] bg-[var(--latar)] hover:bg-[var(--garis)] text-xs font-bold text-[var(--teks)] transition active:scale-95 disabled:opacity-50"
               >
                 Kembali
               </button>
@@ -1109,7 +1109,7 @@ export const PesananManagerView: React.FC<PesananManagerViewProps> = ({
                 type="button"
                 disabled={isCancelling}
                 onClick={handleConfirmCancelOrder}
-                className="min-h-[46px] py-3 px-3 rounded-2xl bg-rose-600 hover:bg-rose-700 text-xs font-black text-white shadow-md shadow-rose-600/30 transition active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5"
+                className="min-h-[46px] py-3 px-3 rounded-2xl bg-rose-600 hover:brightness-90 text-xs font-black text-white shadow-md shadow-rose-600/30 transition active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5"
               >
                 {isCancelling ? 'Membatalkan...' : 'Ya, Batalkan'}
               </button>
@@ -1121,41 +1121,41 @@ export const PesananManagerView: React.FC<PesananManagerViewProps> = ({
       {/* DELETE TRANSACTION IN HISTORY CONFIRMATION MODAL */}
       {txToDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-in fade-in">
-          <div className="w-full max-w-sm rounded-3xl bg-white shadow-2xl p-6 border border-slate-100 text-center animate-in zoom-in-95">
+          <div className="w-full max-w-sm rounded-3xl bg-[var(--kartu)] shadow-2xl p-6 border border-[var(--garis)] text-center animate-in zoom-in-95">
             <div className="w-14 h-14 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto mb-3.5">
               <Trash2 className="w-7 h-7" />
             </div>
 
-            <h3 className="text-base font-black text-slate-900 mb-1.5 leading-snug">
+            <h3 className="text-base font-black text-[var(--teks)] mb-1.5 leading-snug">
               Yakin Ingin Menghapus Transaksi Ini?
             </h3>
             
-            <div className="bg-slate-50 border border-slate-100 rounded-2xl p-3 my-3 text-left text-xs space-y-1.5">
+            <div className="bg-[var(--latar)] border border-[var(--garis)] rounded-2xl p-3 my-3 text-left text-xs space-y-1.5">
               <div className="flex justify-between">
-                <span className="text-slate-500">Nomor Nota:</span>
-                <span className="font-mono font-bold text-slate-900">#{txToDelete.id}</span>
+                <span className="text-[var(--redup)]">Nomor Nota:</span>
+                <span className="font-mono font-bold text-[var(--teks)]">#{txToDelete.id}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-500">Pelanggan:</span>
-                <span className="font-bold text-slate-900 truncate max-w-[160px]">
+                <span className="text-[var(--redup)]">Pelanggan:</span>
+                <span className="font-bold text-[var(--teks)] truncate max-w-[160px]">
                   {txToDelete.nama_pelanggan || 'Pelanggan'}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-500">Waktu:</span>
-                <span className="font-medium text-slate-700">
+                <span className="text-[var(--redup)]">Waktu:</span>
+                <span className="font-medium text-[var(--teks)]">
                   {txToDelete.waktu} · {formatDateIndo(txToDelete.tanggal)}
                 </span>
               </div>
-              <div className="flex justify-between pt-1 border-t border-slate-200/80">
-                <span className="text-slate-500 font-semibold">Total Nilai:</span>
-                <span className="font-black text-[#FF6038] text-sm">
+              <div className="flex justify-between pt-1 border-t border-[var(--garis)]/80">
+                <span className="text-[var(--redup)] font-semibold">Total Nilai:</span>
+                <span className="font-black text-[var(--utama-teks)] text-sm">
                   {formatRupiah(txToDelete.total)}
                 </span>
               </div>
             </div>
 
-            <p className="text-xs text-slate-500 mb-5 leading-relaxed">
+            <p className="text-xs text-[var(--redup)] mb-5 leading-relaxed">
               Data transaksi dan catatan penjualan ini akan dihapus permanen dari riwayat pesanan.
             </p>
 
@@ -1164,7 +1164,7 @@ export const PesananManagerView: React.FC<PesananManagerViewProps> = ({
                 type="button"
                 disabled={isDeletingTx}
                 onClick={() => setTxToDelete(null)}
-                className="min-h-[46px] py-3 px-3 rounded-2xl border border-slate-200 bg-slate-100 hover:bg-slate-200 text-xs font-bold text-slate-700 transition active:scale-95 disabled:opacity-50"
+                className="min-h-[46px] py-3 px-3 rounded-2xl border border-[var(--garis)] bg-[var(--latar)] hover:bg-[var(--garis)] text-xs font-bold text-[var(--teks)] transition active:scale-95 disabled:opacity-50"
               >
                 Batal
               </button>
@@ -1173,7 +1173,7 @@ export const PesananManagerView: React.FC<PesananManagerViewProps> = ({
                 type="button"
                 disabled={isDeletingTx}
                 onClick={handleConfirmDeleteTx}
-                className="min-h-[46px] py-3 px-3 rounded-2xl bg-rose-600 hover:bg-rose-700 text-xs font-black text-white shadow-md shadow-rose-600/30 transition active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5"
+                className="min-h-[46px] py-3 px-3 rounded-2xl bg-rose-600 hover:brightness-90 text-xs font-black text-white shadow-md shadow-rose-600/30 transition active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5"
               >
                 {isDeletingTx ? 'Menghapus...' : 'Ya, Hapus'}
               </button>

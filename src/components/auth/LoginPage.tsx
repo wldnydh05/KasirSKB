@@ -102,31 +102,31 @@ export const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col justify-center items-center p-4 bg-gray-50 text-gray-800 font-sans">
+    <div className="min-h-screen flex flex-col justify-center items-center p-4 bg-[var(--latar)] text-[var(--teks)] font-sans">
       <div className="w-full max-w-md">
         {/* Header Branding dengan Logo Baru */}
         <div className="text-center mb-6">
           <img
-            src="/logo.png"
-            alt="BukuPOS Logo"
-            className="h-20 sm:h-24 mx-auto object-contain mb-2 drop-shadow-xs"
+            src="/LogoSKB.png"
+            alt="Logo Ayam Bebek S.K.B"
+            className="h-20 sm:h-24 mx-auto object-contain mb-2"
           />
-          <p className="text-xs text-gray-500">
-            Sistem Informasi Kasir & Manajemen Penjualan Toko
+          <p className="text-xs text-[var(--redup)]">
+            Rumah Makan Ayam Bebek S.K.B &mdash; Kasir &amp; Laporan Penjualan
           </p>
         </div>
 
         {/* Kartu Utama */}
-        <div className="bg-white rounded-xl p-6 sm:p-7 shadow-sm border border-gray-200">
+        <div className="bg-[var(--kartu)] rounded-xl p-6 sm:p-7 shadow-sm border border-[var(--garis)]">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base font-semibold text-gray-800">
+            <h2 className="text-base font-semibold text-[var(--teks)]">
               {authMode === 'login' ? 'Masuk ke Sistem' : 'Pendaftaran Pemilik Toko'}
             </h2>
             <PWAInstallButton />
           </div>
 
           {/* Tab Pilihan Masuk / Daftar */}
-          <div className="grid grid-cols-2 p-1 bg-gray-100 rounded-lg mb-5 border border-gray-200 text-xs">
+          <div className="grid grid-cols-2 p-1 bg-[var(--latar)] rounded-lg mb-5 border border-[var(--garis)] text-xs">
             <button
               type="button"
               onClick={() => {
@@ -136,8 +136,8 @@ export const LoginPage: React.FC = () => {
               }}
               className={`py-2 rounded-md font-medium transition flex items-center justify-center gap-1.5 ${
                 authMode === 'login'
-                  ? 'bg-white text-orange-700 shadow-xs'
-                  : 'text-gray-600 hover:text-gray-900'
+                  ? 'bg-[var(--kartu)] text-[var(--utama-teks)] shadow-xs'
+                  : 'text-[var(--redup)] hover:text-[var(--teks)]'
               }`}
             >
               <LogIn className="w-3.5 h-3.5" />
@@ -152,8 +152,8 @@ export const LoginPage: React.FC = () => {
               }}
               className={`py-2 rounded-md font-medium transition flex items-center justify-center gap-1.5 ${
                 authMode === 'register'
-                  ? 'bg-white text-orange-700 shadow-xs'
-                  : 'text-gray-600 hover:text-gray-900'
+                  ? 'bg-[var(--kartu)] text-[var(--utama-teks)] shadow-xs'
+                  : 'text-[var(--redup)] hover:text-[var(--teks)]'
               }`}
             >
               <UserPlus className="w-3.5 h-3.5" />
@@ -179,11 +179,11 @@ export const LoginPage: React.FC = () => {
             /* --- FORM MASUK --- */
             <form onSubmit={handleLoginSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
+                <label className="block text-xs font-medium text-[var(--teks)] mb-1">
                   Username
                 </label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[var(--redup)]">
                     <UserIcon className="w-4 h-4" />
                   </div>
                   <input
@@ -191,18 +191,18 @@ export const LoginPage: React.FC = () => {
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     placeholder="Masukkan username Anda"
-                    className="w-full pl-9 pr-3 py-2 text-sm bg-gray-50/50 border border-gray-300 rounded-lg focus:outline-none focus:bg-white focus:border-orange-600 focus:ring-1 focus:ring-orange-600 transition"
+                    className="w-full pl-9 pr-3 py-2 text-sm bg-[var(--latar)]/50 border border-[var(--garis-kuat)] rounded-lg focus:outline-none focus:bg-[var(--kartu)] focus:border-[var(--utama-teks)] focus:ring-1 focus:ring-[var(--utama-teks)] transition"
                     autoComplete="username"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
+                <label className="block text-xs font-medium text-[var(--teks)] mb-1">
                   Password
                 </label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[var(--redup)]">
                     <Lock className="w-4 h-4" />
                   </div>
                   <input
@@ -210,13 +210,13 @@ export const LoginPage: React.FC = () => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Masukkan password"
-                    className="w-full pl-9 pr-9 py-2 text-sm bg-gray-50/50 border border-gray-300 rounded-lg focus:outline-none focus:bg-white focus:border-orange-600 focus:ring-1 focus:ring-orange-600 transition"
+                    className="w-full pl-9 pr-9 py-2 text-sm bg-[var(--latar)]/50 border border-[var(--garis-kuat)] rounded-lg focus:outline-none focus:bg-[var(--kartu)] focus:border-[var(--utama-teks)] focus:ring-1 focus:ring-[var(--utama-teks)] transition"
                     autoComplete="current-password"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-[var(--redup)] hover:text-[var(--redup)]"
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
@@ -226,33 +226,33 @@ export const LoginPage: React.FC = () => {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full py-2.5 px-4 rounded-lg font-medium text-white bg-orange-600 hover:bg-orange-700 active:bg-orange-800 transition text-sm disabled:opacity-50 cursor-pointer"
+                className="w-full py-2.5 px-4 rounded-lg font-medium text-white bg-[var(--utama)] hover:bg-[var(--utama-tua)] active:bg-[var(--utama)] transition text-sm disabled:opacity-50 cursor-pointer"
               >
                 {isSubmitting ? 'Memproses...' : 'Masuk ke Akun'}
               </button>
 
-              <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 text-xs text-gray-600 flex items-start gap-2">
-                <Info className="w-4 h-4 text-orange-600 shrink-0 mt-0.5" />
+              <div className="p-3 bg-[var(--latar)] rounded-lg border border-[var(--garis)] text-xs text-[var(--redup)] flex items-start gap-2">
+                <Info className="w-4 h-4 text-[var(--utama-teks)] shrink-0 mt-0.5" />
                 <p className="leading-relaxed">
-                  Belum punya akun kasir? Akun kasir hanya dapat dibuat oleh <strong className="text-gray-800">Pemilik Usaha (Owner)</strong> melalui menu Kelola Kasir.
+                  Belum punya akun kasir? Akun kasir hanya dapat dibuat oleh <strong className="text-[var(--teks)]">Pemilik Usaha (Owner)</strong> melalui menu Kelola Kasir.
                 </p>
               </div>
             </form>
           ) : (
             /* --- FORM REGISTER OWNER --- */
             <form onSubmit={handleRegisterSubmit} className="space-y-3.5">
-              <div className="p-3 rounded-lg bg-orange-50 border border-orange-200 text-orange-900 text-xs flex items-start gap-2">
-                <Info className="w-4 h-4 text-orange-700 shrink-0 mt-0.5" />
+              <div className="p-3 rounded-lg bg-[var(--utama-muda)] border border-[var(--garis)] text-[var(--utama-teks)] text-xs flex items-start gap-2">
+                <Info className="w-4 h-4 text-[var(--utama-teks)] shrink-0 mt-0.5" />
                 <div>
-                  <p className="font-semibold text-orange-900">Pendaftaran Khusus Owner</p>
-                  <p className="text-orange-800 mt-0.5 leading-relaxed">
+                  <p className="font-semibold text-[var(--utama-teks)]">Pendaftaran Khusus Owner</p>
+                  <p className="text-[var(--utama-teks)] mt-0.5 leading-relaxed">
                     Formulir ini untuk mendaftarkan akun Pemilik Usaha baru. Akun kasir nantinya dibuat oleh Owner dari menu pengaturan.
                   </p>
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
+                <label className="block text-xs font-medium text-[var(--teks)] mb-1">
                   Nama Lengkap Pemilik
                 </label>
                 <input
@@ -260,13 +260,13 @@ export const LoginPage: React.FC = () => {
                   value={regNamaLengkap}
                   onChange={(e) => setRegNamaLengkap(e.target.value)}
                   placeholder="Contoh: Budi Santoso"
-                  className="w-full px-3 py-2 text-sm bg-gray-50/50 border border-gray-300 rounded-lg focus:outline-none focus:bg-white focus:border-orange-600 focus:ring-1 focus:ring-orange-600 transition"
+                  className="w-full px-3 py-2 text-sm bg-[var(--latar)]/50 border border-[var(--garis-kuat)] rounded-lg focus:outline-none focus:bg-[var(--kartu)] focus:border-[var(--utama-teks)] focus:ring-1 focus:ring-[var(--utama-teks)] transition"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
+                <label className="block text-xs font-medium text-[var(--teks)] mb-1">
                   Username Akun
                 </label>
                 <input
@@ -274,14 +274,14 @@ export const LoginPage: React.FC = () => {
                   value={regUsername}
                   onChange={(e) => setRegUsername(e.target.value)}
                   placeholder="Contoh: budi_owner"
-                  className="w-full px-3 py-2 text-sm bg-gray-50/50 border border-gray-300 rounded-lg focus:outline-none focus:bg-white focus:border-orange-600 focus:ring-1 focus:ring-orange-600 transition"
+                  className="w-full px-3 py-2 text-sm bg-[var(--latar)]/50 border border-[var(--garis-kuat)] rounded-lg focus:outline-none focus:bg-[var(--kartu)] focus:border-[var(--utama-teks)] focus:ring-1 focus:ring-[var(--utama-teks)] transition"
                   autoComplete="username"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
+                <label className="block text-xs font-medium text-[var(--teks)] mb-1">
                   Password
                 </label>
                 <div className="relative">
@@ -290,14 +290,14 @@ export const LoginPage: React.FC = () => {
                     value={regPassword}
                     onChange={(e) => setRegPassword(e.target.value)}
                     placeholder="Minimal 4 karakter"
-                    className="w-full pl-3 pr-9 py-2 text-sm bg-gray-50/50 border border-gray-300 rounded-lg focus:outline-none focus:bg-white focus:border-orange-600 focus:ring-1 focus:ring-orange-600 transition"
+                    className="w-full pl-3 pr-9 py-2 text-sm bg-[var(--latar)]/50 border border-[var(--garis-kuat)] rounded-lg focus:outline-none focus:bg-[var(--kartu)] focus:border-[var(--utama-teks)] focus:ring-1 focus:ring-[var(--utama-teks)] transition"
                     autoComplete="new-password"
                     required
                   />
                   <button
                     type="button"
                     onClick={() => setShowRegPassword(!showRegPassword)}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-[var(--redup)] hover:text-[var(--redup)]"
                   >
                     {showRegPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
@@ -305,7 +305,7 @@ export const LoginPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
+                <label className="block text-xs font-medium text-[var(--teks)] mb-1">
                   Konfirmasi Password
                 </label>
                 <input
@@ -313,7 +313,7 @@ export const LoginPage: React.FC = () => {
                   value={regConfirmPassword}
                   onChange={(e) => setRegConfirmPassword(e.target.value)}
                   placeholder="Ketik ulang password"
-                  className="w-full px-3 py-2 text-sm bg-gray-50/50 border border-gray-300 rounded-lg focus:outline-none focus:bg-white focus:border-orange-600 focus:ring-1 focus:ring-orange-600 transition"
+                  className="w-full px-3 py-2 text-sm bg-[var(--latar)]/50 border border-[var(--garis-kuat)] rounded-lg focus:outline-none focus:bg-[var(--kartu)] focus:border-[var(--utama-teks)] focus:ring-1 focus:ring-[var(--utama-teks)] transition"
                   autoComplete="new-password"
                   required
                 />
@@ -322,7 +322,7 @@ export const LoginPage: React.FC = () => {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full py-2.5 px-4 rounded-lg font-medium text-white bg-orange-600 hover:bg-orange-700 active:bg-orange-800 transition text-sm disabled:opacity-50 cursor-pointer"
+                className="w-full py-2.5 px-4 rounded-lg font-medium text-white bg-[var(--utama)] hover:bg-[var(--utama-tua)] active:bg-[var(--utama)] transition text-sm disabled:opacity-50 cursor-pointer"
               >
                 {isSubmitting ? 'Mendaftarkan...' : 'Daftar Sebagai Owner'}
               </button>
@@ -331,8 +331,8 @@ export const LoginPage: React.FC = () => {
 
           {/* Kotak Akun Pengujian Demo (Ciri Khas Proyek Mahasiswa untuk Presentasi & Testing) */}
           {authMode === 'login' && (
-            <div className="mt-6 pt-5 border-t border-gray-200">
-              <div className="text-xs font-semibold text-gray-500 mb-2">
+            <div className="mt-6 pt-5 border-t border-[var(--garis)]">
+              <div className="text-xs font-semibold text-[var(--redup)] mb-2">
                 Akun Percobaan (Demo Testing):
               </div>
 
@@ -340,13 +340,13 @@ export const LoginPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => handleQuick('owner')}
-                  className="w-full p-2.5 text-left rounded-lg border border-gray-200 hover:bg-gray-50 transition flex items-center justify-between"
+                  className="w-full p-2.5 text-left rounded-lg border border-[var(--garis)] hover:bg-[var(--latar)] transition flex items-center justify-between"
                 >
                   <div>
-                    <span className="text-xs font-semibold text-gray-900">Owner (Bpk. Agus)</span>
-                    <span className="text-[11px] text-gray-500 block">Username: owner · Akses penuh dashboard</span>
+                    <span className="text-xs font-semibold text-[var(--teks)]">Owner (Bpk. Agus)</span>
+                    <span className="text-[11px] text-[var(--redup)] block">Username: owner · Akses penuh dashboard</span>
                   </div>
-                  <span className="text-[10px] font-medium px-2 py-0.5 rounded bg-orange-100 text-orange-700">
+                  <span className="text-[10px] font-medium px-2 py-0.5 rounded bg-[var(--utama-muda)] text-[var(--utama-teks)]">
                     Owner
                   </span>
                 </button>
@@ -355,19 +355,19 @@ export const LoginPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => handleQuick('kasir1')}
-                    className="p-2 text-left rounded-lg border border-gray-200 hover:bg-gray-50 transition"
+                    className="p-2 text-left rounded-lg border border-[var(--garis)] hover:bg-[var(--latar)] transition"
                   >
-                    <div className="text-xs font-semibold text-gray-900">Kasir 1 (Siti)</div>
-                    <div className="text-[10px] text-gray-500">Cabang 1</div>
+                    <div className="text-xs font-semibold text-[var(--teks)]">Kasir 1 (Siti)</div>
+                    <div className="text-[10px] text-[var(--redup)]">Cabang 1</div>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => handleQuick('kasir2')}
-                    className="p-2 text-left rounded-lg border border-gray-200 hover:bg-gray-50 transition"
+                    className="p-2 text-left rounded-lg border border-[var(--garis)] hover:bg-[var(--latar)] transition"
                   >
-                    <div className="text-xs font-semibold text-gray-900">Kasir 2 (Rian)</div>
-                    <div className="text-[10px] text-gray-500">Cabang 2</div>
+                    <div className="text-xs font-semibold text-[var(--teks)]">Kasir 2 (Rian)</div>
+                    <div className="text-[10px] text-[var(--redup)]">Cabang 2</div>
                   </button>
                 </div>
               </div>
@@ -376,8 +376,8 @@ export const LoginPage: React.FC = () => {
         </div>
 
         {/* Footer info sederhana */}
-        <div className="mt-4 text-center text-xs text-gray-400 flex items-center justify-center gap-1.5">
-          <ShieldCheck className="w-3.5 h-3.5 text-gray-500" />
+        <div className="mt-4 text-center text-xs text-[var(--redup)] flex items-center justify-center gap-1.5">
+          <ShieldCheck className="w-3.5 h-3.5 text-[var(--redup)]" />
           <span>Keamanan password terenkripsi bcrypt & penyimpanan lokal IndexedDB</span>
         </div>
       </div>

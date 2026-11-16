@@ -17,17 +17,20 @@ import {
   Camera,
   Loader2,
   AlertTriangle,
+  Building2,
 } from 'lucide-react';
 import { db } from '../../db';
 import type { Menu, Kategori } from '../../types';
 import { formatRupiah } from '../../utils/formatters';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
+import { useCabang } from '../../context/CabangContext';
 import { compressImageFile } from '../../utils/imageUtils';
 
 export const KelolaMenuView: React.FC = () => {
   const { user } = useAuth();
   const { showToast } = useToast();
+  const { cabangList, selectedCabangFilter, setSelectedCabangFilter } = useCabang();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isOwner = user?.role === 'owner';
@@ -36,6 +39,7 @@ export const KelolaMenuView: React.FC = () => {
   const [categories, setCategories] = useState<Kategori[]>([]);
   const [search, setSearch] = useState('');
   const [selectedCat, setSelectedCat] = useState('Semua');
+  const [selectedCabang, setSelectedCabang] = useState<'Semua' | string>('Semua');
 
   // Modal form states
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -49,6 +53,7 @@ export const KelolaMenuView: React.FC = () => {
   const [kategori, setKategori] = useState('Makanan');
   const [gambarUrl, setGambarUrl] = useState('');
   const [aktif, setAktif] = useState(true);
+  const [cabang, setCabang] = useState<string>('Cabang 1');
   const [isProcessingPhoto, setIsProcessingPhoto] = useState(false);
 
   const loadData = async () => {
@@ -74,6 +79,7 @@ export const KelolaMenuView: React.FC = () => {
     setKategori('Makanan');
     setGambarUrl('');
     setAktif(true);
+    setCabang('Cabang 1');
     setIsModalOpen(true);
   };
 
@@ -84,6 +90,7 @@ export const KelolaMenuView: React.FC = () => {
     setKategori(m.kategori);
     setGambarUrl(m.gambar_url || '');
     setAktif(m.aktif);
+    setCabang(m.cabang || 'Cabang 1');
     setIsModalOpen(true);
   };
 
@@ -143,6 +150,7 @@ export const KelolaMenuView: React.FC = () => {
           kategori,
           gambar_url: finalImage,
           aktif,
+          cabang,
           updated_at: nowIso,
         });
         showToast(`Menu "${nama}" berhasil diupdate!`, 'success');
@@ -155,6 +163,7 @@ export const KelolaMenuView: React.FC = () => {
           gambar_url: finalImage,
           biaya_bahan_baku: 0,
           aktif,
+          cabang,
           created_at: nowIso,
           updated_at: nowIso,
         });
@@ -207,7 +216,9 @@ export const KelolaMenuView: React.FC = () => {
     const matchSearch =
       m.nama.toLowerCase().includes(search.toLowerCase()) ||
       m.kategori.toLowerCase().includes(search.toLowerCase());
-    return matchCat && matchSearch;
+    const matchCabang =
+      selectedCabang === 'Semua' || m.cabang === selectedCabang;
+    return matchCat && matchSearch && matchCabang;
   });
 
   return (
@@ -215,21 +226,22 @@ export const KelolaMenuView: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
         <div>
-          <h2 className="text-xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
-            <UtensilsCrossed className="w-6 h-6 text-[#FF6038]" />
-            <span>{isOwner ? 'Daftar Menu' : 'Kelola Daftar Menu'}</span>
+          <h2 className="text-xl font-extrabold text-[var(--teks)] tracking-tight flex items-center gap-2">
+            <UtensilsCrossed className="w-6 h-6 text-[var(--utama-teks)]" />
+            <span>{isOwner ? 'Kelola Daftar Menu' : 'Daftar Menu'}</span>
           </h2>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <p className="text-xs text-[var(--redup)] mt-0.5">
             {isOwner
-              ? 'Katalog daftar menu makanan dan minuman.'
-              : 'Tambah menu baru, update harga/nama/foto lokal, atau hapus menu dari katalog kasir.'}
+              ? 'Tambah menu baru, update harga/nama/foto lokal, atau hapus menu dari katalog kasir.'
+              : 'Katalog daftar menu makanan dan minuman.'}
           </p>
         </div>
 
-        {!isOwner && (
+        {/* Tambah menu — khusus owner (kasir tidak bisa kelola menu) */}
+        {isOwner && (
           <button
             onClick={openAddModal}
-            className="self-start sm:self-auto flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-[#FF6038] hover:bg-[#E04620] text-white text-xs font-bold transition shadow-sm shadow-orange-500/20 active:scale-95 min-h-[40px]"
+            className="self-start sm:self-auto flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-[var(--utama)] hover:bg-[var(--utama-tua)] active:bg-[var(--utama)] text-white text-xs font-bold transition shadow-sm shadow-[var(--utama)]/20 active:scale-95 min-h-[40px]"
           >
             <Plus className="w-4 h-4" />
             <span>Tambah Menu Baru</span>
@@ -238,7 +250,7 @@ export const KelolaMenuView: React.FC = () => {
       </div>
 
       {/* Filters & Search */}
-      <div className="bg-white rounded-2xl p-3 border border-slate-200/90 shadow-2xs mb-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+      <div className="bg-[var(--kartu)] rounded-2xl p-3 border border-[var(--garis)]/90 shadow-2xs mb-4 flex flex-col sm:flex-row items-center justify-between gap-3">
         {/* Category chips */}
         <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar w-full sm:w-auto">
           {['Semua', 'Makanan', 'Minuman', 'Lainnya'].map((c) => (
@@ -247,8 +259,8 @@ export const KelolaMenuView: React.FC = () => {
               onClick={() => setSelectedCat(c)}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
                 selectedCat.toLowerCase() === c.toLowerCase()
-                  ? 'bg-slate-900 text-white'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  ? 'bg-[var(--utama)] text-white active:bg-[var(--utama)]'
+                  : 'bg-[var(--latar)] text-[var(--redup)] hover:bg-[var(--garis)]'
               }`}
             >
               {c}
@@ -256,15 +268,34 @@ export const KelolaMenuView: React.FC = () => {
           ))}
         </div>
 
+        {/* Cabang filter (Owner only) */}
+        {isOwner && (
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar w-full sm:w-auto">
+            {['Semua', ...cabangList].map((c) => (
+              <button
+                key={c}
+                onClick={() => setSelectedCabang(c)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                  selectedCabang === c
+                    ? 'bg-[var(--utama)] text-white active:bg-[var(--utama)]'
+                    : 'bg-[var(--latar)] text-[var(--redup)] hover:bg-[var(--garis)]'
+                }`}
+              >
+                {c === 'Semua' ? <Building2 className="w-3.5 h-3.5" /> : c}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* Search */}
         <div className="relative w-full sm:w-64">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--redup)]" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Cari nama menu..."
-            className="w-full pl-9 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 outline-none focus:border-[#FF6038]"
+            className="w-full pl-9 pr-3 py-1.5 text-xs rounded-xl border border-[var(--garis)] outline-none focus:border-[var(--utama-teks)]"
           />
         </div>
       </div>
@@ -272,14 +303,14 @@ export const KelolaMenuView: React.FC = () => {
       {/* Phone/Mobile View: Card List */}
       <div className="md:hidden space-y-2.5">
         {filtered.length === 0 ? (
-          <div className="text-center py-12 bg-white rounded-3xl border border-dashed border-slate-200 p-6 text-xs text-slate-400">
+          <div className="text-center py-12 bg-[var(--kartu)] rounded-3xl border border-dashed border-[var(--garis)] p-6 text-xs text-[var(--redup)]">
             Tidak ada menu yang cocok dengan pencarian.
           </div>
         ) : (
           filtered.map((menu) => (
             <div
               key={menu.id}
-              className="bg-white rounded-2xl p-3 border border-slate-200/90 shadow-2xs flex items-center justify-between gap-2.5 transition"
+              className="bg-[var(--kartu)] rounded-2xl p-3 border border-[var(--garis)]/90 shadow-2xs flex items-center justify-between gap-2.5 transition"
             >
               {/* Foto & Info Menu */}
               <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -288,28 +319,18 @@ export const KelolaMenuView: React.FC = () => {
                     <img
                       src={menu.gambar_url}
                       alt={menu.nama}
-                      className="w-13 h-13 rounded-xl object-cover border border-slate-200"
+                      className="w-13 h-13 rounded-xl object-cover border border-[var(--garis)]"
                     />
                   ) : (
-                    <div className="w-13 h-13 rounded-xl bg-slate-100 border border-slate-200 flex flex-col items-center justify-center text-slate-400 p-1 text-center">
-                      <ImageOff className="w-4 h-4 text-slate-400 mb-0.5" />
-                      <span className="text-[7.5px] font-bold text-slate-500 leading-tight">
+                    <div className="w-13 h-13 rounded-xl bg-[var(--latar)] border border-[var(--garis)] flex flex-col items-center justify-center text-[var(--redup)] p-1 text-center">
+                      <ImageOff className="w-4 h-4 text-[var(--redup)] mb-0.5" />
+                      <span className="text-[7.5px] font-bold text-[var(--redup)] leading-tight">
                         Gambar tidak ada
                       </span>
                     </div>
                   )}
 
                   {isOwner ? (
-                    <span
-                      className={`absolute -bottom-1 -right-1 px-1.5 py-0.2 rounded-full text-[9px] font-black border border-white shadow-xs ${
-                        menu.aktif
-                          ? 'bg-emerald-500 text-white'
-                          : 'bg-rose-500 text-white'
-                      }`}
-                    >
-                      {menu.aktif ? 'Tersedia' : 'Habis'}
-                    </span>
-                  ) : (
                     <button
                       type="button"
                       onClick={() => handleToggleAktif(menu)}
@@ -322,31 +343,46 @@ export const KelolaMenuView: React.FC = () => {
                     >
                       {menu.aktif ? 'Tersedia' : 'Habis'}
                     </button>
+                  ) : (
+                    <span
+                      className={`absolute -bottom-1 -right-1 px-1.5 py-0.2 rounded-full text-[9px] font-black border border-white shadow-xs ${
+                        menu.aktif
+                          ? 'bg-emerald-500 text-white'
+                          : 'bg-rose-500 text-white'
+                      }`}
+                    >
+                      {menu.aktif ? 'Tersedia' : 'Habis'}
+                    </span>
                   )}
                 </div>
 
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5 mb-0.5">
-                    <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-slate-100 text-slate-700">
+                    <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-[var(--latar)] text-[var(--teks)]">
                       {menu.kategori}
                     </span>
+                    {menu.cabang && (
+                      <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-[var(--utama-muda)] text-[var(--utama-teks)]">
+                        {menu.cabang}
+                      </span>
+                    )}
                   </div>
-                  <h4 className="font-extrabold text-sm text-slate-900 truncate leading-tight">
+                  <h4 className="font-extrabold text-sm text-[var(--teks)] truncate leading-tight">
                     {menu.nama}
                   </h4>
-                  <div className="text-sm font-black text-[#FF6038] mt-0.5">
+                  <div className="text-sm font-black text-[var(--utama-teks)] mt-0.5">
                     {formatRupiah(menu.harga)}
                   </div>
                 </div>
               </div>
 
-              {/* Tombol Aksi Langsung (Khusus Staff) */}
-              {!isOwner && (
+              {/* Tombol Aksi Langsung (Khusus Owner) */}
+              {isOwner && (
                 <div className="flex items-center gap-1.5 shrink-0">
                   <button
                     type="button"
                     onClick={() => openEditModal(menu)}
-                    className="h-9 px-3 rounded-xl bg-orange-50 text-[#FF6038] hover:bg-orange-100 active:scale-95 font-bold text-xs flex items-center gap-1 border border-orange-200/80 transition"
+                    className="h-9 px-3 rounded-xl bg-[var(--utama-muda)] text-[var(--utama-teks)] hover:bg-[var(--utama-muda)] active:scale-95 font-bold text-xs flex items-center gap-1 border border-[var(--garis)]/80 transition"
                     title="Update / Edit Menu"
                   >
                     <Edit2 className="w-3.5 h-3.5" />
@@ -369,62 +405,62 @@ export const KelolaMenuView: React.FC = () => {
       </div>
 
       {/* Desktop/Tablet View: Table List */}
-      <div className="hidden md:block bg-white rounded-3xl border border-slate-200/90 shadow-2xs overflow-hidden">
+      <div className="hidden md:block bg-[var(--kartu)] rounded-3xl border border-[var(--garis)]/90 shadow-2xs overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="bg-slate-50 border-b border-slate-100 text-slate-500 uppercase font-semibold">
+            <thead className="bg-[var(--latar)] border-b border-[var(--garis)] text-[var(--redup)] uppercase font-semibold">
               <tr>
                 <th className="py-3 px-4 w-16">Foto</th>
                 <th className="py-3 px-4">Nama Menu</th>
                 <th className="py-3 px-4">Kategori</th>
+                {isOwner && <th className="py-3 px-4">Cabang</th>}
                 <th className="py-3 px-4 text-right">Harga Jual</th>
                 <th className="py-3 px-4 text-center">Status</th>
-                {!isOwner && <th className="py-3 px-4 text-right">Aksi</th>}
+                {isOwner && <th className="py-3 px-4 text-right">Aksi</th>}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-[var(--garis)]">
               {filtered.map((menu) => (
-                <tr key={menu.id} className="hover:bg-slate-50/70 transition">
+                <tr key={menu.id} className="hover:bg-[var(--latar)]/70 transition">
                   <td className="py-3 px-4">
                     {menu.gambar_url ? (
                       <img
                         src={menu.gambar_url}
                         alt={menu.nama}
-                        className="w-12 h-12 rounded-xl object-cover border border-slate-200"
+                        className="w-12 h-12 rounded-xl object-cover border border-[var(--garis)]"
                       />
                     ) : (
-                      <div className="w-12 h-12 rounded-xl bg-slate-100 border border-slate-200 flex flex-col items-center justify-center text-slate-400 p-1 text-center">
-                        <ImageOff className="w-3.5 h-3.5 text-slate-400 mb-0.5" />
-                        <span className="text-[7.5px] font-bold text-slate-500 leading-tight">
+                      <div className="w-12 h-12 rounded-xl bg-[var(--latar)] border border-[var(--garis)] flex flex-col items-center justify-center text-[var(--redup)] p-1 text-center">
+                        <ImageOff className="w-3.5 h-3.5 text-[var(--redup)] mb-0.5" />
+                        <span className="text-[7.5px] font-bold text-[var(--redup)] leading-tight">
                           Gambar tidak ada
                         </span>
                       </div>
                     )}
                   </td>
                   <td className="py-3 px-4">
-                    <div className="font-bold text-slate-900 text-sm">{menu.nama}</div>
-                    <div className="text-[11px] text-slate-400">ID #{menu.id}</div>
+                    <div className="font-bold text-[var(--teks)] text-sm">{menu.nama}</div>
+                    <div className="text-[11px] text-[var(--redup)]">ID #{menu.id}</div>
                   </td>
                   <td className="py-3 px-4">
-                    <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-slate-100 text-slate-700">
+                    <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-[var(--latar)] text-[var(--teks)]">
                       {menu.kategori}
                     </span>
                   </td>
-                  <td className="py-3 px-4 text-right font-black text-[#FF6038] text-sm">
+                  {isOwner && (
+                    <td className="py-3 px-4">
+                      {menu.cabang && (
+                        <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-[var(--utama-muda)] text-[var(--utama-teks)]">
+                          {menu.cabang}
+                        </span>
+                      )}
+                    </td>
+                  )}
+                  <td className="py-3 px-4 text-right font-black text-[var(--utama-teks)] text-sm">
                     {formatRupiah(menu.harga)}
                   </td>
                   <td className="py-3 px-4 text-center">
                     {isOwner ? (
-                      <span
-                        className={`px-3 py-1 rounded-full text-[11px] font-bold shadow-2xs inline-block ${
-                          menu.aktif
-                            ? 'bg-emerald-100 text-emerald-800'
-                            : 'bg-rose-100 text-rose-700'
-                        }`}
-                      >
-                        {menu.aktif ? 'Tersedia' : 'Habis'}
-                      </span>
-                    ) : (
                       <button
                         onClick={() => handleToggleAktif(menu)}
                         className={`px-3 py-1 rounded-full text-[11px] font-bold transition shadow-2xs cursor-pointer ${
@@ -435,14 +471,24 @@ export const KelolaMenuView: React.FC = () => {
                       >
                         {menu.aktif ? 'Tersedia' : 'Habis'}
                       </button>
+                    ) : (
+                      <span
+                        className={`px-3 py-1 rounded-full text-[11px] font-bold shadow-2xs inline-block ${
+                          menu.aktif
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : 'bg-rose-100 text-rose-700'
+                        }`}
+                      >
+                        {menu.aktif ? 'Tersedia' : 'Habis'}
+                      </span>
                     )}
                   </td>
-                  {!isOwner && (
+                  {isOwner && (
                     <td className="py-3 px-4 text-right">
                       <div className="flex items-center justify-end gap-1.5">
                         <button
                           onClick={() => openEditModal(menu)}
-                          className="flex items-center gap-1 px-2.5 py-1.5 bg-orange-50 text-[#FF6038] hover:bg-orange-100 rounded-xl font-bold text-xs transition active:scale-95 border border-orange-200 cursor-pointer"
+                          className="flex items-center gap-1 px-2.5 py-1.5 bg-[var(--utama-muda)] text-[var(--utama-teks)] hover:bg-[var(--utama-muda)] rounded-xl font-bold text-xs transition active:scale-95 border border-[var(--garis)] cursor-pointer"
                           title="Update Menu"
                         >
                           <Edit2 className="w-3.5 h-3.5" />
@@ -468,20 +514,20 @@ export const KelolaMenuView: React.FC = () => {
       </div>
 
       {/* Modal Add / Update Menu (Tanpa Modal Bahan Baku & Mendukung Foto Lokal) */}
-      {!isOwner && isModalOpen && (
+      {isOwner && isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-lg rounded-3xl bg-white shadow-2xl overflow-hidden border border-slate-100 animate-in fade-in zoom-in-95">
-            <div className="flex items-center justify-between p-4 bg-slate-50 border-b border-slate-100">
+          <div className="w-full max-w-lg rounded-3xl bg-[var(--kartu)] shadow-2xl overflow-hidden border border-[var(--garis)] animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between p-4 bg-[var(--latar)] border-b border-[var(--garis)]">
               <div className="flex items-center gap-2">
-                <UtensilsCrossed className="w-5 h-5 text-[#FF6038]" />
-                <h3 className="font-extrabold text-slate-900 text-sm">
+                <UtensilsCrossed className="w-5 h-5 text-[var(--utama-teks)]" />
+                <h3 className="font-extrabold text-[var(--teks)] text-sm">
                   {editingMenu ? `Update Menu: ${editingMenu.nama}` : 'Tambah Menu Baru'}
                 </h3>
               </div>
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200/50"
+                className="p-1 rounded-lg text-[var(--redup)] hover:text-[var(--redup)] hover:bg-[var(--garis)]/50"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -489,7 +535,7 @@ export const KelolaMenuView: React.FC = () => {
 
             <form onSubmit={handleSubmit} className="p-5 space-y-4 max-h-[82vh] overflow-y-auto">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label className="block text-xs font-semibold text-[var(--teks)] mb-1">
                   Nama Menu <span className="text-rose-500">*</span>
                 </label>
                 <input
@@ -498,19 +544,19 @@ export const KelolaMenuView: React.FC = () => {
                   value={nama}
                   onChange={(e) => setNama(e.target.value)}
                   placeholder="Contoh: Soto Ayam Lamongan"
-                  className="w-full px-3.5 py-2.5 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#FF6038]/30 focus:border-[#FF6038] outline-none"
+                  className="w-full px-3.5 py-2.5 text-sm border border-[var(--garis)] rounded-xl focus:ring-2 focus:ring-[var(--utama-teks)]/30 focus:border-[var(--utama-teks)] outline-none"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  <label className="block text-xs font-semibold text-[var(--teks)] mb-1">
                     Kategori <span className="text-rose-500">*</span>
                   </label>
                   <select
                     value={kategori}
                     onChange={(e) => setKategori(e.target.value)}
-                    className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#FF6038]/30 focus:border-[#FF6038] outline-none bg-white font-medium"
+                    className="w-full px-3 py-2.5 text-sm border border-[var(--garis)] rounded-xl focus:ring-2 focus:ring-[var(--utama-teks)]/30 focus:border-[var(--utama-teks)] outline-none bg-[var(--kartu)] font-medium"
                   >
                     <option value="Makanan">Makanan</option>
                     <option value="Minuman">Minuman</option>
@@ -519,7 +565,7 @@ export const KelolaMenuView: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  <label className="block text-xs font-semibold text-[var(--teks)] mb-1">
                     Harga Jual (Rp) <span className="text-rose-500">*</span>
                   </label>
                   <input
@@ -530,16 +576,36 @@ export const KelolaMenuView: React.FC = () => {
                     value={harga}
                     onChange={(e) => setHarga(e.target.value)}
                     placeholder="25000"
-                    className="w-full px-3.5 py-2.5 text-sm font-bold text-slate-900 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#FF6038]/30 focus:border-[#FF6038] outline-none"
+                    className="w-full px-3.5 py-2.5 text-sm font-bold text-[var(--teks)] border border-[var(--garis)] rounded-xl focus:ring-2 focus:ring-[var(--utama-teks)]/30 focus:border-[var(--utama-teks)] outline-none"
                   />
                 </div>
               </div>
 
+              {/* Cabang (Owner only) */}
+              {isOwner && (
+                <div>
+                  <label className="block text-xs font-semibold text-[var(--teks)] mb-1">
+                    Cabang <span className="text-rose-500">*</span>
+                  </label>
+                  <select
+                    value={cabang}
+                    onChange={(e) => setCabang(e.target.value)}
+                    className="w-full px-3 py-2.5 text-sm border border-[var(--garis)] rounded-xl focus:ring-2 focus:ring-[var(--utama-teks)]/30 focus:border-[var(--utama-teks)] outline-none bg-[var(--kartu)] font-medium"
+                  >
+                    {cabangList.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               {/* Local Photo Selection (Opsional) */}
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <label className="block text-xs font-semibold text-slate-700">
-                    Foto Makanan <span className="text-slate-400 font-normal">(Opsional)</span>
+                  <label className="block text-xs font-semibold text-[var(--teks)]">
+                    Foto Makanan <span className="text-[var(--redup)] font-normal">(Opsional)</span>
                   </label>
                   {gambarUrl && (
                     <button
@@ -552,30 +618,30 @@ export const KelolaMenuView: React.FC = () => {
                   )}
                 </div>
 
-                <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 flex items-center gap-3.5">
+                <div className="p-3 bg-[var(--latar)] rounded-2xl border border-[var(--garis)] flex items-center gap-3.5">
                   {gambarUrl ? (
                     <div className="relative shrink-0">
                       <img
                         src={gambarUrl}
                         alt="Preview Foto"
-                        className="w-16 h-16 rounded-xl object-cover border border-slate-200 shadow-xs"
+                        className="w-16 h-16 rounded-xl object-cover border border-[var(--garis)] shadow-xs"
                       />
                     </div>
                   ) : (
-                    <div className="w-16 h-16 rounded-xl bg-white border border-dashed border-slate-300 flex flex-col items-center justify-center text-slate-400 shrink-0 p-1 text-center">
-                      <ImageOff className="w-5 h-5 text-slate-300 mb-0.5" />
-                      <span className="text-[8px] font-bold text-slate-400 leading-tight">
+                    <div className="w-16 h-16 rounded-xl bg-[var(--kartu)] border border-dashed border-[var(--garis-kuat)] flex flex-col items-center justify-center text-[var(--redup)] shrink-0 p-1 text-center">
+                      <ImageOff className="w-5 h-5 text-[var(--redup)] mb-0.5" />
+                      <span className="text-[8px] font-bold text-[var(--redup)] leading-tight">
                         Gambar tidak ada
                       </span>
                     </div>
                   )}
 
                   <div className="flex-1 min-w-0 space-y-1.5">
-                    <label className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white hover:bg-orange-50 border border-slate-200 hover:border-orange-300 text-slate-700 hover:text-[#FF6038] text-xs font-bold transition cursor-pointer shadow-2xs active:scale-95">
+                    <label className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[var(--kartu)] hover:bg-[var(--utama-muda)] border border-[var(--garis)] hover:border-[var(--garis-kuat)] text-[var(--teks)] hover:text-[var(--utama-teks)] text-xs font-bold transition cursor-pointer shadow-2xs active:scale-95">
                       {isProcessingPhoto ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin text-[#FF6038]" />
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-[var(--utama-teks)]" />
                       ) : (
-                        <Camera className="w-3.5 h-3.5 text-[#FF6038]" />
+                        <Camera className="w-3.5 h-3.5 text-[var(--utama-teks)]" />
                       )}
                       <span>
                         {isProcessingPhoto
@@ -594,7 +660,7 @@ export const KelolaMenuView: React.FC = () => {
                       />
                     </label>
 
-                    <p className="text-[10px] text-slate-500 leading-tight">
+                    <p className="text-[10px] text-[var(--redup)] leading-tight">
                       Ambil dari galeri HP atau berkas lokal. Jika tidak memilih foto, menu akan otomatis tampil dengan keterangan <em>Gambar tidak ada</em>.
                     </p>
                   </div>
@@ -607,15 +673,15 @@ export const KelolaMenuView: React.FC = () => {
                   id="menuAktif"
                   checked={aktif}
                   onChange={(e) => setAktif(e.target.checked)}
-                  className="w-4 h-4 rounded text-[#FF6038] focus:ring-[#FF6038]"
+                  className="w-4 h-4 rounded text-[var(--utama-teks)] focus:ring-[var(--utama-teks)]"
                 />
-                <label htmlFor="menuAktif" className="text-xs font-semibold text-slate-800 cursor-pointer">
+                <label htmlFor="menuAktif" className="text-xs font-semibold text-[var(--teks)] cursor-pointer">
                   Status Tersedia (Menu aktif & dapat dipesan di Kasir)
                 </label>
               </div>
 
               {/* Action buttons inside modal */}
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+              <div className="pt-3 border-t border-[var(--garis)] flex items-center justify-between gap-2">
                 {editingMenu ? (
                   <button
                     type="button"
@@ -635,13 +701,13 @@ export const KelolaMenuView: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setIsModalOpen(false)}
-                    className="py-2.5 px-3.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition"
+                    className="py-2.5 px-3.5 rounded-xl border border-[var(--garis)] text-xs font-semibold text-[var(--redup)] hover:bg-[var(--latar)] transition"
                   >
                     Batal
                   </button>
                   <button
                     type="submit"
-                    className="py-2.5 px-4 rounded-xl bg-[#FF6038] hover:bg-[#E04620] text-xs font-bold text-white transition flex items-center gap-1.5 shadow-sm shadow-orange-500/25 active:scale-95"
+                    className="py-2.5 px-4 rounded-xl bg-[var(--utama)] hover:bg-[var(--utama-tua)] active:bg-[var(--utama)] text-xs font-bold text-white transition flex items-center gap-1.5 shadow-sm shadow-[var(--utama)]/25 active:scale-95"
                   >
                     <Check className="w-4 h-4" />
                     <span>{editingMenu ? 'Simpan Perubahan' : 'Tambah Menu'}</span>
@@ -654,21 +720,21 @@ export const KelolaMenuView: React.FC = () => {
       )}
 
       {/* Delete Confirmation Modal */}
-      {!isOwner && menuToDelete && (
+      {isOwner && menuToDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-sm rounded-3xl bg-white shadow-2xl p-5 border border-slate-100 animate-in fade-in zoom-in-95">
+          <div className="w-full max-w-sm rounded-3xl bg-[var(--kartu)] shadow-2xl p-5 border border-[var(--garis)] animate-in fade-in zoom-in-95">
             <div className="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto mb-3">
               <AlertTriangle className="w-6 h-6" />
             </div>
 
-            <h3 className="text-base font-extrabold text-slate-900 text-center">
+            <h3 className="text-base font-extrabold text-[var(--teks)] text-center">
               Hapus Menu Ini?
             </h3>
-            <p className="text-xs text-slate-500 text-center mt-1">
-              Menu <strong className="text-slate-800">"{menuToDelete.nama}"</strong> akan dihapus permanen dari daftar kasir.
+            <p className="text-xs text-[var(--redup)] text-center mt-1">
+              Menu <strong className="text-[var(--teks)]">"{menuToDelete.nama}"</strong> akan dihapus permanen dari daftar kasir.
             </p>
 
-            <div className="mt-4 flex items-center gap-3 p-2.5 rounded-2xl bg-slate-50 border border-slate-200">
+            <div className="mt-4 flex items-center gap-3 p-2.5 rounded-2xl bg-[var(--latar)] border border-[var(--garis)]">
               {menuToDelete.gambar_url ? (
                 <img
                   src={menuToDelete.gambar_url}
@@ -676,14 +742,14 @@ export const KelolaMenuView: React.FC = () => {
                   className="w-12 h-12 rounded-xl object-cover shrink-0"
                 />
               ) : (
-                <div className="w-12 h-12 rounded-xl bg-slate-100 border border-slate-200 flex flex-col items-center justify-center text-slate-400 p-1 text-center shrink-0">
-                  <ImageOff className="w-4 h-4 text-slate-400" />
-                  <span className="text-[7px] font-bold text-slate-400">Gambar tidak ada</span>
+                <div className="w-12 h-12 rounded-xl bg-[var(--latar)] border border-[var(--garis)] flex flex-col items-center justify-center text-[var(--redup)] p-1 text-center shrink-0">
+                  <ImageOff className="w-4 h-4 text-[var(--redup)]" />
+                  <span className="text-[7px] font-bold text-[var(--redup)]">Gambar tidak ada</span>
                 </div>
               )}
               <div className="text-xs">
-                <div className="font-bold text-slate-900">{menuToDelete.nama}</div>
-                <div className="text-slate-500">{formatRupiah(menuToDelete.harga)}</div>
+                <div className="font-bold text-[var(--teks)]">{menuToDelete.nama}</div>
+                <div className="text-[var(--redup)]">{formatRupiah(menuToDelete.harga)}</div>
               </div>
             </div>
 
@@ -691,14 +757,14 @@ export const KelolaMenuView: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setMenuToDelete(null)}
-                className="py-2.5 px-3 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
+                className="py-2.5 px-3 rounded-xl border border-[var(--garis)] text-xs font-semibold text-[var(--teks)] hover:bg-[var(--latar)] transition"
               >
                 Batal
               </button>
               <button
                 type="button"
                 onClick={confirmDelete}
-                className="py-2.5 px-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-xs font-bold text-white transition shadow-sm shadow-rose-600/30 active:scale-95 flex items-center justify-center gap-1.5"
+                className="py-2.5 px-3 rounded-xl bg-rose-600 hover:brightness-90 text-xs font-bold text-white transition shadow-sm shadow-rose-600/30 active:scale-95 flex items-center justify-center gap-1.5"
               >
                 <Trash2 className="w-4 h-4" />
                 <span>Ya, Hapus</span>

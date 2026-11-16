@@ -182,18 +182,18 @@ export const KelolaPromoView: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
         <div>
-          <h2 className="text-xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
-            <Tag className="w-6 h-6 text-[#FF6038]" />
+          <h2 className="text-xl font-extrabold text-[var(--teks)] tracking-tight flex items-center gap-2">
+            <Tag className="w-6 h-6 text-[var(--utama-teks)]" />
             <span>Kelola Promo & Diskon</span>
           </h2>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <p className="text-xs text-[var(--redup)] mt-0.5">
             Buat diskon persen atau potongan nominal untuk memikat pelanggan dan meningkatkan transaksi kasir.
           </p>
         </div>
 
         <button
           onClick={openAddModal}
-          className="self-start sm:self-auto flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-[#FF6038] hover:bg-[#E04620] text-white text-xs font-bold transition shadow-sm shadow-orange-500/20 active:scale-95 min-h-[40px]"
+          className="self-start sm:self-auto flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-[var(--utama)] hover:bg-[var(--utama-tua)] active:bg-[var(--utama)] text-white text-xs font-bold transition shadow-sm shadow-[var(--utama)]/20 active:scale-95 min-h-[40px]"
         >
           <Plus className="w-4 h-4" />
           <span>Tambah Promo Baru</span>
@@ -202,17 +202,17 @@ export const KelolaPromoView: React.FC = () => {
 
       {/* Promos Content */}
       {promos.length === 0 ? (
-        <div className="text-center py-16 bg-white rounded-3xl border border-dashed border-slate-200 p-8">
-          <div className="w-14 h-14 rounded-2xl bg-orange-50 text-[#FF6038] flex items-center justify-center mx-auto mb-3">
+        <div className="text-center py-16 bg-[var(--kartu)] rounded-3xl border border-dashed border-[var(--garis)] p-8">
+          <div className="w-14 h-14 rounded-2xl bg-[var(--utama-muda)] text-[var(--utama-teks)] flex items-center justify-center mx-auto mb-3">
             <Tag className="w-7 h-7" />
           </div>
-          <h4 className="text-sm font-bold text-slate-700">Belum ada promo</h4>
-          <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto">
+          <h4 className="text-sm font-bold text-[var(--teks)]">Belum ada promo</h4>
+          <p className="text-xs text-[var(--redup)] mt-1 max-w-xs mx-auto">
             Klik tombol Tambah Promo Baru untuk membuat diskon kasir pertama Anda.
           </p>
           <button
             onClick={openAddModal}
-            className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-orange-500 text-white text-xs font-bold hover:bg-orange-600 transition"
+            className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[var(--utama)] text-white text-xs font-bold hover:bg-[var(--utama-tua)] transition"
           >
             <Plus className="w-4 h-4" />
             <span>Tambah Promo</span>
@@ -225,18 +225,18 @@ export const KelolaPromoView: React.FC = () => {
             {promos.map((p) => (
               <div
                 key={p.id}
-                className="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-2xs flex flex-col justify-between gap-3 hover:border-slate-300 transition"
+                className="bg-[var(--kartu)] rounded-2xl border border-[var(--garis)]/90 p-4 shadow-2xs flex flex-col justify-between gap-3 hover:border-[var(--garis-kuat)] transition"
               >
                 <div>
                   <div className="flex items-start justify-between gap-2">
-                    <h3 className="font-extrabold text-slate-900 text-sm leading-snug">
+                    <h3 className="font-extrabold text-[var(--teks)] text-sm leading-snug">
                       {p.nama}
                     </h3>
                     <span
                       className={`shrink-0 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
                         p.aktif
                           ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                          : 'bg-slate-100 text-slate-500 border border-slate-200'
+                          : 'bg-[var(--latar)] text-[var(--redup)] border border-[var(--garis)]'
                       }`}
                     >
                       {p.aktif ? 'Aktif' : 'Non-Aktif'}
@@ -256,15 +256,15 @@ export const KelolaPromoView: React.FC = () => {
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-1.5 text-[11px] text-slate-500 mt-2.5">
-                    <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                  <div className="flex items-center gap-1.5 text-[11px] text-[var(--redup)] mt-2.5">
+                    <Calendar className="w-3.5 h-3.5 text-[var(--redup)] shrink-0" />
                     <span>
                       {formatDateIndo(p.tanggal_mulai)} s/d {formatDateIndo(p.tanggal_selesai)}
                     </span>
                   </div>
                 </div>
 
-                <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+                <div className="pt-2 border-t border-[var(--garis)] flex items-center justify-between gap-2">
                   <button
                     type="button"
                     onClick={() => handleToggleAktif(p)}
@@ -281,9 +281,9 @@ export const KelolaPromoView: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => openEditModal(p)}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-semibold transition min-h-[36px] active:scale-95"
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-[var(--garis)] text-[var(--teks)] hover:bg-[var(--latar)] text-xs font-semibold transition min-h-[36px] active:scale-95"
                     >
-                      <Edit2 className="w-3.5 h-3.5 text-slate-500" />
+                      <Edit2 className="w-3.5 h-3.5 text-[var(--redup)]" />
                       <span>Edit</span>
                     </button>
                     <button
@@ -301,10 +301,10 @@ export const KelolaPromoView: React.FC = () => {
           </div>
 
           {/* Desktop & Tablet Table View */}
-          <div className="hidden lg:block bg-white rounded-3xl border border-slate-200/90 shadow-2xs overflow-hidden">
+          <div className="hidden lg:block bg-[var(--kartu)] rounded-3xl border border-[var(--garis)]/90 shadow-2xs overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 border-b border-slate-100 text-slate-500 uppercase font-semibold">
+                <thead className="bg-[var(--latar)] border-b border-[var(--garis)] text-[var(--redup)] uppercase font-semibold">
                   <tr>
                     <th className="py-3 px-4">Nama Promo</th>
                     <th className="py-3 px-4">Tipe & Nilai</th>
@@ -313,18 +313,18 @@ export const KelolaPromoView: React.FC = () => {
                     <th className="py-3 px-4 text-right">Aksi</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-[var(--garis)]">
                   {promos.map((p) => (
-                    <tr key={p.id} className="hover:bg-slate-50/70 transition">
+                    <tr key={p.id} className="hover:bg-[var(--latar)]/70 transition">
                       <td className="py-3.5 px-4">
-                        <span className="font-bold text-slate-900 text-sm">{p.nama}</span>
+                        <span className="font-bold text-[var(--teks)] text-sm">{p.nama}</span>
                       </td>
                       <td className="py-3.5 px-4">
                         <span className="inline-block px-2.5 py-1 rounded-xl bg-purple-50 text-purple-700 font-extrabold text-xs">
                           {p.tipe === 'persen' ? `${p.nilai}%` : formatRupiah(p.nilai)}
                         </span>
                       </td>
-                      <td className="py-3.5 px-4 text-slate-600">
+                      <td className="py-3.5 px-4 text-[var(--redup)]">
                         {formatDateIndo(p.tanggal_mulai)} s/d {formatDateIndo(p.tanggal_selesai)}
                       </td>
                       <td className="py-3.5 px-4 text-center">
@@ -333,7 +333,7 @@ export const KelolaPromoView: React.FC = () => {
                           className={`px-3 py-1 rounded-full text-[11px] font-bold transition cursor-pointer ${
                             p.aktif
                               ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
-                              : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
+                              : 'bg-[var(--garis)] text-[var(--redup)] hover:bg-[var(--garis-kuat)]'
                           }`}
                         >
                           {p.aktif ? 'Aktif' : 'Non-Aktif'}
@@ -344,7 +344,7 @@ export const KelolaPromoView: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => openEditModal(p)}
-                            className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition cursor-pointer"
+                            className="p-2 text-[var(--redup)] hover:text-[var(--teks)] hover:bg-[var(--latar)] rounded-xl transition cursor-pointer"
                             title="Edit Promo"
                           >
                             <Edit2 className="w-4 h-4" />
@@ -371,18 +371,18 @@ export const KelolaPromoView: React.FC = () => {
       {/* Confirmation Modal for Delete */}
       {promoToDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-150">
-          <div className="w-full max-w-sm rounded-3xl bg-white shadow-2xl overflow-hidden border border-slate-100 p-5 sm:p-6 text-center animate-in zoom-in-95 duration-150">
+          <div className="w-full max-w-sm rounded-3xl bg-[var(--kartu)] shadow-2xl overflow-hidden border border-[var(--garis)] p-5 sm:p-6 text-center animate-in zoom-in-95 duration-150">
             <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mx-auto mb-3.5">
               <Trash2 className="w-6 h-6" />
             </div>
 
-            <h3 className="text-base font-extrabold text-slate-900">
+            <h3 className="text-base font-extrabold text-[var(--teks)]">
               Hapus Promo Ini?
             </h3>
 
-            <p className="text-xs text-slate-500 mt-1.5 mb-5 leading-relaxed">
+            <p className="text-xs text-[var(--redup)] mt-1.5 mb-5 leading-relaxed">
               Yakin ingin menghapus promo{' '}
-              <span className="font-bold text-slate-800">
+              <span className="font-bold text-[var(--teks)]">
                 "{promoToDelete.nama}"
               </span>
               ? Promo yang sudah dihapus tidak dapat dipulihkan dan tidak akan muncul lagi di kasir.
@@ -393,7 +393,7 @@ export const KelolaPromoView: React.FC = () => {
                 type="button"
                 disabled={isDeleting}
                 onClick={() => setPromoToDelete(null)}
-                className="w-full py-2.5 px-4 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 transition active:scale-95 disabled:opacity-50 min-h-[44px]"
+                className="w-full py-2.5 px-4 rounded-xl border border-[var(--garis)] text-xs font-bold text-[var(--teks)] hover:bg-[var(--latar)] transition active:scale-95 disabled:opacity-50 min-h-[44px]"
               >
                 Batal
               </button>
@@ -402,7 +402,7 @@ export const KelolaPromoView: React.FC = () => {
                 type="button"
                 disabled={isDeleting}
                 onClick={handleConfirmDelete}
-                className="w-full py-2.5 px-4 rounded-xl bg-rose-600 hover:bg-rose-700 text-xs font-bold text-white transition shadow-sm shadow-rose-600/20 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5 min-h-[44px]"
+                className="w-full py-2.5 px-4 rounded-xl bg-rose-600 hover:brightness-90 text-xs font-bold text-white transition shadow-sm shadow-rose-600/20 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5 min-h-[44px]"
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 <span>{isDeleting ? 'Menghapus...' : 'Ya, Hapus'}</span>
@@ -415,18 +415,18 @@ export const KelolaPromoView: React.FC = () => {
       {/* Modal CRUD Promo */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="w-full max-w-md rounded-3xl bg-white shadow-2xl overflow-hidden border border-slate-100 animate-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between p-4 bg-slate-50 border-b border-slate-100">
+          <div className="w-full max-w-md rounded-3xl bg-[var(--kartu)] shadow-2xl overflow-hidden border border-[var(--garis)] animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between p-4 bg-[var(--latar)] border-b border-[var(--garis)]">
               <div className="flex items-center gap-2">
-                <Tag className="w-5 h-5 text-[#FF6038]" />
-                <h3 className="font-bold text-slate-900 text-sm">
+                <Tag className="w-5 h-5 text-[var(--utama-teks)]" />
+                <h3 className="font-bold text-[var(--teks)] text-sm">
                   {editingPromo ? 'Edit Promo' : 'Tambah Promo Baru'}
                 </h3>
               </div>
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200/50"
+                className="p-1 rounded-lg text-[var(--redup)] hover:text-[var(--redup)] hover:bg-[var(--garis)]/50"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -434,7 +434,7 @@ export const KelolaPromoView: React.FC = () => {
 
             <form onSubmit={handleSubmit} className="p-5 space-y-3.5">
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">
+                <label className="block text-xs font-semibold text-[var(--redup)] mb-1">
                   Nama Promo <span className="text-rose-500">*</span>
                 </label>
                 <input
@@ -443,19 +443,19 @@ export const KelolaPromoView: React.FC = () => {
                   value={nama}
                   onChange={(e) => setNama(e.target.value)}
                   placeholder="Contoh: Diskon Jam Makan Siang 10%"
-                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#FF6038]/30 focus:border-[#FF6038] outline-none"
+                  className="w-full px-3 py-2 text-sm border border-[var(--garis)] rounded-xl focus:ring-2 focus:ring-[var(--utama-teks)]/30 focus:border-[var(--utama-teks)] outline-none"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">
+                  <label className="block text-xs font-semibold text-[var(--redup)] mb-1">
                     Tipe Diskon
                   </label>
                   <select
                     value={tipe}
                     onChange={(e) => setTipe(e.target.value as 'persen' | 'nominal')}
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#FF6038]/30 focus:border-[#FF6038] outline-none bg-white"
+                    className="w-full px-3 py-2 text-sm border border-[var(--garis)] rounded-xl focus:ring-2 focus:ring-[var(--utama-teks)]/30 focus:border-[var(--utama-teks)] outline-none bg-[var(--kartu)]"
                   >
                     <option value="persen">Persentase (%)</option>
                     <option value="nominal">Nominal Tunai (Rp)</option>
@@ -463,7 +463,7 @@ export const KelolaPromoView: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">
+                  <label className="block text-xs font-semibold text-[var(--redup)] mb-1">
                     Nilai ({tipe === 'persen' ? '%' : 'Rp'}) <span className="text-rose-500">*</span>
                   </label>
                   <input
@@ -473,14 +473,14 @@ export const KelolaPromoView: React.FC = () => {
                     value={nilai}
                     onChange={(e) => setNilai(e.target.value)}
                     placeholder={tipe === 'persen' ? '10' : '5000'}
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#FF6038]/30 focus:border-[#FF6038] outline-none"
+                    className="w-full px-3 py-2 text-sm border border-[var(--garis)] rounded-xl focus:ring-2 focus:ring-[var(--utama-teks)]/30 focus:border-[var(--utama-teks)] outline-none"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">
+                  <label className="block text-xs font-semibold text-[var(--redup)] mb-1">
                     Tanggal Mulai
                   </label>
                   <input
@@ -488,12 +488,12 @@ export const KelolaPromoView: React.FC = () => {
                     required
                     value={tanggalMulai}
                     onChange={(e) => setTanggalMulai(e.target.value)}
-                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#FF6038]/30 focus:border-[#FF6038] outline-none"
+                    className="w-full px-3 py-2 text-xs border border-[var(--garis)] rounded-xl focus:ring-2 focus:ring-[var(--utama-teks)]/30 focus:border-[var(--utama-teks)] outline-none"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">
+                  <label className="block text-xs font-semibold text-[var(--redup)] mb-1">
                     Tanggal Selesai
                   </label>
                   <input
@@ -501,7 +501,7 @@ export const KelolaPromoView: React.FC = () => {
                     required
                     value={tanggalSelesai}
                     onChange={(e) => setTanggalSelesai(e.target.value)}
-                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#FF6038]/30 focus:border-[#FF6038] outline-none"
+                    className="w-full px-3 py-2 text-xs border border-[var(--garis)] rounded-xl focus:ring-2 focus:ring-[var(--utama-teks)]/30 focus:border-[var(--utama-teks)] outline-none"
                   />
                 </div>
               </div>
@@ -512,14 +512,14 @@ export const KelolaPromoView: React.FC = () => {
                   id="promoAktif"
                   checked={aktif}
                   onChange={(e) => setAktif(e.target.checked)}
-                  className="w-4 h-4 rounded text-[#FF6038] focus:ring-[#FF6038]"
+                  className="w-4 h-4 rounded text-[var(--utama-teks)] focus:ring-[var(--utama-teks)]"
                 />
-                <label htmlFor="promoAktif" className="text-xs font-semibold text-slate-700 cursor-pointer">
+                <label htmlFor="promoAktif" className="text-xs font-semibold text-[var(--teks)] cursor-pointer">
                   Status Aktif (Tampilkan di Kasir)
                 </label>
               </div>
 
-              <div className="pt-3 border-t border-slate-100">
+              <div className="pt-3 border-t border-[var(--garis)]">
                 {editingPromo && (
                   <button
                     type="button"
@@ -537,13 +537,13 @@ export const KelolaPromoView: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setIsModalOpen(false)}
-                    className="py-2.5 px-3 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition"
+                    className="py-2.5 px-3 rounded-xl border border-[var(--garis)] text-xs font-semibold text-[var(--redup)] hover:bg-[var(--latar)] transition"
                   >
                     Batal
                   </button>
                   <button
                     type="submit"
-                    className="py-2.5 px-3 rounded-xl bg-[#FF6038] hover:bg-[#E04620] text-xs font-semibold text-white transition flex items-center justify-center gap-1.5 shadow-sm"
+                    className="py-2.5 px-3 rounded-xl bg-[var(--utama)] hover:bg-[var(--utama-tua)] active:bg-[var(--utama)] text-xs font-semibold text-white transition flex items-center justify-center gap-1.5 shadow-sm"
                   >
                     <Check className="w-4 h-4" />
                     <span>Simpan Promo</span>
