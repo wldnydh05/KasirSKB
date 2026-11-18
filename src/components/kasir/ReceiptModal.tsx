@@ -56,7 +56,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 sm:p-4 backdrop-blur-xs overflow-y-auto">
       <div className="w-full max-w-sm max-h-[92vh] rounded-3xl bg-white shadow-2xl flex flex-col border border-slate-100 animate-in fade-in zoom-in-95 overflow-hidden my-auto">
         {/* Top Success Banner */}
-        <div className="no-print bg-emerald-500 text-white p-4 sm:p-5 text-center relative shrink-0">
+        <div className="no-print bg-[var(--teks)] text-white p-4 sm:p-5 text-center relative shrink-0">
           <button
             onClick={onClose}
             className="absolute top-3.5 right-3.5 text-white/80 hover:text-white p-1 rounded-full transition hover:bg-white/10"

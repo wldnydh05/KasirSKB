@@ -19,7 +19,11 @@ export interface User {
   nama_lengkap?: string;
   cabang?: string; // 'Cabang 1' | 'Cabang 2'
   foto_url?: string;
+  pin_hash?: string; // For kasir PIN login
   created_at: string;
+  updated_at?: string;
+  synced?: boolean;
+  deleted_at?: string | null;
 }
 
 export interface Menu {
@@ -30,9 +34,13 @@ export interface Menu {
   gambar_url?: string;
   biaya_bahan_baku?: number;
   aktif: boolean;
-  cabang?: string; // 'Cabang 1' | 'Cabang 2'
+  /** Boleh lebih dari satu: ['Cabang 1','Cabang 2'] atau salah satu saja.
+   *  Data lama masih berupa string tunggal → normalisasi dengan menuCabangList(). */
+  cabang?: string[];
   created_at: string;
   updated_at: string;
+  synced?: boolean;
+  deleted_at?: string | null;
 }
 
 export interface Transaksi {
@@ -52,6 +60,9 @@ export interface Transaksi {
   nomor_meja?: string;
   catatan?: string;
   created_at: string;
+  updated_at?: string;
+  synced?: boolean;
+  deleted_at?: string | null;
 }
 
 export interface DetailTransaksi {
@@ -64,12 +75,25 @@ export interface DetailTransaksi {
   jumlah: number;
   subtotal: number;
   is_manual: boolean;
+  created_at?: string;
+  updated_at?: string;
+  synced?: boolean;
+  deleted_at?: string | null;
+}
+
+export interface BiayaRincianItem {
+  nama: string; // Nama Barang / Kebutuhan, mis. "Gas 3kg", "Es batu", "Sambel"
+  biaya: number; // Nominal rupiah (boleh 0)
 }
 
 export interface Biaya {
   id?: number;
   tanggal: string; // YYYY-MM-DD
-  biaya_operasional: number;
+  biaya_operasional: number; // Total = jumlah seluruh rincian
+  /** Biaya operasional tambahan (di luar biaya tetap harian), mis. sambel/bumbu terpisah, gas tabung, dll. Boleh 0. */
+  biaya_operasional_lainnya?: number;
+  /** Rincian item "Nama Barang/Kebutuhan + Biaya" untuk biaya operasional harian. */
+  rincian?: BiayaRincianItem[];
   keterangan?: string;
   created_at: string;
 }

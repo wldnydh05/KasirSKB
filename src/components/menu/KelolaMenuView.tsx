@@ -26,6 +26,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { useCabang } from '../../context/CabangContext';
 import { compressImageFile } from '../../utils/imageUtils';
+import { menuCabangList, menuMilikCabang } from '../../utils/menuCabang';
 
 export const KelolaMenuView: React.FC = () => {
   const { user } = useAuth();
@@ -53,7 +54,8 @@ export const KelolaMenuView: React.FC = () => {
   const [kategori, setKategori] = useState('Makanan');
   const [gambarUrl, setGambarUrl] = useState('');
   const [aktif, setAktif] = useState(true);
-  const [cabang, setCabang] = useState<string>('Cabang 1');
+  // Cabang tujuan menu — boleh lebih dari satu (Cabang 1 & Cabang 2) atau salah satu
+  const [cabangDipilih, setCabangDipilih] = useState<string[]>(['Cabang 1']);
   const [isProcessingPhoto, setIsProcessingPhoto] = useState(false);
 
   const loadData = async () => {
@@ -79,7 +81,7 @@ export const KelolaMenuView: React.FC = () => {
     setKategori('Makanan');
     setGambarUrl('');
     setAktif(true);
-    setCabang('Cabang 1');
+    setCabangDipilih(cabangList.length > 0 ? [cabangList[0]] : ['Cabang 1']);
     setIsModalOpen(true);
   };
 
@@ -90,8 +92,13 @@ export const KelolaMenuView: React.FC = () => {
     setKategori(m.kategori);
     setGambarUrl(m.gambar_url || '');
     setAktif(m.aktif);
-    setCabang(m.cabang || 'Cabang 1');
+    const cabangLama = menuCabangList(m.cabang);
+    setCabangDipilih(cabangLama.length > 0 ? cabangLama : cabangList.length > 0 ? [cabangList[0]] : ['Cabang 1']);
     setIsModalOpen(true);
+  };
+
+  const toggleCabangDipilih = (c: string) => {
+    setCabangDipilih((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
   };
 
   const handleLocalPhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -137,6 +144,11 @@ export const KelolaMenuView: React.FC = () => {
       return;
     }
 
+    if (cabangDipilih.length === 0) {
+      showToast('Pilih minimal satu cabang (boleh Cabang 1 & Cabang 2 sekaligus)', 'error');
+      return;
+    }
+
     const nowIso = new Date().toISOString();
     // Do NOT use dummy unsplash images. If gambarUrl is empty, save as empty string.
     const finalImage = gambarUrl.trim();
@@ -150,7 +162,7 @@ export const KelolaMenuView: React.FC = () => {
           kategori,
           gambar_url: finalImage,
           aktif,
-          cabang,
+          cabang: [...cabangDipilih],
           updated_at: nowIso,
         });
         showToast(`Menu "${nama}" berhasil diupdate!`, 'success');
@@ -163,7 +175,7 @@ export const KelolaMenuView: React.FC = () => {
           gambar_url: finalImage,
           biaya_bahan_baku: 0,
           aktif,
-          cabang,
+          cabang: [...cabangDipilih],
           created_at: nowIso,
           updated_at: nowIso,
         });
@@ -202,7 +214,7 @@ export const KelolaMenuView: React.FC = () => {
       await loadData();
       showToast(
         `Status menu "${menu.nama}" diubah menjadi ${!menu.aktif ? 'Tersedia' : 'Habis'}`,
-        'info'
+        !menu.aktif ? 'success' : 'error'
       );
     } catch (err) {
       console.error('Failed to toggle status:', err);
@@ -217,7 +229,7 @@ export const KelolaMenuView: React.FC = () => {
       m.nama.toLowerCase().includes(search.toLowerCase()) ||
       m.kategori.toLowerCase().includes(search.toLowerCase());
     const matchCabang =
-      selectedCabang === 'Semua' || m.cabang === selectedCabang;
+      selectedCabang === 'Semua' || menuMilikCabang(m.cabang, selectedCabang);
     return matchCat && matchSearch && matchCabang;
   });
 
@@ -228,12 +240,12 @@ export const KelolaMenuView: React.FC = () => {
         <div>
           <h2 className="text-xl font-extrabold text-[var(--teks)] tracking-tight flex items-center gap-2">
             <UtensilsCrossed className="w-6 h-6 text-[var(--utama-teks)]" />
-            <span>{isOwner ? 'Kelola Daftar Menu' : 'Daftar Menu'}</span>
+            <span>{isOwner ? 'Kelola Daftar Menu' : 'Status Produk'}</span>
           </h2>
           <p className="text-xs text-[var(--redup)] mt-0.5">
             {isOwner
-              ? 'Tambah menu baru, update harga/nama/foto lokal, atau hapus menu dari katalog kasir.'
-              : 'Katalog daftar menu makanan dan minuman.'}
+              ? 'Tambah menu baru (bisa untuk Cabang 1 & 2 sekaligus), update harga/nama/foto, atau hapus menu dari katalog kasir.'
+              : 'Ketuk badge status untuk mengubah ketersediaan menu: Tersedia (hijau) atau Habis (merah).'}
           </p>
         </div>
 
@@ -314,7 +326,7 @@ export const KelolaMenuView: React.FC = () => {
             >
               {/* Foto & Info Menu */}
               <div className="flex items-center gap-3 min-w-0 flex-1">
-                <div className="relative shrink-0">
+                <div className="shrink-0 overflow-hidden">
                   {menu.gambar_url ? (
                     <img
                       src={menu.gambar_url}
@@ -322,50 +334,32 @@ export const KelolaMenuView: React.FC = () => {
                       className="w-13 h-13 rounded-xl object-cover border border-[var(--garis)]"
                     />
                   ) : (
-                    <div className="w-13 h-13 rounded-xl bg-[var(--latar)] border border-[var(--garis)] flex flex-col items-center justify-center text-[var(--redup)] p-1 text-center">
-                      <ImageOff className="w-4 h-4 text-[var(--redup)] mb-0.5" />
-                      <span className="text-[7.5px] font-bold text-[var(--redup)] leading-tight">
-                        Gambar tidak ada
-                      </span>
+                    <div
+                      className="w-13 h-13 rounded-xl bg-[var(--latar)] border border-[var(--garis)] flex items-center justify-center text-[var(--redup)]"
+                      aria-hidden="true"
+                    >
+                      <ImageOff className="w-5 h-5" />
                     </div>
                   )}
+                </div>
 
-                  {isOwner ? (
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                    <span className="text-[11px] font-bold px-1.5 py-0.5 rounded bg-[var(--latar)] text-[var(--teks)]">
+                      {menu.kategori}
+                    </span>
                     <button
                       type="button"
                       onClick={() => handleToggleAktif(menu)}
-                      className={`absolute -bottom-1 -right-1 px-1.5 py-0.2 rounded-full text-[9px] font-black border border-white shadow-xs cursor-pointer ${
+                      className={`text-[11px] font-black px-2 py-0.5 rounded-full cursor-pointer transition active:scale-95 ${
                         menu.aktif
-                          ? 'bg-emerald-500 text-white'
-                          : 'bg-rose-500 text-white'
+                          ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                          : 'bg-rose-100 text-rose-700 border border-rose-200'
                       }`}
                       title="Ketuk untuk ubah status ketersediaan"
                     >
                       {menu.aktif ? 'Tersedia' : 'Habis'}
                     </button>
-                  ) : (
-                    <span
-                      className={`absolute -bottom-1 -right-1 px-1.5 py-0.2 rounded-full text-[9px] font-black border border-white shadow-xs ${
-                        menu.aktif
-                          ? 'bg-emerald-500 text-white'
-                          : 'bg-rose-500 text-white'
-                      }`}
-                    >
-                      {menu.aktif ? 'Tersedia' : 'Habis'}
-                    </span>
-                  )}
-                </div>
-
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5 mb-0.5">
-                    <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-[var(--latar)] text-[var(--teks)]">
-                      {menu.kategori}
-                    </span>
-                    {menu.cabang && (
-                      <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-[var(--utama-muda)] text-[var(--utama-teks)]">
-                        {menu.cabang}
-                      </span>
-                    )}
                   </div>
                   <h4 className="font-extrabold text-sm text-[var(--teks)] truncate leading-tight">
                     {menu.nama}
@@ -392,7 +386,7 @@ export const KelolaMenuView: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setMenuToDelete(menu)}
-                    className="w-9 h-9 rounded-xl bg-rose-50 text-rose-600 hover:bg-rose-100 active:scale-95 font-bold flex items-center justify-center border border-rose-200/80 transition"
+                    className="w-9 h-9 rounded-xl bg-[var(--bahaya-muda)] text-[var(--bahaya-teks)] hover:bg-[var(--bahaya-muda)] active:scale-95 font-bold flex items-center justify-center border border-[var(--garis)] transition"
                     title="Hapus Menu"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -430,11 +424,8 @@ export const KelolaMenuView: React.FC = () => {
                         className="w-12 h-12 rounded-xl object-cover border border-[var(--garis)]"
                       />
                     ) : (
-                      <div className="w-12 h-12 rounded-xl bg-[var(--latar)] border border-[var(--garis)] flex flex-col items-center justify-center text-[var(--redup)] p-1 text-center">
-                        <ImageOff className="w-3.5 h-3.5 text-[var(--redup)] mb-0.5" />
-                        <span className="text-[7.5px] font-bold text-[var(--redup)] leading-tight">
-                          Gambar tidak ada
-                        </span>
+                      <div className="w-12 h-12 rounded-xl bg-[var(--latar)] border border-[var(--garis)] flex items-center justify-center text-[var(--redup)]" aria-hidden="true">
+                        <ImageOff className="w-4 h-4" />
                       </div>
                     )}
                   </td>
@@ -449,39 +440,36 @@ export const KelolaMenuView: React.FC = () => {
                   </td>
                   {isOwner && (
                     <td className="py-3 px-4">
-                      {menu.cabang && (
-                        <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-[var(--utama-muda)] text-[var(--utama-teks)]">
-                          {menu.cabang}
-                        </span>
-                      )}
+                      <div className="flex flex-wrap gap-1">
+                        {menuCabangList(menu.cabang).map((c) => (
+                          <span
+                            key={c}
+                            className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-[var(--utama-muda)] text-[var(--utama-teks)]"
+                          >
+                            {c}
+                          </span>
+                        ))}
+                        {menuCabangList(menu.cabang).length === 0 && (
+                          <span className="text-[10px] text-[var(--redup)]">—</span>
+                        )}
+                      </div>
                     </td>
                   )}
                   <td className="py-3 px-4 text-right font-black text-[var(--utama-teks)] text-sm">
                     {formatRupiah(menu.harga)}
                   </td>
                   <td className="py-3 px-4 text-center">
-                    {isOwner ? (
-                      <button
-                        onClick={() => handleToggleAktif(menu)}
-                        className={`px-3 py-1 rounded-full text-[11px] font-bold transition shadow-2xs cursor-pointer ${
-                          menu.aktif
-                            ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
-                            : 'bg-rose-100 text-rose-700 hover:bg-rose-200'
-                        }`}
-                      >
-                        {menu.aktif ? 'Tersedia' : 'Habis'}
-                      </button>
-                    ) : (
-                      <span
-                        className={`px-3 py-1 rounded-full text-[11px] font-bold shadow-2xs inline-block ${
-                          menu.aktif
-                            ? 'bg-emerald-100 text-emerald-800'
-                            : 'bg-rose-100 text-rose-700'
-                        }`}
-                      >
-                        {menu.aktif ? 'Tersedia' : 'Habis'}
-                      </span>
-                    )}
+                    <button
+                      onClick={() => handleToggleAktif(menu)}
+                      className={`px-3 py-1 rounded-full text-[11px] font-bold transition shadow-2xs cursor-pointer ${
+                        menu.aktif
+                          ? 'bg-emerald-100 text-emerald-700 border border-emerald-200 hover:bg-emerald-200'
+                          : 'bg-rose-100 text-rose-700 border border-rose-200 hover:bg-rose-200'
+                      }`}
+                      title="Ketuk untuk ubah status ketersediaan"
+                    >
+                      {menu.aktif ? 'Tersedia' : 'Habis'}
+                    </button>
                   </td>
                   {isOwner && (
                     <td className="py-3 px-4 text-right">
@@ -581,23 +569,37 @@ export const KelolaMenuView: React.FC = () => {
                 </div>
               </div>
 
-              {/* Cabang (Owner only) */}
+              {/* Cabang (Owner only) — boleh pilih satu atau keduanya */}
               {isOwner && (
                 <div>
-                  <label className="block text-xs font-semibold text-[var(--teks)] mb-1">
+                  <label className="block text-xs font-semibold text-[var(--teks)] mb-1.5">
                     Cabang <span className="text-rose-500">*</span>
+                    <span className="text-[var(--redup)] font-normal"> — pilih salah satu atau keduanya</span>
                   </label>
-                  <select
-                    value={cabang}
-                    onChange={(e) => setCabang(e.target.value)}
-                    className="w-full px-3 py-2.5 text-sm border border-[var(--garis)] rounded-xl focus:ring-2 focus:ring-[var(--utama-teks)]/30 focus:border-[var(--utama-teks)] outline-none bg-[var(--kartu)] font-medium"
-                  >
-                    {cabangList.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="flex flex-wrap gap-2">
+                    {cabangList.map((c) => {
+                      const dipilih = cabangDipilih.includes(c);
+                      return (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => toggleCabangDipilih(c)}
+                          className={`flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs font-bold border transition active:scale-95 cursor-pointer ${
+                            dipilih
+                              ? 'bg-[var(--utama)] text-white border-[var(--utama)] shadow-sm shadow-[var(--utama)]/25'
+                              : 'bg-[var(--kartu)] text-[var(--teks)] border-[var(--garis)] hover:border-[var(--garis-kuat)]'
+                          }`}
+                          aria-pressed={dipilih}
+                        >
+                          {dipilih ? <Check className="w-3.5 h-3.5" /> : <Building2 className="w-3.5 h-3.5" />}
+                          <span>{c}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-[10px] text-[var(--redup)] mt-1.5">
+                    Menu tampil pada cabang yang dicentang. Boleh <strong>Cabang 1 &amp; Cabang 2</strong> sekaligus, atau cukup salah satunya.
+                  </p>
                 </div>
               )}
 
@@ -628,11 +630,8 @@ export const KelolaMenuView: React.FC = () => {
                       />
                     </div>
                   ) : (
-                    <div className="w-16 h-16 rounded-xl bg-[var(--kartu)] border border-dashed border-[var(--garis-kuat)] flex flex-col items-center justify-center text-[var(--redup)] shrink-0 p-1 text-center">
-                      <ImageOff className="w-5 h-5 text-[var(--redup)] mb-0.5" />
-                      <span className="text-[8px] font-bold text-[var(--redup)] leading-tight">
-                        Gambar tidak ada
-                      </span>
+                    <div className="w-16 h-16 rounded-xl bg-[var(--kartu)] border border-dashed border-[var(--garis-kuat)] flex items-center justify-center text-[var(--redup)] shrink-0" aria-hidden="true">
+                      <ImageOff className="w-5 h-5" />
                     </div>
                   )}
 
@@ -742,9 +741,8 @@ export const KelolaMenuView: React.FC = () => {
                   className="w-12 h-12 rounded-xl object-cover shrink-0"
                 />
               ) : (
-                <div className="w-12 h-12 rounded-xl bg-[var(--latar)] border border-[var(--garis)] flex flex-col items-center justify-center text-[var(--redup)] p-1 text-center shrink-0">
-                  <ImageOff className="w-4 h-4 text-[var(--redup)]" />
-                  <span className="text-[7px] font-bold text-[var(--redup)]">Gambar tidak ada</span>
+                <div className="w-12 h-12 rounded-xl bg-[var(--latar)] border border-[var(--garis)] flex items-center justify-center text-[var(--redup)] shrink-0" aria-hidden="true">
+                  <ImageOff className="w-4 h-4" />
                 </div>
               )}
               <div className="text-xs">
@@ -764,7 +762,7 @@ export const KelolaMenuView: React.FC = () => {
               <button
                 type="button"
                 onClick={confirmDelete}
-                className="py-2.5 px-3 rounded-xl bg-rose-600 hover:brightness-90 text-xs font-bold text-white transition shadow-sm shadow-rose-600/30 active:scale-95 flex items-center justify-center gap-1.5"
+                className="py-2.5 px-3 rounded-xl bg-[var(--bahaya)] hover:bg-[var(--bahaya-teks)] text-xs font-bold text-white transition shadow-sm shadow-[var(--bahaya-teks)]/20 active:scale-95 flex items-center justify-center gap-1.5"
               >
                 <Trash2 className="w-4 h-4" />
                 <span>Ya, Hapus</span>

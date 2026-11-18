@@ -21,10 +21,8 @@ function bacaSimpanan(): ModeTema | null {
 function modeAwal(): ModeTema {
   const tersimpan = bacaSimpanan();
   if (tersimpan) return tersimpan;
-  // Belum pernah dipilih manual → ikut preferensi sistem
-  return typeof matchMedia !== 'undefined' && matchMedia('(prefers-color-scheme: dark)').matches
-    ? 'gelap'
-    : 'terang';
+  // Belum pernah dipilih manual → default terang
+  return 'terang';
 }
 
 let mode: ModeTema = modeAwal();
@@ -55,7 +53,7 @@ export function toggleModeTema() {
 
 /**
  * Hook mode terang/gelap — state disimpan di localStorage ('tema-mode'),
- * default mengikuti preferensi sistem, dan langsung diterapkan ke
+ * default terang saat belum pernah dipilih, dan langsung diterapkan ke
  * <html data-mode="gelap"> (lihat juga skrip anti-flash di index.html).
  */
 export function useTema() {

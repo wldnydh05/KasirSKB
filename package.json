@@ -12,6 +12,7 @@
     "tunnel": "npx --yes cloudflared tunnel --url http://localhost:3000"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.119.0",
     "@tailwindcss/vite": "^4.3.3",
     "@vitejs/plugin-react": "^6.1.1",
     "bcryptjs": "^3.0.3",

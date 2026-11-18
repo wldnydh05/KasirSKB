@@ -5,7 +5,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import bcrypt from 'bcryptjs';
-import { db, seedDatabaseIfEmpty } from '../db';
+import { db, seedDatabaseIfEmpty, syncHelpers } from '../db';
 import type { User, UserRole } from '../types';
 
 interface AuthContextType {
@@ -15,12 +15,13 @@ interface AuthContextType {
   quickLogin: (usernameOrRole: string) => Promise<boolean>;
   logout: () => void;
   updateProfile: (data: Partial<User>) => Promise<boolean>;
+  changeUsername: (newUsername: string) => Promise<{ success: boolean; message?: string }>;
   changePassword: (oldPass: string, newPass: string) => Promise<{ success: boolean; message: string }>;
-  registerOwner: (data: { namaLengkap: string; username: string; password: string }) => Promise<{ success: boolean; message?: string }>;
-  createKasir: (data: { namaLengkap: string; username: string; password: string; cabang: string }) => Promise<{ success: boolean; message?: string }>;
+  registerOwner: (data: { username: string; password: string }) => Promise<{ success: boolean; message?: string }>;
+  createKasir: (data: { username: string; password: string; cabang: string }) => Promise<{ success: boolean; message?: string }>;
   getKasirList: () => Promise<User[]>;
   deleteKasir: (id: number) => Promise<{ success: boolean; message?: string }>;
-  updateKasir: (id: number, data: { namaLengkap?: string; cabang?: string; newPassword?: string }) => Promise<{ success: boolean; message?: string }>;
+  updateKasir: (id: number, data: { username?: string; cabang?: string; newPassword?: string }) => Promise<{ success: boolean; message?: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -78,14 +79,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const registerOwner = async (data: {
-    namaLengkap: string;
     username: string;
     password: string;
   }): Promise<{ success: boolean; message?: string }> => {
     try {
       const cleanUsername = data.username.trim().toLowerCase();
-      if (!cleanUsername || !data.password || !data.namaLengkap.trim()) {
-        return { success: false, message: 'Harap lengkapi semua kolom pendaftaran.' };
+      if (!cleanUsername || !data.password) {
+        return { success: false, message: 'Harap lengkapi username dan password.' };
       }
       if (cleanUsername.length < 3) {
         return { success: false, message: 'Username minimal 3 karakter.' };
@@ -106,11 +106,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         username: cleanUsername,
         password_hash: passwordHash,
         role: 'owner',
-        nama_lengkap: data.namaLengkap.trim(),
         cabang: 'Semua Cabang',
         foto_url: '',
         created_at: nowIso,
       });
+
+      // Mark for sync
+      await syncHelpers.users.markDirty(newOwnerId);
 
       const newOwner = await db.users.get(newOwnerId);
       if (newOwner) {
@@ -127,7 +129,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Only owner has authority to create kasir account
   const createKasir = async (data: {
-    namaLengkap: string;
     username: string;
     password: string;
     cabang: string;
@@ -138,14 +139,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     try {
       const cleanUsername = data.username.trim().toLowerCase();
-      if (!cleanUsername || !data.password || !data.namaLengkap.trim()) {
-        return { success: false, message: 'Harap isi nama, username, password, dan cabang kasir.' };
+      if (!cleanUsername || !data.password) {
+        return { success: false, message: 'Harap isi username dan PIN kasir.' };
       }
       if (cleanUsername.length < 3) {
         return { success: false, message: 'Username kasir minimal 3 karakter.' };
       }
-      if (data.password.length < 4) {
-        return { success: false, message: 'Password kasir minimal 4 karakter.' };
+      if (data.password.length !== 6) {
+        return { success: false, message: 'PIN kasir harus tepat 6 digit.' };
       }
 
       const existing = await db.users.where('username').equalsIgnoreCase(cleanUsername).first();
@@ -156,15 +157,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const passwordHash = bcrypt.hashSync(data.password, 10);
       const nowIso = new Date().toISOString();
 
-      await db.users.add({
+      const newKasirId = await db.users.add({
         username: cleanUsername,
         password_hash: passwordHash,
         role: 'staff',
-        nama_lengkap: data.namaLengkap.trim(),
         cabang: data.cabang || 'Cabang 1',
         foto_url: '',
         created_at: nowIso,
       });
+
+      // Mark for sync
+      await syncHelpers.users.markDirty(newKasirId);
 
       return { success: true };
     } catch (err) {
@@ -195,6 +198,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { success: false, message: 'Tidak dapat menghapus akun non-kasir.' };
       }
       await db.users.delete(id);
+      // Mark for sync (soft delete will be handled by sync engine)
+      await syncHelpers.users.markDirty(id);
       return { success: true };
     } catch (err) {
       console.error('Delete kasir error:', err);
@@ -204,7 +209,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const updateKasir = async (
     id: number,
-    data: { namaLengkap?: string; cabang?: string; newPassword?: string }
+    data: { username?: string; cabang?: string; newPassword?: string }
   ): Promise<{ success: boolean; message?: string }> => {
     if (user?.role !== 'owner') {
       return { success: false, message: 'Hanya Owner yang berwenang mengubah akun kasir.' };
@@ -216,16 +221,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       const updateData: Partial<User> = {};
-      if (data.namaLengkap) updateData.nama_lengkap = data.namaLengkap.trim();
+      if (data.username !== undefined) {
+        const cleanUsername = data.username.trim().toLowerCase();
+        if (cleanUsername.length < 3) {
+          return { success: false, message: 'Username kasir minimal 3 karakter.' };
+        }
+        const existing = await db.users.where('username').equalsIgnoreCase(cleanUsername).first();
+        if (existing && existing.id !== id) {
+          return { success: false, message: `Username "${cleanUsername}" sudah digunakan. Pilih username lain.` };
+        }
+        updateData.username = cleanUsername;
+      }
       if (data.cabang) updateData.cabang = data.cabang;
       if (data.newPassword) {
-        if (data.newPassword.length < 4) {
-          return { success: false, message: 'Password baru minimal 4 karakter.' };
+        if (data.newPassword.length !== 6) {
+          return { success: false, message: 'PIN baru harus tepat 6 digit.' };
         }
         updateData.password_hash = bcrypt.hashSync(data.newPassword, 10);
       }
 
       await db.users.update(id, updateData);
+      // Mark for sync
+      await syncHelpers.users.markDirty(id);
       return { success: true };
     } catch (err) {
       console.error('Update kasir error:', err);
@@ -273,6 +290,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const changeUsername = async (newUsername: string): Promise<{ success: boolean; message?: string }> => {
+    if (!user || !user.id) {
+      return { success: false, message: 'User belum login.' };
+    }
+    try {
+      const cleanUsername = newUsername.trim().toLowerCase();
+      if (cleanUsername.length < 3) {
+        return { success: false, message: 'Username minimal 3 karakter.' };
+      }
+      if (cleanUsername === user.username) {
+        return { success: true, message: 'Username tidak berubah.' };
+      }
+      const existing = await db.users.where('username').equalsIgnoreCase(cleanUsername).first();
+      if (existing && existing.id !== user.id) {
+        return { success: false, message: `Username "${cleanUsername}" sudah digunakan. Pilih username lain.` };
+      }
+      await db.users.update(user.id, { username: cleanUsername });
+      await syncHelpers.users.markDirty(user.id);
+      const updated = await db.users.get(user.id);
+      if (updated) {
+        setUser(updated);
+      }
+      return { success: true, message: 'Username berhasil diubah!' };
+    } catch (err) {
+      console.error('Change username error:', err);
+      return { success: false, message: 'Gagal mengubah username.' };
+    }
+  };
+
   const changePassword = async (
     oldPass: string,
     newPass: string
@@ -315,6 +361,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         quickLogin,
         logout,
         updateProfile,
+        changeUsername,
         changePassword,
       }}
     >

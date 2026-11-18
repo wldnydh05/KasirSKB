@@ -4,7 +4,7 @@
  */
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { db, getFormattedDate, getFormattedTime } from '../db';
+import { db, getFormattedDate, getFormattedTime, syncHelpers } from '../db';
 import { useAuth } from './AuthContext';
 import { useCabang } from './CabangContext';
 import type { CartItem, Menu, Promo, Transaksi, DetailTransaksi, PesananAktif } from '../types';
@@ -237,7 +237,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           items,
           status: 'menunggu_pembayaran',
           user_id: user?.id || 1,
-          user_name: user?.nama_lengkap || user?.username || 'Kasir',
+          user_name: user?.username || 'Kasir',
           created_at: nowIso,
         });
       }
@@ -284,6 +284,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       let createdTxId: number | undefined;
       let createdTx: Transaksi | undefined;
+      let detailIds: number[] = [];
 
       // ACID transaction in Dexie IndexedDB
       await db.transaction('rw', db.transaksi, db.detail_transaksi, async () => {
@@ -293,7 +294,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           waktu,
           total,
           user_id: user?.id || 1,
-          user_name: user?.nama_lengkap || user?.username || 'Kasir',
+          user_name: user?.username || 'Kasir',
           cabang: txCabang,
           metode_pembayaran: metodePembayaran,
           nominal_bayar: actualNominal,
@@ -301,8 +302,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           created_at: nowIso,
         });
 
+        detailIds = [];
         for (const item of items) {
-          await db.detail_transaksi.add({
+          const detailId = await db.detail_transaksi.add({
             transaksi_id: createdTxId,
             menu_id: item.menu_id ?? null,
             nama_item: item.nama,
@@ -312,6 +314,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
             subtotal: item.subtotal,
             is_manual: Boolean(item.is_manual),
           });
+          detailIds.push(detailId);
         }
 
         createdTx = {
@@ -320,7 +323,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           waktu,
           total,
           user_id: user?.id || 1,
-          user_name: user?.nama_lengkap || user?.username || 'Kasir',
+          user_name: user?.username || 'Kasir',
           cabang: txCabang,
           metode_pembayaran: metodePembayaran,
           nominal_bayar: actualNominal,
@@ -329,9 +332,16 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
       });
 
+      // Mark for sync
+      if (createdTxId) {
+        await syncHelpers.transaksi.markDirty(createdTxId);
+        await syncHelpers.transaksi.markDetailDirty(detailIds);
+      }
+
       // If this transaction was fulfilling an active order, remove it from pesanan_aktif
       if (activeOrderInfo?.id) {
         await db.pesanan_aktif.delete(activeOrderInfo.id);
+        await syncHelpers.pesanan_aktif.markDirty(activeOrderInfo.id);
       }
 
       // Clear cart on successful save
@@ -393,7 +403,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           waktu,
           total,
           user_id: user?.id || 1,
-          user_name: user?.nama_lengkap || user?.username || 'Kasir',
+          user_name: user?.username || 'Kasir',
           cabang: txCabang,
           metode_pembayaran: payload.metodePembayaran,
           nominal_bayar: actualNominal,
@@ -424,7 +434,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           waktu,
           total,
           user_id: user?.id || 1,
-          user_name: user?.nama_lengkap || user?.username || 'Kasir',
+          user_name: user?.username || 'Kasir',
           cabang: txCabang,
           metode_pembayaran: payload.metodePembayaran,
           nominal_bayar: actualNominal,
@@ -472,7 +482,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           kembalian,
           transaksi_id: createdTxId,
           user_id: user?.id || 1,
-          user_name: user?.nama_lengkap || user?.username || 'Kasir',
+          user_name: user?.username || 'Kasir',
           created_at: nowIso,
         });
       }

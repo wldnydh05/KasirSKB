@@ -179,12 +179,12 @@ export const CartBottomSheet: React.FC<CartBottomSheetProps> = ({ onTransactionS
         {!isOpen ? (
           <div
             onClick={() => setIsOpen(true)}
-            className="h-15 px-4 rounded-2xl bg-gradient-to-r from-[var(--utama)] via-[var(--utama)] to-[var(--utama-tua)] text-white shadow-xl shadow-[var(--utama)]/30 flex items-center justify-between cursor-pointer hover:brightness-105 transition active:scale-[0.99] border border-[var(--garis-kuat)]/50"
+            className="h-15 px-4 rounded-2xl bg-[var(--utama)] text-white shadow-sm hover:bg-[var(--utama-tua)] flex items-center justify-between cursor-pointer transition active:scale-[0.99] border border-[var(--garis-kuat)]/50"
           >
             <div className="flex items-center gap-3">
               <div className="relative flex items-center justify-center w-9 h-9 rounded-xl bg-[var(--kartu)] text-[var(--utama-teks)] shadow-md">
                 <ShoppingCart className="w-5 h-5" />
-                <span className="absolute -top-1.5 -right-1.5 flex h-4.5 w-4.5 items-center justify-center rounded-full bg-[var(--nav)] text-[10px] font-black text-white border-2 border-white">
+                <span className="absolute -top-1.5 -right-1.5 flex h-4.5 w-4.5 items-center justify-center rounded-full bg-[var(--nav)] text-[10px] font-black text-[var(--nav-teks)] border-2 border-white">
                   {totalItemsCount}
                 </span>
               </div>
@@ -201,7 +201,7 @@ export const CartBottomSheet: React.FC<CartBottomSheetProps> = ({ onTransactionS
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                className="px-3.5 py-1.5 rounded-xl bg-[var(--nav)] text-white text-xs font-black shadow-md flex items-center gap-1.5 hover:bg-[var(--nav)] active:scale-95"
+                className="px-3.5 py-1.5 rounded-xl bg-[var(--nav)] text-[var(--nav-teks)] text-xs font-black shadow-md flex items-center gap-1.5 hover:bg-[var(--nav)] active:scale-95"
               >
                 <span>Lihat Keranjang</span>
                 <ChevronUp className="w-4 h-4 text-[var(--aksen)]" />
@@ -408,7 +408,7 @@ export const CartBottomSheet: React.FC<CartBottomSheetProps> = ({ onTransactionS
                 <button
                   type="button"
                   onClick={handleOpenCheckoutModal}
-                  className="flex-1 py-3 px-4 rounded-2xl bg-gradient-to-r from-[var(--utama)] via-[var(--utama)] to-[var(--utama-tua)] hover:brightness-105 active:scale-[0.98] text-sm font-black text-white transition shadow-lg shadow-[var(--utama)]/30 flex items-center justify-center gap-2"
+                  className="flex-1 py-3 px-4 rounded-2xl bg-[var(--utama)] hover:bg-[var(--utama-tua)] active:scale-[0.98] text-sm font-black text-white transition shadow-sm shadow-[var(--utama-tua)]/20 flex items-center justify-center gap-2"
                 >
                   <Banknote className="w-5 h-5 text-white" />
                   <span>(Bayar)</span>
@@ -684,7 +684,7 @@ export const CartBottomSheet: React.FC<CartBottomSheetProps> = ({ onTransactionS
               {/* Info QRIS */}
               {metodePembayaran === 'QRIS' && (
                 <div className="p-3 bg-[var(--latar)] rounded-2xl border border-[var(--garis)] flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-xl bg-[var(--nav)] text-white flex items-center justify-center shrink-0">
+                  <div className="w-11 h-11 rounded-xl bg-[var(--nav)] text-[var(--nav-teks)] flex items-center justify-center shrink-0">
                     <QrCode className="w-6 h-6" />
                   </div>
                   <div className="text-xs">
@@ -736,7 +736,7 @@ export const CartBottomSheet: React.FC<CartBottomSheetProps> = ({ onTransactionS
                 <button
                   type="submit"
                   disabled={isProcessing}
-                  className="py-3 px-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:brightness-90 text-xs sm:text-sm font-black text-white shadow-lg shadow-emerald-600/30 transition flex items-center justify-center gap-1.5 active:scale-95 disabled:opacity-50"
+                  className="py-3 px-4 rounded-2xl bg-[var(--utama)] hover:bg-[var(--utama-tua)] text-xs sm:text-sm font-black text-white shadow-sm shadow-[var(--utama-tua)]/20 transition flex items-center justify-center gap-1.5 active:scale-95 disabled:opacity-50"
                 >
                   <Check className="w-4 h-4" />
                   <span>{isProcessing ? 'Memproses...' : 'Lanjut & Cetak Struk'}</span>

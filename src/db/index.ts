@@ -16,6 +16,12 @@ import type {
   PesananAktif,
 } from '../types';
 
+// Sync engine exports
+export { initializeSyncEngine, destroySyncEngine, getSyncState, subscribe, forceSync, syncHelpers, markDirty, markDirtyBulk } from './syncEngine';
+
+// Re-export types for convenience
+export type { User, Menu, Transaksi, DetailTransaksi, Biaya, Promo, Kategori, PesananAktif } from '../types';
+
 export class SkbDatabase extends Dexie {
   users!: Table<User, number>;
   menus!: Table<Menu, number>;
@@ -48,6 +54,61 @@ export class SkbDatabase extends Dexie {
     this.version(4).stores({
       menus: '++id, nama, kategori, aktif, cabang, created_at',
     });
+    // v5: Menu.cabang berubah dari string tunggal → string[] (boleh Cabang 1 & Cabang 2 sekaligus)
+    this.version(5)
+      .stores({
+        menus: '++id, nama, kategori, aktif, cabang, created_at',
+      })
+      .upgrade(async (tx) => {
+        await tx.table('menus').toCollection().modify((m: Menu) => {
+          if (typeof m.cabang === 'string') {
+            m.cabang = m.cabang ? [m.cabang] : [];
+          } else if (!Array.isArray(m.cabang)) {
+            m.cabang = [];
+          }
+        });
+      });
+    
+    // v6: Add sync fields (synced, updated_at, deleted_at) + app_config table for cabang list
+    this.version(6)
+      .stores({
+        users: '++id, &username, role, cabang, created_at, updated_at, synced, deleted_at',
+        menus: '++id, nama, kategori, aktif, cabang, created_at, updated_at, synced, deleted_at',
+        transaksi: '++id, tanggal, user_id, cabang, created_at, updated_at, synced, deleted_at',
+        detail_transaksi: '++id, transaksi_id, menu_id, is_manual, created_at, updated_at, synced, deleted_at',
+        biaya: '++id, tanggal, created_at, updated_at, synced, deleted_at',
+        promo: '++id, nama, aktif, tanggal_mulai, tanggal_selesai, created_at, updated_at, synced, deleted_at',
+        kategori: '++id, &nama, urutan, aktif, created_at, updated_at, synced, deleted_at',
+        pesanan_aktif: '++id, nomor_pesanan, cabang, status, tanggal, created_at, updated_at, synced, deleted_at',
+        app_config: '&key, updated_at',
+      })
+      .upgrade(async (tx) => {
+        const now = new Date().toISOString();
+        
+        // Add sync fields to existing records
+        const tables = [
+          'users', 'menus', 'transaksi', 'detail_transaksi', 
+          'biaya', 'promo', 'kategori', 'pesanan_aktif'
+        ];
+        
+        for (const table of tables) {
+          await tx.table(table).toCollection().modify((record: any) => {
+            if (record.synced === undefined) record.synced = true;
+            if (record.updated_at === undefined) record.updated_at = record.created_at || now;
+            if (record.deleted_at === undefined) record.deleted_at = null;
+          });
+        }
+        
+        // Initialize app_config if not exists
+        const existingConfig = await tx.table('app_config').get('cabang_list');
+        if (!existingConfig) {
+          await tx.table('app_config').add({
+            key: 'cabang_list',
+            value: ['Cabang 1'],
+            updated_at: now,
+          });
+        }
+      });
   }
 }
 
@@ -100,11 +161,15 @@ export async function seedDatabaseIfEmpty() {
 
     // Ensure 2 Branch Accounts exist & backfill data
     try {
-      const defaultPasswordHash = bcrypt.hashSync('password123', 10);
+      const kasirPinHash = bcrypt.hashSync('111111', 10);
       const nowIso = new Date().toISOString();
 
+      // Standarisasi kredensial login (sekali jalan):
+      // Owner → username "Rpap" / password "Rpap123", kasir → PIN "111111"
+      await migrateKredensialLogin();
+
       // Owner
-      const existingOwner = await db.users.where('username').equalsIgnoreCase('owner').first();
+      const existingOwner = await db.users.where('role').equals('owner').first();
       if (existingOwner && (!existingOwner.cabang || existingOwner.cabang !== 'Semua Cabang')) {
         await db.users.update(existingOwner.id!, { cabang: 'Semua Cabang' });
       }
@@ -114,7 +179,6 @@ export async function seedDatabaseIfEmpty() {
       if (existingStaff) {
         await db.users.update(existingStaff.id!, {
           cabang: 'Cabang 1',
-          nama_lengkap: 'Siti (Kasir Cabang 1)',
         });
       }
 
@@ -122,9 +186,8 @@ export async function seedDatabaseIfEmpty() {
       if (!existingKasir1) {
         await db.users.add({
           username: 'kasir1',
-          password_hash: defaultPasswordHash,
+          password_hash: kasirPinHash,
           role: 'staff',
-          nama_lengkap: 'Siti (Kasir Cabang 1)',
           cabang: 'Cabang 1',
           foto_url: '',
           created_at: nowIso,
@@ -136,9 +199,8 @@ export async function seedDatabaseIfEmpty() {
       if (!existingKasir2) {
         await db.users.add({
           username: 'kasir2',
-          password_hash: defaultPasswordHash,
+          password_hash: kasirPinHash,
           role: 'staff',
-          nama_lengkap: 'Rian (Kasir Cabang 2)',
           cabang: 'Cabang 2',
           foto_url: '',
           created_at: nowIso,
@@ -150,7 +212,7 @@ export async function seedDatabaseIfEmpty() {
       for (const t of allTx) {
         if (!t.cabang && t.id) {
           const assignedCabang = t.id % 2 === 0 ? 'Cabang 2' : 'Cabang 1';
-          const assignedStaff = assignedCabang === 'Cabang 1' ? 'Siti (Kasir Cabang 1)' : 'Rian (Kasir Cabang 2)';
+          const assignedStaff = assignedCabang === 'Cabang 1' ? 'kasir1' : 'kasir2';
           await db.transaksi.update(t.id, {
             cabang: assignedCabang,
             user_name: assignedStaff,
@@ -165,7 +227,7 @@ export async function seedDatabaseIfEmpty() {
           const assignedCabang = o.id % 2 === 0 ? 'Cabang 2' : 'Cabang 1';
           await db.pesanan_aktif.update(o.id, {
             cabang: assignedCabang,
-            user_name: assignedCabang === 'Cabang 1' ? 'Siti (Kasir Cabang 1)' : 'Rian (Kasir Cabang 2)',
+            user_name: assignedCabang === 'Cabang 1' ? 'kasir1' : 'kasir2',
           });
         }
       }
@@ -179,14 +241,15 @@ export async function seedDatabaseIfEmpty() {
   }
 
   // 1. Seed Users (with hashed passwords)
-  const defaultPasswordHash = bcrypt.hashSync('password123', 10);
+  //    Owner: username "Rpap" / password "Rpap123" — Kasir: PIN "111111"
+  const ownerPasswordHash = bcrypt.hashSync('Rpap123', 10);
+  const kasirPinHash = bcrypt.hashSync('111111', 10);
   const nowIso = new Date().toISOString();
 
   const ownerId = await db.users.add({
-    username: 'owner',
-    password_hash: defaultPasswordHash,
+    username: 'Rpap',
+    password_hash: ownerPasswordHash,
     role: 'owner',
-    nama_lengkap: 'Bapak Agus (Pemilik S.K.B)',
     cabang: 'Semua Cabang',
     foto_url: '',
     created_at: nowIso,
@@ -194,9 +257,8 @@ export async function seedDatabaseIfEmpty() {
 
   const staffId = await db.users.add({
     username: 'staff',
-    password_hash: defaultPasswordHash,
+    password_hash: kasirPinHash,
     role: 'staff',
-    nama_lengkap: 'Siti (Kasir Cabang 1)',
     cabang: 'Cabang 1',
     foto_url: '',
     created_at: nowIso,
@@ -204,9 +266,8 @@ export async function seedDatabaseIfEmpty() {
 
   await db.users.add({
     username: 'kasir1',
-    password_hash: defaultPasswordHash,
+    password_hash: kasirPinHash,
     role: 'staff',
-    nama_lengkap: 'Siti (Kasir Cabang 1)',
     cabang: 'Cabang 1',
     foto_url: '',
     created_at: nowIso,
@@ -214,9 +275,8 @@ export async function seedDatabaseIfEmpty() {
 
   await db.users.add({
     username: 'kasir2',
-    password_hash: defaultPasswordHash,
+    password_hash: kasirPinHash,
     role: 'staff',
-    nama_lengkap: 'Rian (Kasir Cabang 2)',
     cabang: 'Cabang 2',
     foto_url: '',
     created_at: nowIso,
@@ -236,35 +296,35 @@ export async function seedDatabaseIfEmpty() {
   // 3. Seed Menus (tanpa gambar dummy, upload gambar bersifat opsional)
   const initialMenus: Omit<Menu, 'id'>[] = [
     // Cabang 1
-    { nama: 'Ayam', harga: 9000, kategori: 'Makanan', biaya_bahan_baku: 4000, aktif: true, gambar_url: '', cabang: 'Cabang 1', created_at: nowIso, updated_at: nowIso },
-    { nama: 'Sayap', harga: 5000, kategori: 'Makanan', biaya_bahan_baku: 2000, aktif: true, gambar_url: '', cabang: 'Cabang 1', created_at: nowIso, updated_at: nowIso },
-    { nama: 'Lele', harga: 7000, kategori: 'Makanan', biaya_bahan_baku: 3500, aktif: true, gambar_url: '', cabang: 'Cabang 1', created_at: nowIso, updated_at: nowIso },
-    { nama: 'Bebek', harga: 15000, kategori: 'Makanan', biaya_bahan_baku: 7000, aktif: true, gambar_url: '', cabang: 'Cabang 1', created_at: nowIso, updated_at: nowIso },
-    { nama: 'Tempe', harga: 1000, kategori: 'Makanan', biaya_bahan_baku: 500, aktif: true, gambar_url: '', cabang: 'Cabang 1', created_at: nowIso, updated_at: nowIso },
-    { nama: 'Kepala', harga: 2000, kategori: 'Makanan', biaya_bahan_baku: 1000, aktif: true, gambar_url: '', cabang: 'Cabang 1', created_at: nowIso, updated_at: nowIso },
-    { nama: 'Kulit', harga: 2000, kategori: 'Makanan', biaya_bahan_baku: 1000, aktif: true, gambar_url: '', cabang: 'Cabang 1', created_at: nowIso, updated_at: nowIso },
-    { nama: 'Ati', harga: 2000, kategori: 'Makanan', biaya_bahan_baku: 1000, aktif: true, gambar_url: '', cabang: 'Cabang 1', created_at: nowIso, updated_at: nowIso },
-    { nama: 'Usus', harga: 2000, kategori: 'Makanan', biaya_bahan_baku: 1000, aktif: true, gambar_url: '', cabang: 'Cabang 1', created_at: nowIso, updated_at: nowIso },
-    { nama: 'Tahu', harga: 1000, kategori: 'Makanan', biaya_bahan_baku: 500, aktif: true, gambar_url: '', cabang: 'Cabang 1', created_at: nowIso, updated_at: nowIso },
-    { nama: 'Nasi 1/2 Porsi', harga: 3000, kategori: 'Makanan', biaya_bahan_baku: 1500, aktif: true, gambar_url: '', cabang: 'Cabang 1', created_at: nowIso, updated_at: nowIso },
-    { nama: 'Nasi 1 Porsi', harga: 5000, kategori: 'Makanan', biaya_bahan_baku: 2000, aktif: true, gambar_url: '', cabang: 'Cabang 1', created_at: nowIso, updated_at: nowIso },
-    { nama: 'Es Teh', harga: 3000, kategori: 'Minuman', biaya_bahan_baku: 1000, aktif: true, gambar_url: '', cabang: 'Cabang 1', created_at: nowIso, updated_at: nowIso },
-    { nama: 'Es Jeruk', harga: 4000, kategori: 'Minuman', biaya_bahan_baku: 1500, aktif: true, gambar_url: '', cabang: 'Cabang 1', created_at: nowIso, updated_at: nowIso },
+    { nama: 'Ayam', harga: 9000, kategori: 'Makanan', biaya_bahan_baku: 4000, aktif: true, gambar_url: '', cabang: ['Cabang 1'], created_at: nowIso, updated_at: nowIso },
+    { nama: 'Sayap', harga: 5000, kategori: 'Makanan', biaya_bahan_baku: 2000, aktif: true, gambar_url: '', cabang: ['Cabang 1'], created_at: nowIso, updated_at: nowIso },
+    { nama: 'Lele', harga: 7000, kategori: 'Makanan', biaya_bahan_baku: 3500, aktif: true, gambar_url: '', cabang: ['Cabang 1'], created_at: nowIso, updated_at: nowIso },
+    { nama: 'Bebek', harga: 15000, kategori: 'Makanan', biaya_bahan_baku: 7000, aktif: true, gambar_url: '', cabang: ['Cabang 1'], created_at: nowIso, updated_at: nowIso },
+    { nama: 'Tempe', harga: 1000, kategori: 'Makanan', biaya_bahan_baku: 500, aktif: true, gambar_url: '', cabang: ['Cabang 1'], created_at: nowIso, updated_at: nowIso },
+    { nama: 'Kepala', harga: 2000, kategori: 'Makanan', biaya_bahan_baku: 1000, aktif: true, gambar_url: '', cabang: ['Cabang 1'], created_at: nowIso, updated_at: nowIso },
+    { nama: 'Kulit', harga: 2000, kategori: 'Makanan', biaya_bahan_baku: 1000, aktif: true, gambar_url: '', cabang: ['Cabang 1'], created_at: nowIso, updated_at: nowIso },
+    { nama: 'Ati', harga: 2000, kategori: 'Makanan', biaya_bahan_baku: 1000, aktif: true, gambar_url: '', cabang: ['Cabang 1'], created_at: nowIso, updated_at: nowIso },
+    { nama: 'Usus', harga: 2000, kategori: 'Makanan', biaya_bahan_baku: 1000, aktif: true, gambar_url: '', cabang: ['Cabang 1'], created_at: nowIso, updated_at: nowIso },
+    { nama: 'Tahu', harga: 1000, kategori: 'Makanan', biaya_bahan_baku: 500, aktif: true, gambar_url: '', cabang: ['Cabang 1'], created_at: nowIso, updated_at: nowIso },
+    { nama: 'Nasi 1/2 Porsi', harga: 3000, kategori: 'Makanan', biaya_bahan_baku: 1500, aktif: true, gambar_url: '', cabang: ['Cabang 1'], created_at: nowIso, updated_at: nowIso },
+    { nama: 'Nasi 1 Porsi', harga: 5000, kategori: 'Makanan', biaya_bahan_baku: 2000, aktif: true, gambar_url: '', cabang: ['Cabang 1'], created_at: nowIso, updated_at: nowIso },
+    { nama: 'Es Teh', harga: 3000, kategori: 'Minuman', biaya_bahan_baku: 1000, aktif: true, gambar_url: '', cabang: ['Cabang 1'], created_at: nowIso, updated_at: nowIso },
+    { nama: 'Es Jeruk', harga: 4000, kategori: 'Minuman', biaya_bahan_baku: 1500, aktif: true, gambar_url: '', cabang: ['Cabang 1'], created_at: nowIso, updated_at: nowIso },
     // Cabang 2
-    { nama: 'Ayam', harga: 9000, kategori: 'Makanan', biaya_bahan_baku: 4000, aktif: true, gambar_url: '', cabang: 'Cabang 2', created_at: nowIso, updated_at: nowIso },
-    { nama: 'Sayap', harga: 5000, kategori: 'Makanan', biaya_bahan_baku: 2000, aktif: true, gambar_url: '', cabang: 'Cabang 2', created_at: nowIso, updated_at: nowIso },
-    { nama: 'Lele', harga: 7000, kategori: 'Makanan', biaya_bahan_baku: 3500, aktif: true, gambar_url: '', cabang: 'Cabang 2', created_at: nowIso, updated_at: nowIso },
-    { nama: 'Bebek', harga: 15000, kategori: 'Makanan', biaya_bahan_baku: 7000, aktif: true, gambar_url: '', cabang: 'Cabang 2', created_at: nowIso, updated_at: nowIso },
-    { nama: 'Tempe', harga: 1000, kategori: 'Makanan', biaya_bahan_baku: 500, aktif: true, gambar_url: '', cabang: 'Cabang 2', created_at: nowIso, updated_at: nowIso },
-    { nama: 'Kepala', harga: 2000, kategori: 'Makanan', biaya_bahan_baku: 1000, aktif: true, gambar_url: '', cabang: 'Cabang 2', created_at: nowIso, updated_at: nowIso },
-    { nama: 'Kulit', harga: 2000, kategori: 'Makanan', biaya_bahan_baku: 1000, aktif: true, gambar_url: '', cabang: 'Cabang 2', created_at: nowIso, updated_at: nowIso },
-    { nama: 'Ati', harga: 2000, kategori: 'Makanan', biaya_bahan_baku: 1000, aktif: true, gambar_url: '', cabang: 'Cabang 2', created_at: nowIso, updated_at: nowIso },
-    { nama: 'Usus', harga: 2000, kategori: 'Makanan', biaya_bahan_baku: 1000, aktif: true, gambar_url: '', cabang: 'Cabang 2', created_at: nowIso, updated_at: nowIso },
-    { nama: 'Tahu', harga: 1000, kategori: 'Makanan', biaya_bahan_baku: 500, aktif: true, gambar_url: '', cabang: 'Cabang 2', created_at: nowIso, updated_at: nowIso },
-    { nama: 'Nasi 1/2 Porsi', harga: 3000, kategori: 'Makanan', biaya_bahan_baku: 1500, aktif: true, gambar_url: '', cabang: 'Cabang 2', created_at: nowIso, updated_at: nowIso },
-    { nama: 'Nasi 1 Porsi', harga: 5000, kategori: 'Makanan', biaya_bahan_baku: 2000, aktif: true, gambar_url: '', cabang: 'Cabang 2', created_at: nowIso, updated_at: nowIso },
-    { nama: 'Es Teh', harga: 3000, kategori: 'Minuman', biaya_bahan_baku: 1000, aktif: true, gambar_url: '', cabang: 'Cabang 2', created_at: nowIso, updated_at: nowIso },
-    { nama: 'Es Jeruk', harga: 4000, kategori: 'Minuman', biaya_bahan_baku: 1500, aktif: true, gambar_url: '', cabang: 'Cabang 2', created_at: nowIso, updated_at: nowIso },
+    { nama: 'Ayam', harga: 9000, kategori: 'Makanan', biaya_bahan_baku: 4000, aktif: true, gambar_url: '', cabang: ['Cabang 2'], created_at: nowIso, updated_at: nowIso },
+    { nama: 'Sayap', harga: 5000, kategori: 'Makanan', biaya_bahan_baku: 2000, aktif: true, gambar_url: '', cabang: ['Cabang 2'], created_at: nowIso, updated_at: nowIso },
+    { nama: 'Lele', harga: 7000, kategori: 'Makanan', biaya_bahan_baku: 3500, aktif: true, gambar_url: '', cabang: ['Cabang 2'], created_at: nowIso, updated_at: nowIso },
+    { nama: 'Bebek', harga: 15000, kategori: 'Makanan', biaya_bahan_baku: 7000, aktif: true, gambar_url: '', cabang: ['Cabang 2'], created_at: nowIso, updated_at: nowIso },
+    { nama: 'Tempe', harga: 1000, kategori: 'Makanan', biaya_bahan_baku: 500, aktif: true, gambar_url: '', cabang: ['Cabang 2'], created_at: nowIso, updated_at: nowIso },
+    { nama: 'Kepala', harga: 2000, kategori: 'Makanan', biaya_bahan_baku: 1000, aktif: true, gambar_url: '', cabang: ['Cabang 2'], created_at: nowIso, updated_at: nowIso },
+    { nama: 'Kulit', harga: 2000, kategori: 'Makanan', biaya_bahan_baku: 1000, aktif: true, gambar_url: '', cabang: ['Cabang 2'], created_at: nowIso, updated_at: nowIso },
+    { nama: 'Ati', harga: 2000, kategori: 'Makanan', biaya_bahan_baku: 1000, aktif: true, gambar_url: '', cabang: ['Cabang 2'], created_at: nowIso, updated_at: nowIso },
+    { nama: 'Usus', harga: 2000, kategori: 'Makanan', biaya_bahan_baku: 1000, aktif: true, gambar_url: '', cabang: ['Cabang 2'], created_at: nowIso, updated_at: nowIso },
+    { nama: 'Tahu', harga: 1000, kategori: 'Makanan', biaya_bahan_baku: 500, aktif: true, gambar_url: '', cabang: ['Cabang 2'], created_at: nowIso, updated_at: nowIso },
+    { nama: 'Nasi 1/2 Porsi', harga: 3000, kategori: 'Makanan', biaya_bahan_baku: 1500, aktif: true, gambar_url: '', cabang: ['Cabang 2'], created_at: nowIso, updated_at: nowIso },
+    { nama: 'Nasi 1 Porsi', harga: 5000, kategori: 'Makanan', biaya_bahan_baku: 2000, aktif: true, gambar_url: '', cabang: ['Cabang 2'], created_at: nowIso, updated_at: nowIso },
+    { nama: 'Es Teh', harga: 3000, kategori: 'Minuman', biaya_bahan_baku: 1000, aktif: true, gambar_url: '', cabang: ['Cabang 2'], created_at: nowIso, updated_at: nowIso },
+    { nama: 'Es Jeruk', harga: 4000, kategori: 'Minuman', biaya_bahan_baku: 1500, aktif: true, gambar_url: '', cabang: ['Cabang 2'], created_at: nowIso, updated_at: nowIso },
   ];
 
   const menuIds: { id: number; nama: string; harga: number; bahan: number }[] = [];
@@ -336,7 +396,7 @@ export async function seedDatabaseIfEmpty() {
         waktu: timeStr,
         total,
         user_id: staffId,
-        user_name: 'Siti (Kasir)',
+        user_name: 'kasir1',
         metode_pembayaran: metode,
         nominal_bayar: roundedPayment,
         kembalian: roundedPayment - total,
@@ -372,7 +432,7 @@ export async function seedDatabaseIfEmpty() {
       total: 66000,
       status: 'menunggu_pembayaran',
       user_id: staffId,
-      user_name: 'Siti (Kasir)',
+      user_name: 'kasir1',
       created_at: new Date(Date.now() - 25 * 60000).toISOString(),
       items: [
         {
@@ -403,7 +463,7 @@ export async function seedDatabaseIfEmpty() {
       total: 38000,
       status: 'menunggu_pembayaran',
       user_id: staffId,
-      user_name: 'Siti (Kasir)',
+      user_name: 'kasir1',
       created_at: new Date(Date.now() - 10 * 60000).toISOString(),
       items: [
         {
@@ -430,6 +490,58 @@ export async function seedDatabaseIfEmpty() {
   await ensureThirtyDaysData();
 
   console.log('S.K.B Database seeded successfully with initial data and active orders!');
+}
+
+const CRED_MIGRATION_KEY = 'bukupos_kredensial_v1';
+
+/**
+ * Standarisasi kredensial login (sekali jalan, ditandai localStorage):
+ * - Owner  → username "Rpap" / password "Rpap123"
+ * - Kasir  → PIN (password) "111111"
+ * Password yang sudah diganti pengguna TIDAK di-reset (migrasi hanya jalan sekali).
+ */
+async function migrateKredensialLogin(): Promise<void> {
+  /** Bandingkan password dengan hash; false jika hash tidak valid (tidak melempar). */
+  const cocok = (plain: string, hash: string): boolean => {
+    try {
+      return bcrypt.compareSync(plain, hash);
+    } catch {
+      return false;
+    }
+  };
+
+  try {
+    if (localStorage.getItem(CRED_MIGRATION_KEY)) return;
+
+    const owner = await db.users.where('role').equals('owner').first();
+    if (owner && owner.id) {
+      const targetUsername = 'Rpap';
+      const bentrok = await db.users
+        .where('username')
+        .equalsIgnoreCase(targetUsername)
+        .first();
+      const patch: Partial<User> = {};
+      if (!bentrok || bentrok.id === owner.id) patch.username = targetUsername;
+      if (!cocok('Rpap123', owner.password_hash)) {
+        patch.password_hash = bcrypt.hashSync('Rpap123', 10);
+      }
+      if (Object.keys(patch).length > 0) {
+        await db.users.update(owner.id, patch);
+      }
+    }
+
+    const pinHash = bcrypt.hashSync('111111', 10);
+    const kasirList = await db.users.where('role').equals('staff').toArray();
+    for (const k of kasirList) {
+      if (k.id && !cocok('111111', k.password_hash)) {
+        await db.users.update(k.id, { password_hash: pinHash });
+      }
+    }
+
+    localStorage.setItem(CRED_MIGRATION_KEY, '1');
+  } catch (err) {
+    console.error('Migrasi kredensial login gagal:', err);
+  }
 }
 
 /**
@@ -504,7 +616,7 @@ export async function ensureThirtyDaysData() {
 
         const isCabang1 = o % 2 !== 0;
         const txCabang = isCabang1 ? 'Cabang 1' : 'Cabang 2';
-        const txUser = isCabang1 ? 'Siti (Kasir Cabang 1)' : 'Rian (Kasir Cabang 2)';
+        const txUser = isCabang1 ? 'kasir1' : 'kasir2';
 
         const txId = await db.transaksi.add({
           tanggal: dateStr,

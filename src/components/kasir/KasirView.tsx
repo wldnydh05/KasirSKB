@@ -179,7 +179,7 @@ export const KasirView: React.FC = () => {
 
                   {!menu.aktif && (
                     <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                      <span className="text-white text-xs font-bold uppercase tracking-wider bg-rose-600 px-2.5 py-1 rounded-full">
+                      <span className="text-white text-xs font-bold uppercase tracking-wider bg-[var(--bahaya)] px-2.5 py-1 rounded-full">
                         Habis
                       </span>
                     </div>

@@ -454,7 +454,7 @@ export const PesananManagerView: React.FC<PesananManagerViewProps> = ({
           {displayedActiveOrders.length > 0 && (
             <span
               className={`px-1.5 py-0.5 min-w-[20px] text-center rounded-full text-[11px] font-black leading-none ${
-                activeTab === 'aktif' ? 'bg-[var(--nav)] text-white' : 'bg-emerald-600 text-white'
+                activeTab === 'aktif' ? 'bg-[var(--nav)] text-[var(--nav-teks)]' : 'bg-[var(--aksen)] text-white'
               }`}
             >
               {displayedActiveOrders.length}
@@ -467,11 +467,11 @@ export const PesananManagerView: React.FC<PesananManagerViewProps> = ({
           onClick={() => setActiveTab('selesai')}
           className={`relative flex items-center justify-center gap-2 min-h-[44px] py-2 px-3 rounded-xl text-xs sm:text-sm font-black transition-all duration-200 active:scale-95 ${
             activeTab === 'selesai'
-              ? 'bg-[var(--nav)] text-white shadow-md ring-2 ring-white/60'
+              ? 'bg-[var(--nav)] text-[var(--nav-teks)] shadow-md ring-2 ring-white/60'
               : 'text-[var(--teks)] hover:text-[var(--teks)] hover:bg-[var(--garis-kuat)]/60'
           }`}
         >
-          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+          <CheckCircle2 className="w-4 h-4 text-[var(--utama-teks)] shrink-0" />
           <span>Riwayat Pesanan</span>
         </button>
       </div>
@@ -488,7 +488,7 @@ export const PesananManagerView: React.FC<PesananManagerViewProps> = ({
             onClick={() => setSelectedCabangFilter('Semua')}
             className={`min-h-[36px] px-3.5 py-1 rounded-xl text-xs font-black transition-all shrink-0 ${
               selectedCabangFilter === 'Semua'
-                ? 'bg-[var(--nav)] text-white shadow-xs'
+                ? 'bg-[var(--utama)] text-white shadow-xs'
                 : 'text-[var(--redup)] hover:text-[var(--teks)] hover:bg-[var(--latar)]'
             }`}
           >
@@ -521,11 +521,11 @@ export const PesananManagerView: React.FC<PesananManagerViewProps> = ({
       {activeTab === 'aktif' && (
         <div className="space-y-4 animate-in fade-in duration-150">
           {/* Subtle Compact Guide for Mobile Users */}
-          <div className="bg-emerald-50/90 border border-emerald-200/70 rounded-2xl p-3 flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0">
+          <div className="bg-[var(--aksen-muda)] border border-[var(--garis)] rounded-2xl p-3 flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-xl bg-[var(--aksen)] text-white flex items-center justify-center shrink-0">
               <Clock className="w-4 h-4" />
             </div>
-            <p className="text-[11px] text-emerald-900 leading-snug">
+            <p className="text-[11px] text-[var(--aksen-teks)] leading-snug">
               Daftar pesanan aktif yang sedang disiapkan. Tekan <strong>Ubah</strong> untuk edit item atau <strong>Selesai Disajikan</strong> jika hidangan sudah diantar.
             </p>
           </div>
@@ -534,7 +534,7 @@ export const PesananManagerView: React.FC<PesananManagerViewProps> = ({
             <div className="py-12 text-center text-xs text-[var(--redup)]">Memuat pesanan aktif...</div>
           ) : displayedActiveOrders.length === 0 ? (
             <div className="text-center py-16 bg-[var(--kartu)] rounded-3xl border border-dashed border-[var(--garis)] p-6 sm:p-8">
-              <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto mb-3">
+              <div className="w-14 h-14 rounded-2xl bg-[var(--utama-muda)] text-[var(--utama-teks)] flex items-center justify-center mx-auto mb-3">
                 <CheckCircle2 className="w-7 h-7" />
               </div>
               <h4 className="text-base font-black text-[var(--teks)]">
@@ -574,8 +574,8 @@ export const PesananManagerView: React.FC<PesananManagerViewProps> = ({
                             {branchName}
                           </span>
                           {isPaid ? (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-100/80 px-2.5 py-1 rounded-full truncate">
-                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[var(--utama-teks)] bg-[var(--utama-muda)] px-2.5 py-1 rounded-full truncate">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-[var(--utama-teks)] shrink-0" />
                               <span className="truncate">Lunas ({order.metode_pembayaran || 'Kasir'})</span>
                             </span>
                           ) : (
@@ -668,7 +668,7 @@ export const PesananManagerView: React.FC<PesananManagerViewProps> = ({
                               <span className="text-[11px] font-bold text-[var(--redup)] flex items-center justify-center gap-1.5">
                                 <span
                                   className={`w-2 h-2 rounded-full ${
-                                    isPaid ? 'bg-emerald-500' : 'bg-amber-400 animate-pulse'
+                                    isPaid ? 'bg-[var(--utama)]' : 'bg-[var(--aksen)] animate-pulse'
                                   }`}
                                 />
                                 Status Operasional: {isPaid ? 'Sedang Diproses Dapur' : 'Menunggu Kasir'}
@@ -716,7 +716,7 @@ export const PesananManagerView: React.FC<PesananManagerViewProps> = ({
                               <button
                                 type="button"
                                 onClick={() => handleMarkOrderCompleted(order)}
-                                className="w-full min-h-[48px] py-3 px-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:brightness-90 active:scale-[0.98] text-xs sm:text-sm font-black text-white flex items-center justify-center gap-2 shadow-md shadow-emerald-600/30 transition"
+                                className="w-full min-h-[48px] py-3 px-4 rounded-2xl bg-[var(--utama)] hover:bg-[var(--utama-tua)] active:scale-[0.98] text-xs sm:text-sm font-black text-white flex items-center justify-center gap-2 shadow-sm shadow-[var(--utama-tua)]/20 transition"
                               >
                                 <CheckCircle2 className="w-4 h-4 shrink-0" />
                                 <span>Pesanan Selesai Disajikan</span>
@@ -725,7 +725,7 @@ export const PesananManagerView: React.FC<PesananManagerViewProps> = ({
                               <button
                                 type="button"
                                 onClick={() => handleOpenQuickPay(order)}
-                                className="w-full min-h-[48px] py-3 px-4 rounded-2xl bg-gradient-to-r from-[var(--utama)] to-[var(--utama-tua)] hover:brightness-105 active:scale-[0.98] text-xs sm:text-sm font-black text-white flex items-center justify-center gap-2 shadow-md shadow-[var(--utama)]/30 transition"
+                                className="w-full min-h-[48px] py-3 px-4 rounded-2xl bg-[var(--utama)] hover:bg-[var(--utama-tua)] active:scale-[0.98] text-xs sm:text-sm font-black text-white flex items-center justify-center gap-2 shadow-sm shadow-[var(--utama-tua)]/20 transition"
                               >
                                 <DollarSign className="w-4 h-4 shrink-0" />
                                 <span>Selesaikan Transaksi (Bayar)</span>
@@ -832,9 +832,9 @@ export const PesananManagerView: React.FC<PesananManagerViewProps> = ({
                   {filteredHistory.length} Pesanan
                 </span>
               </div>
-              <div className="p-2.5 bg-emerald-50/80 rounded-2xl border border-emerald-100 text-right">
-                <span className="text-[11px] text-emerald-800 font-semibold block">Total Omzet Lunas</span>
-                <span className="text-sm sm:text-base font-black text-emerald-700">
+              <div className="p-2.5 bg-[var(--utama-muda)]/70 rounded-2xl border border-[var(--garis)] text-right">
+                <span className="text-[11px] text-[var(--utama-teks)] font-semibold block">Total Omzet Lunas</span>
+                <span className="text-sm sm:text-base font-black text-[var(--utama-teks)]">
                   {formatRupiah(totalOmzetLunas)}
                 </span>
               </div>
@@ -872,7 +872,7 @@ export const PesananManagerView: React.FC<PesananManagerViewProps> = ({
                       setSelectedTxItems(items);
                       setIsReceiptOpen(true);
                     }}
-                    className="bg-[var(--kartu)] rounded-2xl p-3.5 sm:p-4 border border-[var(--garis)]/90 hover:border-emerald-300 hover:shadow-xs transition cursor-pointer active:scale-[0.99] group"
+                    className="bg-[var(--kartu)] rounded-2xl p-3.5 sm:p-4 border border-[var(--garis)]/90 hover:border-[var(--utama-muda)] hover:shadow-xs transition cursor-pointer active:scale-[0.99] group"
                   >
                     {/* Top Row: ID, Badges, Time */}
                     <div className="flex items-center justify-between gap-2 mb-2">
@@ -890,8 +890,8 @@ export const PesananManagerView: React.FC<PesananManagerViewProps> = ({
                           <Store className="w-3 h-3 shrink-0" />
                           {tx.cabang || 'Cabang 1'}
                         </span>
-                        <span className="inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
-                          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                        <span className="inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-[var(--utama-muda)] text-[var(--utama-teks)]">
+                          <CheckCircle2 className="w-3 h-3 text-[var(--utama-teks)]" />
                           Lunas
                         </span>
                         <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-[var(--latar)] text-[var(--teks)]">
@@ -935,7 +935,7 @@ export const PesananManagerView: React.FC<PesananManagerViewProps> = ({
                     <div className="pt-2 border-t border-[var(--garis)] flex items-center justify-between gap-2">
                       <div>
                         <span className="text-[10px] text-[var(--redup)] font-medium block">Total Bayar</span>
-                        <span className="text-sm font-black text-[var(--teks)] group-hover:text-emerald-600 transition">
+                        <span className="text-sm font-black text-[var(--teks)] group-hover:text-[var(--utama-teks)] transition">
                           {formatRupiah(tx.total)}
                         </span>
                       </div>
@@ -949,7 +949,7 @@ export const PesananManagerView: React.FC<PesananManagerViewProps> = ({
                             setSelectedTxItems(items);
                             setIsReceiptOpen(true);
                           }}
-                          className="min-h-[38px] px-3 py-1.5 rounded-xl bg-[var(--latar)] group-hover:bg-emerald-50 text-[var(--teks)] group-hover:text-emerald-700 border border-[var(--garis)] group-hover:border-emerald-200 text-xs font-extrabold flex items-center gap-1.5 transition active:scale-95"
+                          className="min-h-[38px] px-3 py-1.5 rounded-xl bg-[var(--latar)] group-hover:bg-[var(--utama-muda)] text-[var(--teks)] group-hover:text-[var(--utama-teks)] border border-[var(--garis)] group-hover:border-[var(--utama-muda)] text-xs font-extrabold flex items-center gap-1.5 transition active:scale-95"
                         >
                           <Printer className="w-3.5 h-3.5" />
                           <span>Lihat Struk</span>
@@ -1048,7 +1048,7 @@ export const PesananManagerView: React.FC<PesananManagerViewProps> = ({
                   {typeof nominalDiterima === 'number' && (
                     <div className="mt-1 flex justify-between text-[11px] text-[var(--redup)]">
                       <span>Kembalian:</span>
-                      <strong className="text-emerald-600 font-bold">
+                      <strong className="text-[var(--utama-teks)] font-bold">
                         {formatRupiah(Math.max(0, nominalDiterima - payingOrder.total))}
                       </strong>
                     </div>
@@ -1069,7 +1069,7 @@ export const PesananManagerView: React.FC<PesananManagerViewProps> = ({
                 type="button"
                 disabled={isProcessingPay}
                 onClick={handleProcessQuickPay}
-                className="min-h-[44px] py-2.5 px-3 rounded-xl bg-emerald-600 hover:brightness-90 text-white text-xs font-extrabold shadow-md flex items-center justify-center gap-1.5 disabled:opacity-50 active:scale-95 transition"
+                className="min-h-[44px] py-2.5 px-3 rounded-xl bg-[var(--utama)] hover:bg-[var(--utama-tua)] text-white text-xs font-extrabold shadow-sm shadow-[var(--utama-tua)]/20 flex items-center justify-center gap-1.5 disabled:opacity-50 active:scale-95 transition"
               >
                 <CheckCircle2 className="w-4 h-4" />
                 <span>{isProcessingPay ? 'Memproses...' : 'Lunas & Cetak'}</span>
@@ -1109,7 +1109,7 @@ export const PesananManagerView: React.FC<PesananManagerViewProps> = ({
                 type="button"
                 disabled={isCancelling}
                 onClick={handleConfirmCancelOrder}
-                className="min-h-[46px] py-3 px-3 rounded-2xl bg-rose-600 hover:brightness-90 text-xs font-black text-white shadow-md shadow-rose-600/30 transition active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5"
+                className="min-h-[46px] py-3 px-3 rounded-2xl bg-[var(--bahaya)] hover:bg-[var(--bahaya-teks)] text-xs font-black text-white shadow-sm shadow-[var(--bahaya-teks)]/20 transition active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5"
               >
                 {isCancelling ? 'Membatalkan...' : 'Ya, Batalkan'}
               </button>
@@ -1173,7 +1173,7 @@ export const PesananManagerView: React.FC<PesananManagerViewProps> = ({
                 type="button"
                 disabled={isDeletingTx}
                 onClick={handleConfirmDeleteTx}
-                className="min-h-[46px] py-3 px-3 rounded-2xl bg-rose-600 hover:brightness-90 text-xs font-black text-white shadow-md shadow-rose-600/30 transition active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5"
+                className="min-h-[46px] py-3 px-3 rounded-2xl bg-[var(--bahaya)] hover:bg-[var(--bahaya-teks)] text-xs font-black text-white shadow-sm shadow-[var(--bahaya-teks)]/20 transition active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5"
               >
                 {isDeletingTx ? 'Menghapus...' : 'Ya, Hapus'}
               </button>

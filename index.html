@@ -27,12 +27,12 @@
 
     <!-- Mode gelap: terapkan sebelum paint pertama (anti-flash).
          Pilihan tersimpan di localStorage 'tema-mode'; kalau belum pernah
-         dipilih, ikuti preferensi sistem. -->
+         dipilih, default terang. -->
     <script>
       (function () {
         try {
           var s = localStorage.getItem('tema-mode');
-          var gelap = s ? s === 'gelap' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+          var gelap = s === 'gelap';
           if (gelap) document.documentElement.setAttribute('data-mode', 'gelap');
         } catch (e) {}
       })();

@@ -10,6 +10,7 @@ import { ToastProvider, useToast } from './context/ToastContext';
 import { grupTab, type NavTab } from './components/common/Navbar';
 import { LoginPage } from './components/auth/LoginPage';
 import { ProfileModal } from './components/auth/ProfileModal';
+import { initializeSyncEngine } from './db/syncEngine';
 
 // Views
 import { KasirView } from './components/kasir/KasirView';
@@ -17,18 +18,17 @@ import { PesananManagerView } from './components/pesanan/PesananManagerView';
 import { DashboardOwnerView } from './components/dashboard/DashboardOwnerView';
 import { MenuTerlarisView } from './components/dashboard/MenuTerlarisView';
 import { PengaturanBiayaView } from './components/owner/PengaturanBiayaView';
-import { KelolaPromoView } from './components/owner/KelolaPromoView';
 import { EksporDataView } from './components/owner/EksporDataView';
 import { KelolaMenuView } from './components/menu/KelolaMenuView';
 
 import { BottomNav } from './components/common/BottomNav';
 import { Sidebar } from './components/common/Sidebar';
+import { ErrorBoundary } from './components/ui/ErrorBoundary';
 
 const labelTab: Record<NavTab, string> = {
   dashboard: 'Dashboard',
   terlaris: 'Menu Terlaris',
   biaya: 'Biaya',
-  promo: 'Promo',
   ekspor: 'Ekspor',
   kasir: 'Kasir',
   riwayat: 'Riwayat',
@@ -38,6 +38,17 @@ const labelTab: Record<NavTab, string> = {
 function MainLayout() {
   const { user, isLoading } = useAuth();
   const { showToast } = useToast();
+  const [syncReady, setSyncReady] = useState(false);
+
+  // Initialize sync engine once on mount (non-blocking)
+  useEffect(() => {
+    initializeSyncEngine()
+      .then(() => setSyncReady(true))
+      .catch((err) => {
+        console.warn('[App] Sync engine not available:', err);
+        setSyncReady(true);
+      });
+  }, []);
 
   const isOwner = user?.role === 'owner';
   const [currentTab, setCurrentTab] = useState<NavTab>(() =>
@@ -52,7 +63,8 @@ function MainLayout() {
       if (user.role === 'owner') {
         setCurrentTab((prev) => (prev === 'kasir' ? 'dashboard' : prev));
       } else {
-        const ownerOnlyTabs: NavTab[] = ['menu', 'dashboard', 'terlaris', 'biaya', 'promo', 'ekspor'];
+        // 'menu' (Produk) boleh untuk kasir — hanya untuk ubah status Tersedia/Habis
+        const ownerOnlyTabs: NavTab[] = ['dashboard', 'terlaris', 'biaya', 'ekspor'];
         setCurrentTab((prev) => (ownerOnlyTabs.includes(prev) ? 'kasir' : prev));
       }
     }
@@ -67,7 +79,8 @@ function MainLayout() {
       return;
     }
 
-    const ownerOnlyTabs: NavTab[] = ['menu', 'dashboard', 'terlaris', 'biaya', 'promo', 'ekspor'];
+    // 'menu' (Produk) boleh diakses kasir: hanya untuk mengubah status Tersedia/Habis
+    const ownerOnlyTabs: NavTab[] = ['dashboard', 'terlaris', 'biaya', 'ekspor'];
     if (!isOwner && ownerOnlyTabs.includes(tab)) {
       showToast('Akses ditolak: Menu ini hanya dapat diakses oleh Pemilik Usaha (Owner).', 'error');
       setCurrentTab('kasir');
@@ -131,9 +144,8 @@ function MainLayout() {
         {currentTab === 'dashboard' && isOwner && <DashboardOwnerView onNavigate={handleSelectTab} />}
         {currentTab === 'terlaris' && isOwner && <MenuTerlarisView />}
         {currentTab === 'biaya' && isOwner && <PengaturanBiayaView />}
-        {currentTab === 'promo' && isOwner && <KelolaPromoView />}
         {currentTab === 'ekspor' && isOwner && <EksporDataView />}
-        {currentTab === 'menu' && isOwner && <KelolaMenuView />}
+        {currentTab === 'menu' && <KelolaMenuView />}
       </main>
 
       {/* Android-style Bottom Navigation: role-based + entry Profil */}
@@ -156,7 +168,9 @@ export default function App() {
       <AuthProvider>
         <CabangProvider>
           <CartProvider>
-            <MainLayout />
+            <ErrorBoundary>
+              <MainLayout />
+            </ErrorBoundary>
           </CartProvider>
         </CabangProvider>
       </AuthProvider>

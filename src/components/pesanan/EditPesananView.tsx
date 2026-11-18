@@ -386,7 +386,7 @@ export const EditPesananView: React.FC<EditPesananViewProps> = ({
                   type="button"
                   disabled={isSaving || items.length === 0}
                   onClick={handleSaveOrder}
-                  className="py-3 px-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:brightness-90 text-xs sm:text-sm font-black text-white shadow-lg shadow-emerald-600/30 transition flex items-center justify-center gap-1.5 active:scale-95 disabled:opacity-50"
+                  className="py-3 px-4 rounded-2xl bg-[var(--utama)] hover:bg-[var(--utama-tua)] text-xs sm:text-sm font-black text-white shadow-sm shadow-[var(--utama-tua)]/20 transition flex items-center justify-center gap-1.5 active:scale-95 disabled:opacity-50"
                 >
                   <Save className="w-4 h-4" />
                   <span>{isSaving ? 'Menyimpan...' : 'Simpan Perubahan'}</span>
@@ -470,9 +470,8 @@ export const EditPesananView: React.FC<EditPesananViewProps> = ({
                             className="w-full h-20 object-cover rounded-xl mb-2"
                           />
                         ) : (
-                          <div className="w-full h-16 rounded-xl bg-[var(--latar)] border border-[var(--garis)] text-[var(--redup)] flex flex-col items-center justify-center mb-2 p-1 text-center">
-                            <ImageOff className="w-4 h-4 text-[var(--redup)] mb-0.5" />
-                            <span className="text-[8px] font-bold text-[var(--redup)]">Gambar tidak ada</span>
+                          <div className="w-full h-16 rounded-xl bg-[var(--latar)] border border-[var(--garis)] text-[var(--redup)] flex items-center justify-center mb-2" aria-hidden="true">
+                            <ImageOff className="w-5 h-5" />
                           </div>
                         )}
                         <h4 className="text-xs font-bold text-[var(--teks)] group-hover:text-[var(--utama-teks)] line-clamp-1">
@@ -531,7 +530,7 @@ export const EditPesananView: React.FC<EditPesananViewProps> = ({
                   setIsCancelDialogOpen(false);
                   onBack();
                 }}
-                className="py-3 px-3 rounded-2xl bg-rose-600 hover:brightness-90 text-xs font-black text-white shadow-md shadow-rose-600/30 transition active:scale-95"
+                className="py-3 px-3 rounded-2xl bg-[var(--bahaya)] hover:bg-[var(--bahaya-teks)] text-xs font-black text-white shadow-sm shadow-[var(--bahaya-teks)]/20 transition active:scale-95"
               >
                 Ya, Batalkan
               </button>

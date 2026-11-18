@@ -33,7 +33,7 @@ type ItemSidebar = {
  * (di layar kecil navigasi pindah ke BottomNav).
  * Isinya identik dengan BottomNav:
  * Owner: Laporan · Produk · Riwayat · Laba/Rugi · Profil
- * Kasir: Kasir · Riwayat · Profil
+ * Kasir: Kasir · Produk · Riwayat · Profil
  */
 export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab, onOpenProfil }) => {
   const { user } = useAuth();
@@ -50,6 +50,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab, onOpe
 
   const navKasir: ItemSidebar[] = [
     { id: 'kasir', label: 'Kasir', icon: <ShoppingCart />, hitung: totalItemsCount, warna: 'hijau' },
+    { id: 'menu', label: 'Produk', icon: <Package /> },
     { id: 'riwayat', label: 'Riwayat', icon: <History />, hitung: unpaidCount, warna: 'merah' },
   ];
 
@@ -74,7 +75,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab, onOpe
   };
 
   const warnaBadge = (warna?: 'merah' | 'hijau') =>
-    warna === 'hijau' ? 'bg-emerald-600' : 'bg-red-600';
+    warna === 'hijau' ? 'bg-[var(--utama)]' : 'bg-[var(--bahaya)]';
 
   return (
     <aside className="sisi" aria-label="Navigasi utama">
@@ -91,7 +92,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab, onOpe
             {item.icon}
             {(item.hitung ?? 0) > 0 && (
               <span
-                className={`absolute -top-1.5 -right-2 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full text-[9px] font-bold text-white ${warnaBadge(item.warna)}`}
+                className={`absolute -top-1.5 -right-2 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full text-[10px] font-bold text-white ${warnaBadge(item.warna)}`}
               >
                 {item.hitung}
               </span>

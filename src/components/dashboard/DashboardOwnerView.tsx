@@ -19,7 +19,7 @@ import {
   PieChart,
   Tag,
 } from 'lucide-react';
-import { db, getFormattedDate, ensureThirtyDaysData } from '../../db';
+import { db, getFormattedDate, ensureThirtyDaysData, initializeSyncEngine } from '../../db';
 import type { Transaksi, DetailTransaksi, Biaya } from '../../types';
 import { formatRupiah, formatDateIndo } from '../../utils/formatters';
 import type { NavTab } from '../common/Navbar';
@@ -46,7 +46,8 @@ interface CabangComparison {
 export const DashboardOwnerView: React.FC<DashboardOwnerViewProps> = ({ onNavigate }) => {
   const { selectedCabangFilter, setSelectedCabangFilter, cabangList } = useCabang();
 
-  // Today's Live KPI States (Filtered by Selected Branch)
+  // ALL useState hooks MUST be called unconditionally at the top (Rules of Hooks)
+  const [isSyncReady, setIsSyncReady] = useState(false);
   const [todayPenjualan, setTodayPenjualan] = useState(0);
   const [todayTransaksiCount, setTodayTransaksiCount] = useState(0);
   const [todayLabaRugi, setTodayLabaRugi] = useState(0);
@@ -79,6 +80,16 @@ export const DashboardOwnerView: React.FC<DashboardOwnerViewProps> = ({ onNaviga
   const [customEndDate, setCustomEndDate] = useState<string>(() => getFormattedDate(new Date()));
 
   const [isLoadingChart, setIsLoadingChart] = useState(true);
+
+  // Initialize sync engine on first render
+  useEffect(() => {
+    initializeSyncEngine()
+      .then(() => setIsSyncReady(true))
+      .catch((err) => {
+        console.warn('[Dashboard] Sync engine not available:', err);
+        setIsSyncReady(true);
+      });
+  }, []);
 
   // 1. Load Today's Real-time KPIs & Branch Breakdown
   useEffect(() => {
@@ -159,7 +170,7 @@ export const DashboardOwnerView: React.FC<DashboardOwnerViewProps> = ({ onNaviga
         await ensureThirtyDaysData();
         const today = new Date();
 
-        let dateBuckets: { dateStr: string; label: string; isMonthlyAggregate?: boolean; monthNum?: number }[] = [];
+        let dateBuckets: { dateStr: string; label: string; isMonthlyAggregate?: boolean; monthNum?: number; year?: number }[] = [];
 
         if (period === '7-hari') {
           // 7 days backwards
@@ -347,6 +358,15 @@ export const DashboardOwnerView: React.FC<DashboardOwnerViewProps> = ({ onNaviga
 
     loadChartData();
   }, [period, selectedMonth, selectedMonthEnd, selectedYear, selectedYearEnd, monthViewMode, customStartDate, customEndDate, selectedCabangFilter]);
+
+  // Show loading while sync initializes (AFTER all hooks - Rules of Hooks)
+  if (!isSyncReady) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-[var(--utama)] border-t-[var(--utama)]" />
+      </div>
+    );
+  }
 
   const totalCombinedToday = branchComparison.cabang1Sales + branchComparison.cabang2Sales;
   const c1Percent = totalCombinedToday > 0 ? Math.round((branchComparison.cabang1Sales / totalCombinedToday) * 100) : 50;
@@ -752,7 +772,7 @@ export const DashboardOwnerView: React.FC<DashboardOwnerViewProps> = ({ onNaviga
         </button>
 
         <button
-          onClick={() => onNavigate('promo')}
+          onClick={() => onNavigate('biaya')}
           className="p-4 rounded-xl bg-[var(--kartu)] border border-[var(--garis)] hover:border-[var(--garis-kuat)] hover:shadow-xs transition text-left group"
         >
           <div className="w-9 h-9 rounded-lg bg-purple-50 text-purple-700 flex items-center justify-center mb-2">

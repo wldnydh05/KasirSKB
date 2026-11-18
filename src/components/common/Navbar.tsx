@@ -16,19 +16,18 @@ export type NavTab =
   | 'terlaris'
   | 'biaya'
   | 'menu'
-  | 'promo'
   | 'ekspor';
 
 /**
  * Tab dikelompokkan per role (nav hanya menampilkan kelompok):
- * Owner: Laporan (dashboard+terlaris) · Produk (menu) · Riwayat · Laba/Rugi (biaya+promo+ekspor)
- * Kasir: Kasir (POS) · Riwayat
+ * Owner: Laporan (dashboard+terlaris) · Produk (menu) · Riwayat · Laba/Rugi (biaya+ekspor)
+ * Kasir: Kasir (POS) · Produk (hanya ubah status Tersedia/Habis) · Riwayat
  * Sub-halaman dalam kelompok dipilih lewat .segmen di App.tsx.
  * Navigasinya sendiri dirender oleh Sidebar (desktop) & BottomNav (mobile).
  */
 export const grupTab: Record<string, NavTab[]> = {
   laporan: ['dashboard', 'terlaris'],
-  'laba-rugi': ['biaya', 'promo', 'ekspor'],
+  'laba-rugi': ['biaya', 'ekspor'],
 };
 
 interface NavbarProps {
@@ -42,7 +41,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onSelectTab }) => {
   const isOwner = user?.role === 'owner';
 
   return (
-    <header className="kepala">
+    <header className="kepala bg-[var(--utama)] text-white">
       <div className="kepala-baris">
         {/* Brand */}
         <button

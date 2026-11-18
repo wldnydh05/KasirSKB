@@ -31,7 +31,7 @@ type NavItem = {
 /**
  * Nav bawah selalu dirender (CSS .bawah: flex ≤760px, sembunyi ≥761px —
  * di layar lebar navigasi pindah ke Sidebar kiri / .sisi).
- * Owner: Produk · Laba/Rugi · Laporan · Riwayat · Profil — Kasir: Kasir · Riwayat · Profil.
+ * Owner: Produk · Laba/Rugi · Laporan · Riwayat · Profil — Kasir: Kasir · Produk · Riwayat · Profil.
  * "Profil" membuka modal Pengaturan Akun & Profil (aksi, bukan pindah tab).
  * Laporan (TrendingUp) ditempatkan di tengah (posisi 3 dari 5).
  * Laba/Rugi menggunakan ikon BarChart2 (grafik keuangan) lebih sesuai maknanya.
@@ -51,6 +51,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentTab, onSelectTab, o
 
   const navKasir: NavItem[] = [
     { id: 'kasir', label: 'Kasir', icon: <ShoppingCart />, hitung: totalItemsCount, warna: 'hijau' },
+    { id: 'menu', label: 'Produk', icon: <Package /> },
     { id: 'riwayat', label: 'Riwayat', icon: <History />, hitung: unpaidCount, warna: 'merah' },
   ];
 
@@ -76,7 +77,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentTab, onSelectTab, o
   };
 
   const warnaBadge = (warna?: 'merah' | 'hijau') =>
-    warna === 'hijau' ? 'bg-emerald-600' : 'bg-red-600';
+    warna === 'hijau' ? 'bg-[var(--utama)]' : 'bg-[var(--bahaya)]';
 
   return (
     <nav className="bawah" aria-label="Navigasi utama">
@@ -92,7 +93,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentTab, onSelectTab, o
             {item.icon}
             {(item.hitung ?? 0) > 0 && (
               <span
-                className={`absolute -top-1 -right-2.5 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full text-[9px] font-bold text-white ${warnaBadge(item.warna)}`}
+                className={`absolute -top-1 -right-2.5 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full text-[10px] font-bold text-white ${warnaBadge(item.warna)}`}
               >
                 {item.hitung}
               </span>

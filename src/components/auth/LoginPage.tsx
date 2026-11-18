@@ -3,47 +3,73 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Eye,
   EyeOff,
   Lock,
   User as UserIcon,
-  Store,
   ShieldCheck,
-  UserPlus,
-  LogIn,
-  Info,
-  CheckCircle2,
+  ShoppingCart,
+  ArrowLeft,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { PWAInstallButton } from '../common/PWAInstallButton';
+import type { User } from '../../types';
+
+/** Jumlah digit PIN kasir (6 digit, seperti lockscreen HP). */
+const PIN_LENGTH = 6;
 
 export const LoginPage: React.FC = () => {
-  const { login, registerOwner, quickLogin } = useAuth();
+  const { login, getKasirList } = useAuth();
 
-  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
+  const [authMode, setAuthMode] = useState<'owner' | 'kasir'>('owner');
 
-  // Login form state
+  // Form Owner: username & password
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
-  // Register form state (khusus Owner)
-  const [regNamaLengkap, setRegNamaLengkap] = useState('');
-  const [regUsername, setRegUsername] = useState('');
-  const [regPassword, setRegPassword] = useState('');
-  const [regConfirmPassword, setRegConfirmPassword] = useState('');
-  const [showRegPassword, setShowRegPassword] = useState(false);
+  // Form Kasir: pilih akun lalu PIN 6 digit
+  const [kasirList, setKasirList] = useState<User[]>([]);
+  const [isLoadingKasir, setIsLoadingKasir] = useState(true);
+  const [selectedKasir, setSelectedKasir] = useState<User | null>(null);
+  const [pin, setPin] = useState('');
+  const pinInputRef = useRef<HTMLInputElement>(null);
 
   const [errorMessage, setErrorMessage] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleLoginSubmit = async (e: React.FormEvent) => {
+  // Daftar kasir diambil dari DB supaya akun yang baru dibuat Owner langsung muncul.
+  // Deps sengaja kosong: cukup dibaca sekali saat halaman login dimuat.
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const list = await getKasirList();
+        if (active) setKasirList(list);
+      } catch (err) {
+        console.error('Gagal memuat daftar kasir:', err);
+      } finally {
+        if (active) setIsLoadingKasir(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const switchMode = (mode: 'owner' | 'kasir') => {
+    setAuthMode(mode);
+    setErrorMessage('');
+    setSelectedKasir(null);
+    setPin('');
+  };
+
+  const handleOwnerSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
-    setSuccessMessage('');
     if (!username.trim() || !password) {
       setErrorMessage('Harap isi username dan password.');
       return;
@@ -58,48 +84,47 @@ export const LoginPage: React.FC = () => {
     }
   };
 
-  const handleRegisterSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const verifyPin = async (value: string) => {
+    if (!selectedKasir || isSubmitting) return;
+
     setErrorMessage('');
-    setSuccessMessage('');
-
-    if (!regNamaLengkap.trim() || !regUsername.trim() || !regPassword) {
-      setErrorMessage('Harap lengkapi semua kolom pendaftaran.');
-      return;
-    }
-
-    if (regPassword.length < 4) {
-      setErrorMessage('Password minimal 4 karakter.');
-      return;
-    }
-
-    if (regPassword !== regConfirmPassword) {
-      setErrorMessage('Konfirmasi password tidak sesuai.');
-      return;
-    }
-
     setIsSubmitting(true);
-    const res = await registerOwner({
-      namaLengkap: regNamaLengkap,
-      username: regUsername,
-      password: regPassword,
-    });
+    const res = await login(selectedKasir.username, value);
     setIsSubmitting(false);
 
     if (!res.success) {
-      setErrorMessage(res.message || 'Pendaftaran gagal.');
-    } else {
-      setSuccessMessage('Pendaftaran berhasil! Mengalihkan ke dashboard...');
+      setErrorMessage(
+        res.message && res.message.includes('tidak ditemukan')
+          ? res.message
+          : 'PIN salah. Silakan coba lagi.'
+      );
+      setPin('');
     }
   };
 
-  const handleQuick = async (usernameTarget: string) => {
-    setIsSubmitting(true);
+  const handlePinChange = (raw: string) => {
+    if (isSubmitting) return;
+    const digits = raw.replace(/\D/g, '').slice(0, PIN_LENGTH);
+    setPin(digits);
     setErrorMessage('');
-    setSuccessMessage('');
-    await quickLogin(usernameTarget);
-    setIsSubmitting(false);
+    // Verifikasi otomatis begitu PIN penuh
+    if (digits.length === PIN_LENGTH) {
+      void verifyPin(digits);
+    }
   };
+
+  const pilihKasir = (k: User) => {
+    setSelectedKasir(k);
+    setPin('');
+    setErrorMessage('');
+  };
+
+  const tabCls = (aktif: boolean) =>
+    `py-2 rounded-md font-medium transition flex items-center justify-center gap-1.5 ${
+      aktif
+        ? 'bg-[var(--kartu)] text-[var(--utama-teks)] shadow-xs'
+        : 'text-[var(--redup)] hover:text-[var(--teks)]'
+    }`;
 
   return (
     <div className="min-h-screen flex flex-col justify-center items-center p-4 bg-[var(--latar)] text-[var(--teks)] font-sans">
@@ -120,64 +145,33 @@ export const LoginPage: React.FC = () => {
         <div className="bg-[var(--kartu)] rounded-xl p-6 sm:p-7 shadow-sm border border-[var(--garis)]">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-base font-semibold text-[var(--teks)]">
-              {authMode === 'login' ? 'Masuk ke Sistem' : 'Pendaftaran Pemilik Toko'}
+              {authMode === 'owner' ? 'Masuk sebagai Owner' : 'Masuk sebagai Kasir'}
             </h2>
             <PWAInstallButton />
           </div>
 
-          {/* Tab Pilihan Masuk / Daftar */}
+          {/* Tab Pilihan Owner / Kasir */}
           <div className="grid grid-cols-2 p-1 bg-[var(--latar)] rounded-lg mb-5 border border-[var(--garis)] text-xs">
-            <button
-              type="button"
-              onClick={() => {
-                setAuthMode('login');
-                setErrorMessage('');
-                setSuccessMessage('');
-              }}
-              className={`py-2 rounded-md font-medium transition flex items-center justify-center gap-1.5 ${
-                authMode === 'login'
-                  ? 'bg-[var(--kartu)] text-[var(--utama-teks)] shadow-xs'
-                  : 'text-[var(--redup)] hover:text-[var(--teks)]'
-              }`}
-            >
-              <LogIn className="w-3.5 h-3.5" />
-              <span>Masuk (Login)</span>
+            <button type="button" onClick={() => switchMode('owner')} className={tabCls(authMode === 'owner')}>
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>Owner</span>
             </button>
-            <button
-              type="button"
-              onClick={() => {
-                setAuthMode('register');
-                setErrorMessage('');
-                setSuccessMessage('');
-              }}
-              className={`py-2 rounded-md font-medium transition flex items-center justify-center gap-1.5 ${
-                authMode === 'register'
-                  ? 'bg-[var(--kartu)] text-[var(--utama-teks)] shadow-xs'
-                  : 'text-[var(--redup)] hover:text-[var(--teks)]'
-              }`}
-            >
-              <UserPlus className="w-3.5 h-3.5" />
-              <span>Daftar Owner</span>
+            <button type="button" onClick={() => switchMode('kasir')} className={tabCls(authMode === 'kasir')}>
+              <ShoppingCart className="w-3.5 h-3.5" />
+              <span>Kasir</span>
             </button>
           </div>
 
           {errorMessage && (
-            <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs flex items-start gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-red-500 mt-1.5 shrink-0" />
+            <div className="mb-4 p-3 rounded-lg bg-[var(--bahaya-muda)] border border-[var(--garis)] text-[var(--bahaya-teks)] text-xs flex items-start gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-[var(--bahaya)] mt-1.5 shrink-0" />
               <span>{errorMessage}</span>
             </div>
           )}
 
-          {successMessage && (
-            <div className="mb-4 p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span>{successMessage}</span>
-            </div>
-          )}
-
-          {authMode === 'login' ? (
-            /* --- FORM MASUK --- */
-            <form onSubmit={handleLoginSubmit} className="space-y-4">
+          {authMode === 'owner' ? (
+            /* --- FORM OWNER (username & password) --- */
+            <form onSubmit={handleOwnerSubmit} className="space-y-4">
               <div>
                 <label className="block text-xs font-medium text-[var(--teks)] mb-1">
                   Username
@@ -228,149 +222,130 @@ export const LoginPage: React.FC = () => {
                 disabled={isSubmitting}
                 className="w-full py-2.5 px-4 rounded-lg font-medium text-white bg-[var(--utama)] hover:bg-[var(--utama-tua)] active:bg-[var(--utama)] transition text-sm disabled:opacity-50 cursor-pointer"
               >
-                {isSubmitting ? 'Memproses...' : 'Masuk ke Akun'}
+                {isSubmitting ? 'Memproses...' : 'Masuk sebagai Owner'}
+              </button>
+            </form>
+          ) : selectedKasir ? (
+            /* --- FORM PIN KASIR (6 digit, tampilan bulatan lockscreen) --- */
+            <div className="space-y-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedKasir(null);
+                  setPin('');
+                  setErrorMessage('');
+                }}
+                className="inline-flex items-center gap-1 text-xs text-[var(--redup)] hover:text-[var(--teks)] transition"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                Pilih kasir lain
               </button>
 
-              <div className="p-3 bg-[var(--latar)] rounded-lg border border-[var(--garis)] text-xs text-[var(--redup)] flex items-start gap-2">
-                <Info className="w-4 h-4 text-[var(--utama-teks)] shrink-0 mt-0.5" />
-                <p className="leading-relaxed">
-                  Belum punya akun kasir? Akun kasir hanya dapat dibuat oleh <strong className="text-[var(--teks)]">Pemilik Usaha (Owner)</strong> melalui menu Kelola Kasir.
+              <div className="p-3 rounded-lg bg-[var(--latar)] border border-[var(--garis)] flex items-center gap-3">
+                <span className="w-9 h-9 rounded-full bg-[var(--utama-muda)] text-[var(--utama-teks)] flex items-center justify-center shrink-0">
+                  <UserIcon className="w-4 h-4" />
+                </span>
+                <div>
+                  <div className="text-sm font-semibold text-[var(--teks)]">{selectedKasir.username}</div>
+                  <div className="text-xs text-[var(--redup)]">{selectedKasir.cabang || 'Cabang 1'}</div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-[var(--teks)] mb-1">
+                  PIN (6 digit)
+                </label>
+
+                {/* Kotak input: 6 bulatan terisi sesuai jumlah digit yang diketik */}
+                <div className="relative rounded-lg border border-[var(--garis-kuat)] bg-[var(--latar)]/50 focus-within:border-[var(--utama-teks)] focus-within:ring-1 focus-within:ring-[var(--utama-teks)] transition">
+                  <input
+                    ref={pinInputRef}
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="off"
+                    maxLength={PIN_LENGTH}
+                    value={pin}
+                    onChange={(e) => handlePinChange(e.target.value)}
+                    readOnly={isSubmitting}
+                    autoFocus
+                    aria-label="PIN 6 digit"
+                    className="absolute inset-0 z-10 w-full h-full opacity-0 cursor-pointer"
+                  />
+                  <div
+                    className="flex justify-center items-center gap-4 py-5 pointer-events-none"
+                    aria-hidden="true"
+                  >
+                    {Array.from({ length: PIN_LENGTH }).map((_, i) => {
+                      const terisi = i < pin.length;
+                      const salah = !!errorMessage;
+                      return (
+                        <span
+                          key={i}
+                          className={`w-4 h-4 rounded-full border-2 transition-all duration-150 ${
+                            terisi
+                              ? salah
+                                ? 'bg-[var(--bahaya)] border-[var(--bahaya)] scale-110'
+                                : 'bg-[var(--teks)] border-[var(--teks)] scale-110'
+                              : salah
+                                ? 'border-[var(--bahaya)]/60'
+                                : 'border-[var(--garis-kuat)]'
+                          }`}
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <p className="text-[11px] text-[var(--redup)] mt-1.5">
+                  {isSubmitting
+                    ? 'Memverifikasi PIN...'
+                    : 'Ketuk kotak lalu masukkan 6 digit PIN Anda.'}
                 </p>
               </div>
-            </form>
+            </div>
           ) : (
-            /* --- FORM REGISTER OWNER --- */
-            <form onSubmit={handleRegisterSubmit} className="space-y-3.5">
-              <div className="p-3 rounded-lg bg-[var(--utama-muda)] border border-[var(--garis)] text-[var(--utama-teks)] text-xs flex items-start gap-2">
-                <Info className="w-4 h-4 text-[var(--utama-teks)] shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-semibold text-[var(--utama-teks)]">Pendaftaran Khusus Owner</p>
-                  <p className="text-[var(--utama-teks)] mt-0.5 leading-relaxed">
-                    Formulir ini untuk mendaftarkan akun Pemilik Usaha baru. Akun kasir nantinya dibuat oleh Owner dari menu pengaturan.
+            /* --- PILIH AKUN KASIR (daftar dari database) --- */
+            <div>
+              <p className="text-xs text-[var(--redup)] mb-3">
+                Pilih akun kasir Anda, lalu masukkan PIN 6 digit.
+              </p>
+
+              {isLoadingKasir ? (
+                <div className="py-6 text-center text-xs text-[var(--redup)] flex items-center justify-center gap-2">
+                  <span className="w-4 h-4 border-2 border-[var(--utama-teks)] border-t-transparent rounded-full animate-spin" />
+                  <span>Memuat daftar kasir...</span>
+                </div>
+              ) : kasirList.length === 0 ? (
+                <div className="py-6 text-center bg-[var(--latar)] rounded-lg border border-dashed border-[var(--garis-kuat)] p-4">
+                  <p className="text-xs font-medium text-[var(--teks)]">Belum ada akun kasir</p>
+                  <p className="text-[11px] text-[var(--redup)] mt-0.5">
+                    Minta Owner membuat akun lewat menu Profil &rarr; Kelola Kasir.
                   </p>
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-[var(--teks)] mb-1">
-                  Nama Lengkap Pemilik
-                </label>
-                <input
-                  type="text"
-                  value={regNamaLengkap}
-                  onChange={(e) => setRegNamaLengkap(e.target.value)}
-                  placeholder="Contoh: Budi Santoso"
-                  className="w-full px-3 py-2 text-sm bg-[var(--latar)]/50 border border-[var(--garis-kuat)] rounded-lg focus:outline-none focus:bg-[var(--kartu)] focus:border-[var(--utama-teks)] focus:ring-1 focus:ring-[var(--utama-teks)] transition"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-[var(--teks)] mb-1">
-                  Username Akun
-                </label>
-                <input
-                  type="text"
-                  value={regUsername}
-                  onChange={(e) => setRegUsername(e.target.value)}
-                  placeholder="Contoh: budi_owner"
-                  className="w-full px-3 py-2 text-sm bg-[var(--latar)]/50 border border-[var(--garis-kuat)] rounded-lg focus:outline-none focus:bg-[var(--kartu)] focus:border-[var(--utama-teks)] focus:ring-1 focus:ring-[var(--utama-teks)] transition"
-                  autoComplete="username"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-[var(--teks)] mb-1">
-                  Password
-                </label>
-                <div className="relative">
-                  <input
-                    type={showRegPassword ? 'text' : 'password'}
-                    value={regPassword}
-                    onChange={(e) => setRegPassword(e.target.value)}
-                    placeholder="Minimal 4 karakter"
-                    className="w-full pl-3 pr-9 py-2 text-sm bg-[var(--latar)]/50 border border-[var(--garis-kuat)] rounded-lg focus:outline-none focus:bg-[var(--kartu)] focus:border-[var(--utama-teks)] focus:ring-1 focus:ring-[var(--utama-teks)] transition"
-                    autoComplete="new-password"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowRegPassword(!showRegPassword)}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-[var(--redup)] hover:text-[var(--redup)]"
-                  >
-                    {showRegPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
+              ) : (
+                <div className="grid grid-cols-2 gap-2">
+                  {kasirList.map((k) => (
+                    <button
+                      key={k.id ?? k.username}
+                      type="button"
+                      onClick={() => pilihKasir(k)}
+                      className="p-3 text-left rounded-lg border border-[var(--garis)] hover:bg-[var(--latar)] transition"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="w-7 h-7 rounded-full bg-[var(--utama-muda)] text-[var(--utama-teks)] flex items-center justify-center shrink-0">
+                          <UserIcon className="w-3.5 h-3.5" />
+                        </span>
+                        <span className="text-xs font-semibold text-[var(--teks)] truncate">
+                          {k.username}
+                        </span>
+                      </div>
+                      <div className="text-[10px] text-[var(--redup)] mt-1.5">
+                        {k.cabang || 'Cabang 1'}
+                      </div>
+                    </button>
+                  ))}
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-[var(--teks)] mb-1">
-                  Konfirmasi Password
-                </label>
-                <input
-                  type="password"
-                  value={regConfirmPassword}
-                  onChange={(e) => setRegConfirmPassword(e.target.value)}
-                  placeholder="Ketik ulang password"
-                  className="w-full px-3 py-2 text-sm bg-[var(--latar)]/50 border border-[var(--garis-kuat)] rounded-lg focus:outline-none focus:bg-[var(--kartu)] focus:border-[var(--utama-teks)] focus:ring-1 focus:ring-[var(--utama-teks)] transition"
-                  autoComplete="new-password"
-                  required
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="w-full py-2.5 px-4 rounded-lg font-medium text-white bg-[var(--utama)] hover:bg-[var(--utama-tua)] active:bg-[var(--utama)] transition text-sm disabled:opacity-50 cursor-pointer"
-              >
-                {isSubmitting ? 'Mendaftarkan...' : 'Daftar Sebagai Owner'}
-              </button>
-            </form>
-          )}
-
-          {/* Kotak Akun Pengujian Demo (Ciri Khas Proyek Mahasiswa untuk Presentasi & Testing) */}
-          {authMode === 'login' && (
-            <div className="mt-6 pt-5 border-t border-[var(--garis)]">
-              <div className="text-xs font-semibold text-[var(--redup)] mb-2">
-                Akun Percobaan (Demo Testing):
-              </div>
-
-              <div className="space-y-1.5">
-                <button
-                  type="button"
-                  onClick={() => handleQuick('owner')}
-                  className="w-full p-2.5 text-left rounded-lg border border-[var(--garis)] hover:bg-[var(--latar)] transition flex items-center justify-between"
-                >
-                  <div>
-                    <span className="text-xs font-semibold text-[var(--teks)]">Owner (Bpk. Agus)</span>
-                    <span className="text-[11px] text-[var(--redup)] block">Username: owner · Akses penuh dashboard</span>
-                  </div>
-                  <span className="text-[10px] font-medium px-2 py-0.5 rounded bg-[var(--utama-muda)] text-[var(--utama-teks)]">
-                    Owner
-                  </span>
-                </button>
-
-                <div className="grid grid-cols-2 gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => handleQuick('kasir1')}
-                    className="p-2 text-left rounded-lg border border-[var(--garis)] hover:bg-[var(--latar)] transition"
-                  >
-                    <div className="text-xs font-semibold text-[var(--teks)]">Kasir 1 (Siti)</div>
-                    <div className="text-[10px] text-[var(--redup)]">Cabang 1</div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleQuick('kasir2')}
-                    className="p-2 text-left rounded-lg border border-[var(--garis)] hover:bg-[var(--latar)] transition"
-                  >
-                    <div className="text-xs font-semibold text-[var(--teks)]">Kasir 2 (Rian)</div>
-                    <div className="text-[10px] text-[var(--redup)]">Cabang 2</div>
-                  </button>
-                </div>
-              </div>
+              )}
             </div>
           )}
         </div>
@@ -384,5 +359,3 @@ export const LoginPage: React.FC = () => {
     </div>
   );
 };
-
-

@@ -42,6 +42,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
   const {
     user,
     updateProfile,
+    changeUsername,
     changePassword,
     logout,
     createKasir,
@@ -50,16 +51,16 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
     updateKasir,
   } = useAuth();
   const { showToast } = useToast();
-  const { cabangList } = useCabang();
+  const { cabangList, addCabang, renameCabang, deleteCabang } = useCabang();
   const { mode, toggle } = useTema();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isOwner = user?.role === 'owner';
-  const [activeTab, setActiveTab] = useState<'profile' | 'password' | 'kasir'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'password' | 'kasir' | 'cabang'>('profile');
 
   // Profile fields
-  const [namaLengkap, setNamaLengkap] = useState(user?.nama_lengkap || '');
   const [fotoUrl, setFotoUrl] = useState(user?.foto_url || '');
+  const [editUsername, setEditUsername] = useState(user?.username || '');
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
 
   // Password fields
@@ -72,18 +73,22 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
   const [kasirList, setKasirList] = useState<UserType[]>([]);
   const [isLoadingKasir, setIsLoadingKasir] = useState(false);
   const [showAddKasirForm, setShowAddKasirForm] = useState(false);
-  const [newKasirNama, setNewKasirNama] = useState('');
   const [newKasirUsername, setNewKasirUsername] = useState('');
   const [newKasirPassword, setNewKasirPassword] = useState('');
-  const [newKasirCabang, setNewKasirCabang] = useState('Cabang 1');
+  const [newKasirCabang, setNewKasirCabang] = useState(cabangList[0] || 'Cabang 1');
   const [showNewKasirPassword, setShowNewKasirPassword] = useState(false);
 
   // Editing Kasir
   const [editingKasirId, setEditingKasirId] = useState<number | null>(null);
-  const [editKasirNama, setEditKasirNama] = useState('');
+  const [editKasirUsername, setEditKasirUsername] = useState('');
   const [editKasirCabang, setEditKasirCabang] = useState('');
   const [editKasirNewPassword, setEditKasirNewPassword] = useState('');
   const [showEditKasirPassword, setShowEditKasirPassword] = useState(false);
+
+  // Cabang Management fields (Khusus Owner)
+  const [newCabangName, setNewCabangName] = useState('');
+  const [editingCabang, setEditingCabang] = useState<string | null>(null);
+  const [editCabangName, setEditCabangName] = useState('');
 
   // Load kasir list when modal opens or tab changes to 'kasir'
   const loadKasirList = async () => {
@@ -104,6 +109,13 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
       loadKasirList();
     }
   }, [isOpen, isOwner]);
+
+  // Sync username field whenever modal opens (state persists while component stays mounted)
+  useEffect(() => {
+    if (isOpen && user) {
+      setEditUsername(user.username);
+    }
+  }, [isOpen, user?.username]);
 
   if (!isOpen || !user) return null;
 
@@ -140,13 +152,24 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+
+    // Update username first (with uniqueness validation) if changed
+    const newUsername = editUsername.trim().toLowerCase();
+    if (newUsername !== user.username) {
+      const res = await changeUsername(newUsername);
+      if (!res.success) {
+        setIsSubmitting(false);
+        showToast(res.message || 'Gagal mengubah username.', 'error');
+        return;
+      }
+    }
+
     const success = await updateProfile({
-      nama_lengkap: namaLengkap.trim(),
       foto_url: fotoUrl,
     });
     setIsSubmitting(false);
     if (success) {
-      showToast('Profil dan foto berhasil diperbarui!', 'success');
+      showToast('Profil berhasil diperbarui!', 'success');
       onClose();
     } else {
       showToast('Gagal memperbarui profil.', 'error');
@@ -181,14 +204,13 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
 
   const handleAddKasirSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newKasirNama.trim() || !newKasirUsername.trim() || !newKasirPassword) {
-      showToast('Harap lengkapi seluruh kolom akun kasir.', 'error');
+    if (!newKasirUsername.trim() || !newKasirPassword) {
+      showToast('Harap lengkapi username dan PIN akun kasir.', 'error');
       return;
     }
 
     setIsSubmitting(true);
     const res = await createKasir({
-      namaLengkap: newKasirNama.trim(),
       username: newKasirUsername.trim().toLowerCase(),
       password: newKasirPassword,
       cabang: newKasirCabang,
@@ -196,8 +218,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
     setIsSubmitting(false);
 
     if (res.success) {
-      showToast(`Akun kasir "${newKasirNama}" berhasil dibuat!`, 'success');
-      setNewKasirNama('');
+      showToast(`Akun kasir "${newKasirUsername}" berhasil dibuat!`, 'success');
       setNewKasirUsername('');
       setNewKasirPassword('');
       setShowAddKasirForm(false);
@@ -210,13 +231,13 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
   const handleDeleteKasirClick = async (kasir: UserType) => {
     if (!kasir.id) return;
     const confirmDelete = window.confirm(
-      `Apakah Anda yakin ingin menghapus akun kasir "${kasir.nama_lengkap || kasir.username}"?`
+      `Apakah Anda yakin ingin menghapus akun kasir "${kasir.username}"?`
     );
     if (!confirmDelete) return;
 
     const res = await deleteKasir(kasir.id);
     if (res.success) {
-      showToast(`Akun kasir "${kasir.nama_lengkap || kasir.username}" berhasil dihapus.`, 'success');
+      showToast(`Akun kasir "${kasir.username}" berhasil dihapus.`, 'success');
       await loadKasirList();
     } else {
       showToast(res.message || 'Gagal menghapus kasir.', 'error');
@@ -225,15 +246,20 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
 
   const handleStartEditKasir = (kasir: UserType) => {
     setEditingKasirId(kasir.id || null);
-    setEditKasirNama(kasir.nama_lengkap || '');
+    setEditKasirUsername(kasir.username);
     setEditKasirCabang(kasir.cabang || 'Cabang 1');
     setEditKasirNewPassword('');
   };
 
   const handleSaveEditKasir = async (kasirId: number) => {
+    const cleanUsername = editKasirUsername.trim().toLowerCase();
+    if (cleanUsername.length < 3) {
+      showToast('Username kasir minimal 3 karakter.', 'error');
+      return;
+    }
     setIsSubmitting(true);
     const res = await updateKasir(kasirId, {
-      namaLengkap: editKasirNama,
+      username: cleanUsername,
       cabang: editKasirCabang,
       newPassword: editKasirNewPassword.trim() ? editKasirNewPassword : undefined,
     });
@@ -248,7 +274,34 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
     }
   };
 
-  const userInitial = (user.nama_lengkap || user.username || 'U')[0].toUpperCase();
+  const userInitial = (user.username || 'U')[0].toUpperCase();
+
+  // --- Kelola Cabang (Owner) ---
+  const handleAddCabang = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const res = await addCabang(newCabangName);
+    showToast(res.message, res.success ? 'success' : 'error');
+    if (res.success) setNewCabangName('');
+  };
+
+  const handleRenameCabang = async (oldName: string) => {
+    const res = await renameCabang(oldName, editCabangName);
+    showToast(res.message, res.success ? 'success' : 'error');
+    if (res.success) {
+      setEditingCabang(null);
+      setEditCabangName('');
+    }
+  };
+
+  const handleDeleteCabangClick = async (name: string) => {
+    const confirmDelete = window.confirm(
+      `Hapus cabang "${name}"? Menu tidak lagi ditampilkan di cabang ini. Data transaksi lama tetap tersimpan.`
+    );
+    if (!confirmDelete) return;
+    const res = await deleteCabang(name);
+    showToast(res.message, res.success ? 'success' : 'error');
+    if (res.success && editingCabang === name) setEditingCabang(null);
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-3 sm:p-4">
@@ -283,19 +336,18 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <span className="font-semibold text-sm text-[var(--teks)] truncate">
-                {namaLengkap || user.username}
+                {user.username}
               </span>
               <span
                 className={`text-[10px] font-medium px-2 py-0.5 rounded shrink-0 ${
                   user.role === 'owner'
                     ? 'bg-[var(--utama-muda)] text-[var(--utama-teks)] border border-[var(--garis)]'
-                    : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                    : 'bg-[var(--utama-muda)] text-[var(--utama-teks)] border border-[var(--garis)]'
                 }`}
               >
                 {user.role === 'owner' ? 'Pemilik Usaha (Owner)' : 'Staf Kasir'}
               </span>
             </div>
-            <p className="text-xs text-[var(--redup)] mt-0.5">@{user.username}</p>
           </div>
         </div>
 
@@ -322,20 +374,36 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
             Ganti Password
           </button>
           {isOwner && (
-            <button
-              onClick={() => setActiveTab('kasir')}
-              className={`flex-1 py-2.5 text-center border-b-2 transition flex items-center justify-center gap-1.5 ${
-                activeTab === 'kasir'
-                  ? 'border-[var(--utama-teks)] text-[var(--utama-teks)] font-semibold bg-[var(--kartu)]'
-                  : 'border-transparent text-[var(--redup)] hover:text-[var(--teks)]'
-              }`}
-            >
-              <Users className="w-3.5 h-3.5" />
-              <span>Kelola Kasir</span>
-              <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-[var(--utama-muda)] text-[var(--utama-teks)] font-bold">
-                {kasirList.length}
-              </span>
-            </button>
+            <>
+              <button
+                onClick={() => setActiveTab('kasir')}
+                className={`flex-1 py-2.5 text-center border-b-2 transition flex items-center justify-center gap-1.5 ${
+                  activeTab === 'kasir'
+                    ? 'border-[var(--utama-teks)] text-[var(--utama-teks)] font-semibold bg-[var(--kartu)]'
+                    : 'border-transparent text-[var(--redup)] hover:text-[var(--teks)]'
+                }`}
+              >
+                <Users className="w-3.5 h-3.5" />
+                <span>Kelola Kasir</span>
+                <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-[var(--utama-muda)] text-[var(--utama-teks)] font-bold">
+                  {kasirList.length}
+                </span>
+              </button>
+              <button
+                onClick={() => setActiveTab('cabang')}
+                className={`flex-1 py-2.5 text-center border-b-2 transition flex items-center justify-center gap-1.5 ${
+                  activeTab === 'cabang'
+                    ? 'border-[var(--utama-teks)] text-[var(--utama-teks)] font-semibold bg-[var(--kartu)]'
+                    : 'border-transparent text-[var(--redup)] hover:text-[var(--teks)]'
+                }`}
+              >
+                <Building2 className="w-3.5 h-3.5" />
+                <span>Kelola Cabang</span>
+                <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-[var(--utama-muda)] text-[var(--utama-teks)] font-bold">
+                  {cabangList.length}
+                </span>
+              </button>
+            </>
           )}
         </div>
 
@@ -381,6 +449,22 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
 
               <div>
                 <label className="block text-xs font-medium text-[var(--teks)] mb-1.5">
+                  Username
+                </label>
+                <input
+                  type="text"
+                  value={editUsername}
+                  onChange={(e) => setEditUsername(e.target.value)}
+                  placeholder="Masukkan username baru"
+                  className="w-full px-3 py-2 text-sm bg-[var(--kartu)] border border-[var(--garis-kuat)] rounded-lg focus:border-[var(--utama-teks)] focus:ring-1 focus:ring-[var(--utama-teks)] outline-none"
+                />
+                <p className="text-[11px] text-[var(--redup)] mt-1">
+                  Username harus unik dan minimal 3 karakter.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-[var(--teks)] mb-1.5">
                   Foto Profil
                 </label>
                 <div className="flex items-center gap-3 p-3 bg-[var(--latar)] rounded-lg border border-[var(--garis)]">
@@ -421,7 +505,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
                         <button
                           type="button"
                           onClick={handleRemovePhoto}
-                          className="inline-flex items-center gap-1 text-[11px] text-red-600 hover:underline"
+                          className="inline-flex items-center gap-1 text-[11px] text-[var(--bahaya-teks)] hover:underline"
                         >
                           <Trash2 className="w-3 h-3" />
                           <span>Hapus Foto</span>
@@ -430,19 +514,6 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
                     )}
                   </div>
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-[var(--teks)] mb-1">
-                  Nama Lengkap
-                </label>
-                <input
-                  type="text"
-                  value={namaLengkap}
-                  onChange={(e) => setNamaLengkap(e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-[var(--kartu)] border border-[var(--garis-kuat)] rounded-lg focus:border-[var(--utama-teks)] focus:ring-1 focus:ring-[var(--utama-teks)] outline-none"
-                  placeholder="Nama Lengkap"
-                />
               </div>
 
               <div className="pt-2 flex items-center justify-between">
@@ -571,20 +642,6 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
                     Form Pendaftaran Kasir Baru
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-medium text-[var(--teks)] mb-1">
-                      Nama Lengkap Kasir
-                    </label>
-                    <input
-                      type="text"
-                      value={newKasirNama}
-                      onChange={(e) => setNewKasirNama(e.target.value)}
-                      placeholder="Contoh: Siti Rahmawati"
-                      className="w-full px-3 py-1.5 text-xs bg-[var(--kartu)] border border-[var(--garis-kuat)] rounded-lg focus:border-[var(--utama-teks)] outline-none"
-                      required
-                    />
-                  </div>
-
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     <div>
                       <label className="block text-xs font-medium text-[var(--teks)] mb-1">
@@ -594,7 +651,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
                         type="text"
                         value={newKasirUsername}
                         onChange={(e) => setNewKasirUsername(e.target.value)}
-                        placeholder="Contoh: kasir_siti"
+                        placeholder="Contoh: maemunah"
                         className="w-full px-3 py-1.5 text-xs bg-[var(--kartu)] border border-[var(--garis-kuat)] rounded-lg focus:border-[var(--utama-teks)] outline-none"
                         required
                       />
@@ -620,14 +677,18 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
 
                   <div>
                     <label className="block text-xs font-medium text-[var(--teks)] mb-1">
-                      Password Kasir
+                      PIN Kasir (6 digit)
                     </label>
                     <div className="relative">
                       <input
                         type={showNewKasirPassword ? 'text' : 'password'}
+                        inputMode="numeric"
+                        maxLength={6}
                         value={newKasirPassword}
-                        onChange={(e) => setNewKasirPassword(e.target.value)}
-                        placeholder="Minimal 4 karakter"
+                        onChange={(e) =>
+                          setNewKasirPassword(e.target.value.replace(/\D/g, '').slice(0, 6))
+                        }
+                        placeholder="6 digit angka"
                         className="w-full pl-3 pr-8 py-1.5 text-xs bg-[var(--kartu)] border border-[var(--garis-kuat)] rounded-lg focus:border-[var(--utama-teks)] outline-none"
                         required
                       />
@@ -677,7 +738,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
                 <div className="space-y-2">
                   {kasirList.map((kasir) => {
                     const isEditing = editingKasirId === kasir.id;
-                    const initial = (kasir.nama_lengkap || kasir.username || 'K')[0].toUpperCase();
+                    const initial = (kasir.username || 'K')[0].toUpperCase();
 
                     return (
                       <div
@@ -692,13 +753,14 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                               <div>
                                 <label className="block text-[11px] font-medium text-[var(--redup)] mb-1">
-                                  Nama Lengkap
+                                  Username
                                 </label>
                                 <input
                                   type="text"
-                                  value={editKasirNama}
-                                  onChange={(e) => setEditKasirNama(e.target.value)}
-                                  className="w-full px-2.5 py-1 text-xs border border-[var(--garis-kuat)] rounded-md outline-none focus:border-[var(--utama-teks)]"
+                                  value={editKasirUsername}
+                                  onChange={(e) => setEditKasirUsername(e.target.value)}
+                                  placeholder="Username kasir"
+                                  className="w-full px-2.5 py-1 text-xs border border-[var(--garis-kuat)] rounded-md outline-none focus:border-[var(--utama-teks)] bg-[var(--kartu)] text-[var(--teks)]"
                                 />
                               </div>
                               <div>
@@ -721,14 +783,20 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
 
                             <div>
                               <label className="block text-[11px] font-medium text-[var(--redup)] mb-1">
-                                Reset Password Baru (Kosongkan bila tidak diubah)
+                                Reset PIN Baru (6 digit, kosongkan bila tidak diubah)
                               </label>
                               <div className="relative">
                                 <input
                                   type={showEditKasirPassword ? 'text' : 'password'}
+                                  inputMode="numeric"
+                                  maxLength={6}
                                   value={editKasirNewPassword}
-                                  onChange={(e) => setEditKasirNewPassword(e.target.value)}
-                                  placeholder="Password baru kasir"
+                                  onChange={(e) =>
+                                    setEditKasirNewPassword(
+                                      e.target.value.replace(/\D/g, '').slice(0, 6)
+                                    )
+                                  }
+                                  placeholder="6 digit angka"
                                   className="w-full pl-2.5 pr-8 py-1 text-xs border border-[var(--garis-kuat)] rounded-md outline-none focus:border-[var(--utama-teks)]"
                                 />
                                 <button
@@ -768,14 +836,11 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
                               <div className="min-w-0">
                                 <div className="flex items-center gap-2">
                                   <span className="text-xs font-semibold text-[var(--teks)] truncate">
-                                    {kasir.nama_lengkap || kasir.username}
+                                    {kasir.username}
                                   </span>
                                   <span className="text-[10px] px-1.5 py-0.5 rounded font-medium bg-[var(--latar)] text-[var(--teks)] border border-[var(--garis)] shrink-0">
                                     {kasir.cabang || 'Cabang 1'}
                                   </span>
-                                </div>
-                                <div className="text-[11px] text-[var(--redup)]">
-                                  @{kasir.username}
                                 </div>
                               </div>
                             </div>
@@ -805,6 +870,133 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
                   })}
                 </div>
               )}
+            </div>
+          )}
+
+          {activeTab === 'cabang' && isOwner && (
+            <div className="space-y-4">
+              {/* Info banner wewenang owner */}
+              <div className="p-3 rounded-lg bg-[var(--utama-muda)] border border-[var(--garis)] text-[var(--utama-teks)] text-xs">
+                <p className="font-semibold text-[var(--utama-teks)]">Kelola Cabang</p>
+                <p className="text-[var(--utama-teks)] mt-0.5 leading-relaxed">
+                  Tambah, ubah nama, atau hapus cabang. Perubahan nama otomatis diperbarui ke data
+                  kasir, menu, dan transaksi terkait.
+                </p>
+              </div>
+
+              {/* Form tambah cabang */}
+              <form
+                onSubmit={handleAddCabang}
+                className="flex items-end gap-2 p-3.5 bg-[var(--latar)] rounded-lg border border-[var(--garis)]"
+              >
+                <div className="flex-1 min-w-0">
+                  <label className="block text-xs font-medium text-[var(--teks)] mb-1">
+                    Nama Cabang Baru
+                  </label>
+                  <input
+                    type="text"
+                    value={newCabangName}
+                    onChange={(e) => setNewCabangName(e.target.value)}
+                    placeholder="Contoh: Cabang 3"
+                    className="w-full px-3 py-1.5 text-xs bg-[var(--kartu)] border border-[var(--garis-kuat)] rounded-lg focus:border-[var(--utama-teks)] outline-none"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="px-3.5 py-1.5 rounded-lg bg-[var(--utama)] hover:bg-[var(--utama-tua)] active:bg-[var(--utama)] text-white text-xs font-medium transition flex items-center gap-1.5 cursor-pointer shadow-xs shrink-0"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Tambah</span>
+                </button>
+              </form>
+
+              {/* Daftar cabang */}
+              <div>
+                <h4 className="text-sm font-semibold text-[var(--teks)] mb-1">Daftar Cabang</h4>
+                <p className="text-xs text-[var(--redup)] mb-2.5">
+                  {cabangList.length} cabang terdaftar
+                </p>
+
+                <div className="space-y-2">
+                  {cabangList.map((cabang) => {
+                    const isEditing = editingCabang === cabang;
+                    return (
+                      <div
+                        key={cabang}
+                        className="p-3 rounded-lg bg-[var(--kartu)] border border-[var(--garis)] hover:border-[var(--garis-kuat)] transition"
+                      >
+                        {isEditing ? (
+                          <div className="space-y-2">
+                            <div className="text-xs font-semibold text-[var(--teks)]">
+                              Ubah Nama Cabang
+                            </div>
+                            <input
+                              type="text"
+                              value={editCabangName}
+                              onChange={(e) => setEditCabangName(e.target.value)}
+                              className="w-full px-2.5 py-1 text-xs border border-[var(--garis-kuat)] rounded-md outline-none focus:border-[var(--utama-teks)]"
+                              autoFocus
+                            />
+                            <div className="flex justify-end gap-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingCabang(null);
+                                  setEditCabangName('');
+                                }}
+                                className="px-2.5 py-1 rounded-md border border-[var(--garis-kuat)] text-xs text-[var(--redup)] hover:bg-[var(--latar)]"
+                              >
+                                Batal
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleRenameCabang(cabang)}
+                                className="px-3 py-1 rounded-md bg-[var(--utama)] text-white text-xs font-medium hover:bg-[var(--utama-tua)] cursor-pointer"
+                              >
+                                Simpan
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <div className="w-8 h-8 rounded-md bg-[var(--latar)] text-[var(--teks)] flex items-center justify-center shrink-0 border border-[var(--garis)]">
+                                <Building2 className="w-4 h-4 text-[var(--utama-teks)]" />
+                              </div>
+                              <span className="text-xs font-semibold text-[var(--teks)] truncate">
+                                {cabang}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingCabang(cabang);
+                                  setEditCabangName(cabang);
+                                }}
+                                title="Ubah nama cabang"
+                                className="p-1 rounded-md text-[var(--redup)] hover:text-[var(--teks)] hover:bg-[var(--latar)] transition"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteCabangClick(cabang)}
+                                title="Hapus cabang"
+                                disabled={cabangList.length <= 1}
+                                className="p-1 rounded-md text-red-500 hover:text-red-700 hover:bg-red-50 transition disabled:opacity-30 disabled:cursor-not-allowed"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           )}
         </div>

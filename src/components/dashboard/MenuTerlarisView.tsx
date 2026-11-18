@@ -113,7 +113,7 @@ export const MenuTerlarisView: React.FC = () => {
               onClick={() => setSelectedCabangFilter('Semua')}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
                 selectedCabangFilter === 'Semua'
-                  ? 'bg-[var(--nav)] text-white shadow-xs'
+                  ? 'bg-[var(--utama)] text-white shadow-xs'
                   : 'text-[var(--redup)] hover:text-[var(--teks)]'
               }`}
             >

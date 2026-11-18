@@ -16,8 +16,10 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Info,
+  X,
 } from 'lucide-react';
 import { formatRupiah, formatDateIndo } from '../../utils/formatters';
+import { getFormattedDate } from '../../db';
 
 export interface ChartDataPoint {
   tanggal: string;
@@ -124,6 +126,73 @@ export const LineChartOwner: React.FC<LineChartOwnerProps> = ({
   const [showSales, setShowSales] = useState(true);
   const [showProfit, setShowProfit] = useState(true);
   const [showGrossProfit, setShowGrossProfit] = useState(true);
+
+  // Popup "Rentang Tanggal" — pilih tanggal mulai & selesai lewat dialog (bukan panel inline)
+  const [showRangePopup, setShowRangePopup] = useState(false);
+  const [draftStart, setDraftStart] = useState(customStartDate);
+  const [draftEnd, setDraftEnd] = useState(customEndDate);
+  // Field yang sedang dipilih di popup: 'start' (Dari) atau 'end' (Sampai)
+  const [activeField, setActiveField] = useState<'start' | 'end'>('start');
+
+  // Batas maksimum rentang tanggal (dipakai popup & kalender)
+  const RANGE_MAX_DAYS = 30;
+
+  /** "Sampai" tidak boleh sebelum "Dari" dan tidak boleh melewati "Dari" + 30 hari */
+  const clampEndDate = (startStr: string, endStr: string): string => {
+    if (!startStr) return endStr;
+    if (!endStr || endStr < startStr) return startStr;
+    const maxEnd = new Date(`${startStr}T00:00:00`);
+    maxEnd.setDate(maxEnd.getDate() + RANGE_MAX_DAYS);
+    const maxEndStr = getFormattedDate(maxEnd);
+    return endStr > maxEndStr ? maxEndStr : endStr;
+  };
+
+  const openRangePopup = () => {
+    const s = customStartDate;
+    setDraftStart(s);
+    // Normalisasi rentang lama yang mungkin sudah > 30 hari
+    setDraftEnd(clampEndDate(s, customEndDate));
+    setActiveField('start');
+    setShowRangePopup(true);
+  };
+
+  // Klik 1 hari di kalender → isi field yang sedang aktif (Dari dulu, lalu Sampai)
+  const pickRangeDay = (dateStr: string) => {
+    if (activeField === 'start') {
+      setDraftStart(dateStr);
+      // Sampai otomatis dijaga: tidak sebelum Dari, maksimal Dari + 30 hari
+      setDraftEnd(clampEndDate(dateStr, draftEnd));
+      setActiveField('end');
+    } else {
+      if (dateStr < draftStart) {
+        // Klik sebelum Dari (seharusnya tidak mungkin, tapi amankan): mulai rentang baru
+        setDraftStart(dateStr);
+        setDraftEnd(dateStr);
+        setActiveField('start');
+        return;
+      }
+      setDraftEnd(clampEndDate(draftStart, dateStr));
+      // tetap di field "Sampai" agar user bisa menggeser tanggal selesai
+    }
+  };
+
+  const applyRangePopup = () => {
+    const s = draftStart || customStartDate;
+    const e = clampEndDate(s, draftEnd || customEndDate);
+    onCustomStartDateChange(s);
+    onCustomEndDateChange(e);
+    setShowRangePopup(false);
+    setActiveField('start');
+    setSelectedPointIndex(null);
+  };
+
+  // Durasi rentang yang sedang dipilih (indikator di popup)
+  const rangeDays =
+    draftStart && draftEnd && draftEnd >= draftStart
+      ? Math.round(
+          (new Date(`${draftEnd}T00:00:00`).getTime() - new Date(`${draftStart}T00:00:00`).getTime()) / 86400000
+        ) + 1
+      : 0;
 
   const uid = useId().replace(/:/g, '');
 
@@ -255,7 +324,7 @@ export const LineChartOwner: React.FC<LineChartOwnerProps> = ({
         </div>
 
         {/* 4 Period Chips: 7 Hari, 30 Hari, Berdasarkan Bulan, Rentang Tanggal */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 bg-[var(--latar)] p-1 rounded-lg border border-[var(--garis)] w-full lg:w-auto text-xs">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 bg-[var(--latar)] p-1 rounded-lg border border-[var(--garis)] w-full lg:w-auto text-[11px] sm:text-xs">
           <button
             type="button"
             onClick={() => {
@@ -304,15 +373,16 @@ export const LineChartOwner: React.FC<LineChartOwnerProps> = ({
             onClick={() => {
               onPeriodChange('custom');
               setSelectedPointIndex(null);
+              openRangePopup();
             }}
-            className={`min-h-[34px] px-3 py-1.5 rounded font-medium transition flex items-center justify-center gap-1 whitespace-nowrap cursor-pointer ${
+            className={`min-h-[34px] px-2 sm:px-3 py-1.5 rounded font-medium transition flex items-center justify-center gap-1 whitespace-nowrap cursor-pointer ${
               period === 'custom'
                 ? 'bg-[var(--utama)] text-white font-semibold shadow-xs'
                 : 'text-[var(--teks)] hover:text-[var(--teks)]'
             }`}
           >
-            <Calendar className="w-3.5 h-3.5" />
-            <span>Pilih Tanggal</span>
+            <Calendar className="w-3.5 h-3.5 shrink-0" />
+            <span>Rentang Tanggal</span>
           </button>
         </div>
       </div>
@@ -383,41 +453,7 @@ export const LineChartOwner: React.FC<LineChartOwnerProps> = ({
         </div>
       )}
 
-      {/* 2b. Sub-Filters: Rentang Tanggal - Single Calendar Table Range Picker */}
-      {period === 'custom' && (
-        <div className="bg-[var(--utama-muda)]/70 border border-[var(--garis)]/80 rounded-2xl p-3 sm:p-3.5 space-y-2 w-full min-w-0 overflow-hidden animate-in fade-in">
-          <div className="flex items-center gap-1.5 text-xs font-bold text-[var(--utama-teks)]">
-            <Calendar className="w-4 h-4 text-[var(--utama-teks)] shrink-0" />
-            <span>Pilih Rentang Tanggal (maks 30 hari):</span>
-          </div>
-          
-          {/* Selected Range Display */}
-          <div className="flex items-center gap-2 text-xs sm:text-sm">
-            <div className="flex-1 min-w-0 bg-[var(--kartu)] border border-[var(--garis)] rounded-xl px-3 py-2.5">
-              <div className="text-[10px] font-semibold text-[var(--redup)] mb-0.5">Dari</div>
-              <div className="font-bold text-[var(--teks)]">
-                {customStartDate ? new Date(customStartDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
-              </div>
-            </div>
-            <span className="text-[var(--redup)]">→</span>
-            <div className="flex-1 min-w-0 bg-[var(--kartu)] border border-[var(--garis)] rounded-xl px-3 py-2.5">
-              <div className="text-[10px] font-semibold text-[var(--redup)] mb-0.5">Sampai</div>
-              <div className="font-bold text-[var(--teks)]">
-                {customEndDate ? new Date(customEndDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
-              </div>
-            </div>
-          </div>
-
-          {/* Inline Calendar Range Picker */}
-          <DateRangeCalendar
-            startDate={customStartDate}
-            endDate={customEndDate}
-            onStartChange={onCustomStartDateChange}
-            onEndChange={onCustomEndDateChange}
-            maxDays={30}
-          />
-        </div>
-      )}
+      {/* 2b. Rentang Tanggal — tombol ringkas 1 baris, pemilihan tanggal lewat popup (lihat bagian bawah) */}
 
       {/* 3. Line Display Toggles - Urutan: Merah (Omzet), Kuning (Laba Kotor), Hijau (Laba Bersih) */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
@@ -471,7 +507,7 @@ export const LineChartOwner: React.FC<LineChartOwnerProps> = ({
             }`}
           >
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-            <span>Laba Bersih</span>
+            <span className="text-emerald-700">Laba Bersih</span>
           </button>
         </div>
       </div>
@@ -848,11 +884,11 @@ export const LineChartOwner: React.FC<LineChartOwnerProps> = ({
                 <span className={`font-extrabold ${currentHovered.labaKotor >= 0 ? 'text-amber-700' : 'text-rose-600'}`}>{formatRupiah(currentHovered.labaKotor)}</span>
               </div>
             </div>
-            <div className="flex items-center gap-2 p-2 bg-emerald-50/50 rounded-xl border border-[var(--garis)]">
+            <div className="flex items-center gap-2 p-2 bg-emerald-50/70 rounded-xl border border-[var(--garis)]">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" />
               <div>
                 <span className="text-[10px] font-semibold text-[var(--redup)] block">Laba Bersih</span>
-                <span className={`font-extrabold ${currentHovered.labaBersih >= 0 ? 'text-emerald-700' : 'text-rose-600'}`}>{formatRupiah(currentHovered.labaBersih)}</span>
+                <span className={`font-extrabold ${currentHovered.labaBersih >= 0 ? 'text-emerald-700' : 'text-[var(--bahaya-teks)]'}`}>{formatRupiah(currentHovered.labaBersih)}</span>
               </div>
             </div>
           </div>
@@ -863,25 +899,143 @@ export const LineChartOwner: React.FC<LineChartOwnerProps> = ({
           </div>
         )}
       </div>
+
+      {/* 6. POPUP RENTANG TANGGAL - user memilih tanggal berapa sd berapa */}
+      {showRangePopup && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs animate-in fade-in duration-150"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowRangePopup(false);
+          }}
+        >
+          <div className="w-full max-w-sm rounded-3xl bg-[var(--kartu)] shadow-2xl border border-[var(--garis)] animate-in zoom-in-95 duration-150 max-h-[92vh] overflow-y-auto">
+            {/* Popup Header */}
+            <div className="flex items-center justify-between p-4 bg-[var(--latar)] border-b border-[var(--garis)]">
+              <div className="flex items-center gap-2 min-w-0">
+                <Calendar className="w-5 h-5 text-[var(--utama-teks)] shrink-0" />
+                <div className="min-w-0">
+                  <h3 className="font-bold text-[var(--teks)] text-sm">Rentang Tanggal</h3>
+                  <p className="text-[11px] text-[var(--redup)] truncate">
+                    Pilih tanggal berapa sd berapa (maks 30 hari)
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowRangePopup(false)}
+                className="p-1 rounded-lg text-[var(--redup)] hover:bg-[var(--garis)]/50 shrink-0"
+                aria-label="Tutup"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-4 space-y-2.5">
+              {/* Petunjuk langkah: Dari dulu, lalu Sampai */}
+              <p className="text-[11px] leading-relaxed text-[var(--redup)]">
+                Klik tanggal{' '}
+                <span className={`font-bold ${activeField === 'start' ? 'text-[var(--utama-teks)] underline' : 'text-[var(--teks)]'}`}>
+                  Dari
+                </span>{' '}
+                lebih dulu pada kalender, lalu klik tanggal{' '}
+                <span className={`font-bold ${activeField === 'end' ? 'text-[var(--utama-teks)] underline' : 'text-[var(--teks)]'}`}>
+                  Sampai
+                </span>
+                . Rentang saat ini:{' '}
+                <span className="font-bold text-[var(--teks)]">{rangeDays} hari</span> (maks {RANGE_MAX_DAYS} hari).
+              </p>
+
+              {/* Ringkasan rentang terpilih — diklik untuk ganti field yang sedang dipilih */}
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setActiveField('start')}
+                  className={`text-left rounded-xl px-3 py-2 min-w-0 border transition cursor-pointer ${
+                    activeField === 'start'
+                      ? 'bg-[var(--utama-muda)] border-[var(--utama-teks)] ring-2 ring-[var(--utama-teks)]/25'
+                      : 'bg-[var(--latar)] border-[var(--garis)] hover:border-[var(--garis-kuat)]'
+                  }`}
+                >
+                  <div className="text-[10px] font-semibold text-[var(--redup)] mb-0.5">
+                    Dari {activeField === 'start' && <span className="text-[var(--utama-teks)]">• sedang dipilih</span>}
+                  </div>
+                  <div className="font-bold text-[var(--teks)] truncate">
+                    {draftStart
+                      ? new Date(draftStart).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
+                      : '—'}
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveField('end')}
+                  className={`text-left rounded-xl px-3 py-2 min-w-0 border transition cursor-pointer ${
+                    activeField === 'end'
+                      ? 'bg-[var(--utama-muda)] border-[var(--utama-teks)] ring-2 ring-[var(--utama-teks)]/25'
+                      : 'bg-[var(--latar)] border-[var(--garis)] hover:border-[var(--garis-kuat)]'
+                  }`}
+                >
+                  <div className="text-[10px] font-semibold text-[var(--redup)] mb-0.5">
+                    Sampai {activeField === 'end' && <span className="text-[var(--utama-teks)]">• sedang dipilih</span>}
+                  </div>
+                  <div className="font-bold text-[var(--teks)] truncate">
+                    {draftEnd
+                      ? new Date(draftEnd).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
+                      : '—'}
+                  </div>
+                </button>
+              </div>
+
+              {/* Kalender pilih rentang */}
+              <DateRangeCalendar
+                startDate={draftStart}
+                endDate={draftEnd}
+                maxDays={RANGE_MAX_DAYS}
+                activeField={activeField}
+                onPickDay={pickRangeDay}
+              />
+
+              {/* Aksi popup */}
+              <div className="flex gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowRangePopup(false)}
+                  className="flex-1 min-h-[40px] px-3 py-2 rounded-xl text-xs font-bold bg-[var(--latar)] text-[var(--teks)] border border-[var(--garis)] hover:bg-[var(--garis)]/60 transition cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={applyRangePopup}
+                  className="flex-1 min-h-[40px] px-3 py-2 rounded-xl text-xs font-bold bg-[var(--utama)] text-white hover:opacity-90 transition cursor-pointer"
+                >
+                  Terapkan
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
 // ===== Date Range Calendar Component =====
 interface DateRangeCalendarProps {
-  startDate: string;
-  endDate: string;
-  onStartChange: (val: string) => void;
-  onEndChange: (val: string) => void;
+  startDate: string; // nilai "Dari" — dipakai highlight & batas maks
+  endDate: string; // nilai "Sampai" — dipakai highlight
   maxDays: number;
+  /** Field yang sedang dipilih user: 'start' = memilih Dari, 'end' = memilih Sampai */
+  activeField: 'start' | 'end';
+  /** Semua klik hari diteruskan ke popup (alur pilih 2 langkah: Dari dulu, lalu Sampai) */
+  onPickDay: (dateStr: string) => void;
 }
 
 const DateRangeCalendar: React.FC<DateRangeCalendarProps> = ({
   startDate,
   endDate,
-  onStartChange,
-  onEndChange,
   maxDays,
+  activeField,
+  onPickDay,
 }) => {
   const [viewMonth, setViewMonth] = useState(() => {
     const d = startDate ? new Date(startDate) : new Date();
@@ -904,30 +1058,15 @@ const DateRangeCalendar: React.FC<DateRangeCalendarProps> = ({
 
   const handleDayClick = (day: number) => {
     const dateStr = `${viewMonth.year}-${String(viewMonth.month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    
-    if (!startDate || (startDate && endDate)) {
-      onStartChange(dateStr);
-      onEndChange(dateStr);
-    } else if (dateStr < startDate) {
-      onStartChange(dateStr);
-    } else {
-      const start = new Date(startDate);
-      const clicked = new Date(dateStr);
-      const diffDays = Math.floor((clicked.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-      
-      if (diffDays <= maxDays) {
-        onEndChange(dateStr);
-      } else {
-        const maxEnd = new Date(start);
-        maxEnd.setDate(start.getDate() + maxDays);
-        onEndChange(getFormattedDate(maxEnd));
-      }
-    }
+    onPickDay(dateStr);
   };
 
   const isDisabled = (day: number) => {
-    if (!startDate) return false;
     const dateStr = `${viewMonth.year}-${String(viewMonth.month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    // Saat memilih "Dari", semua tanggal bebas dipilih
+    if (activeField === 'start' || !startDate) return false;
+    // Saat memilih "Sampai": tidak boleh sebelum Dari, dan maks maxDays hari
+    if (dateStr < startDate) return true;
     const start = new Date(startDate);
     const clicked = new Date(dateStr);
     const diffDays = Math.floor((clicked.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
@@ -975,7 +1114,7 @@ const DateRangeCalendar: React.FC<DateRangeCalendarProps> = ({
               className={`aspect-square relative rounded-lg text-xs font-medium transition-all active:scale-95 ${
                 selected ? 'bg-[var(--utama)] text-white shadow-xs z-10'
                 : inRange ? 'bg-[var(--utama-muda)]/50 text-[var(--utama-teks)]'
-                : disabled ? 'text-[var(--garis)] cursor-not-allowed'
+                : disabled ? 'text-[var(--redup)]/40 cursor-not-allowed'
                 : 'text-[var(--teks)] hover:bg-[var(--latar)]'
               } ${isToday && !selected && !inRange ? 'ring-2 ring-[var(--utama-teks)]' : ''}`}
             >
