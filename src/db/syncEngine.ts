@@ -207,6 +207,20 @@ function handleOffline() {
 function setupRealtime(): void {
   if (!supabase) return;
   
+  // HMR-safe: remove any stale channel with this name before re-subscribing.
+  // Supabase throws "cannot add postgres_changes callbacks after subscribe()"
+  // if we attach .on() to a channel that was already subscribed by a previous module instance.
+  try {
+    const existing = supabase.getChannels?.() ?? [];
+    for (const ch of existing) {
+      if (ch && (ch as any).topic === 'db_changes') {
+        supabase.removeChannel(ch);
+      }
+    }
+  } catch {
+    // ignore - getChannels may not exist on older supabase-js
+  }
+  
   realtimeChannel = supabase.channel('db_changes', {
     config: {
       broadcast: { self: false },
@@ -348,17 +362,16 @@ async function rekeyUser(oldId: number, newId: number): Promise<void> {
     newId = maxId;
   }
   
-  // Transaction-like: update related tables first, then user
-  await db.transaksi.where('user_id').equals(oldId).modify({ 
-    user_id: newId, 
-    synced: false, 
-    updated_at: new Date().toISOString() 
-  });
-  await db.pesanan_aktif.where('user_id').equals(oldId).modify({ 
-    user_id: newId, 
-    synced: false, 
-    updated_at: new Date().toISOString() 
-  });
+  // Update related tables first, then user.
+  // Use .filter() instead of .where() so this works even if a user_id index
+  // is missing on a given Dexie version (avoids SchemaError: KeyPath not indexed).
+  const nowIso = new Date().toISOString();
+  await db.transaksi
+    .filter((t) => t.user_id === oldId)
+    .modify({ user_id: newId, synced: false, updated_at: nowIso });
+  await db.pesanan_aktif
+    .filter((p) => p.user_id === oldId)
+    .modify({ user_id: newId, synced: false, updated_at: nowIso });
   
   // Delete old, insert new with same data but new id
   await db.users.delete(oldId);
