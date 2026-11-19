@@ -80,7 +80,7 @@ export class SkbDatabase extends Dexie {
         biaya: '++id, tanggal, created_at, updated_at, synced, deleted_at',
         promo: '++id, nama, aktif, tanggal_mulai, tanggal_selesai, created_at, updated_at, synced, deleted_at',
         kategori: '++id, &nama, urutan, aktif, created_at, updated_at, synced, deleted_at',
-        pesanan_aktif: '++id, nomor_pesanan, cabang, status, tanggal, created_at, updated_at, synced, deleted_at',
+        pesanan_aktif: '++id, nomor_pesanan, cabang, status, tanggal, user_id, created_at, updated_at, synced, deleted_at',
         app_config: '&key, updated_at',
       })
       .upgrade(async (tx) => {
@@ -110,6 +110,11 @@ export class SkbDatabase extends Dexie {
           });
         }
       });
+
+    // v7: Add user_id index to pesanan_aktif for rekeyUser FK updates
+    this.version(7).stores({
+      pesanan_aktif: '++id, nomor_pesanan, cabang, status, tanggal, user_id, created_at, updated_at, synced, deleted_at',
+    });
   }
 }
 

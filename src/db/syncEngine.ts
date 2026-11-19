@@ -119,13 +119,14 @@ export async function initializeSyncEngine(): Promise<void> {
         
         if (table === 'users') {
           for (const rec of data) {
+            // Never let remote id overwrite a different local primary key (causes ConstraintError)
+            const { id: _remoteId, ...remoteFields } = rec;
             // Match by username first to avoid unique constraint errors
             const localByUsername = await (db as any).table('users').where('username').equals(rec.username).first();
             if (localByUsername) {
-              // Update local record with remote data (keep local id)
+              // Update local record with remote data, keep local id
               await (db as any).table('users').update(localByUsername.id, {
-                ...rec,
-                username: rec.username,
+                ...remoteFields,
                 synced: true,
               });
             } else {
@@ -303,8 +304,12 @@ async function reconcileUsersWithRemote(): Promise<void> {
       if (!l.id) continue;
       const remoteNameAtThisId = remoteById.get(l.id);
       if (remoteNameAtThisId && remoteNameAtThisId !== l.username) {
-        await rekeyUser(l.id, nextFreeId++);
-        console.log(`[Reconcile] Moved local user ${l.username} (id ${l.id}) → ${nextFreeId - 1} (remote id ${l.id} belongs to ${remoteNameAtThisId})`);
+        try {
+          await rekeyUser(l.id, nextFreeId++);
+          console.log(`[Reconcile] Moved local user ${l.username} (id ${l.id}) → ${nextFreeId - 1} (remote id ${l.id} belongs to ${remoteNameAtThisId})`);
+        } catch (e) {
+          console.error(`[Reconcile] Failed phase 1 for ${l.username}:`, e);
+        }
       }
     }
     
@@ -315,8 +320,12 @@ async function reconcileUsersWithRemote(): Promise<void> {
       const remoteId = remoteByName.get(l.username);
       if (remoteId !== undefined && remoteId !== l.id) {
         // Target ID bebas (fase 1 sudah mengosongkannya)
-        await rekeyUser(l.id, remoteId);
-        console.log(`[Reconcile] Adopted remote id ${remoteId} for local user ${l.username} (was ${l.id})`);
+        try {
+          await rekeyUser(l.id, remoteId);
+          console.log(`[Reconcile] Adopted remote id ${remoteId} for local user ${l.username} (was ${l.id})`);
+        } catch (e) {
+          console.error(`[Reconcile] Failed phase 2 for ${l.username}:`, e);
+        }
       }
     }
   } catch (error) {
@@ -330,6 +339,14 @@ async function reconcileUsersWithRemote(): Promise<void> {
 async function rekeyUser(oldId: number, newId: number): Promise<void> {
   const user = await db.users.get(oldId);
   if (!user) return;
+  
+  // Safety: if newId already occupied by different username, pick fresh id
+  const occupant = await db.users.get(newId);
+  if (occupant && occupant.username !== user.username) {
+    const maxId = await db.users.toArray().then(arr => Math.max(0, ...arr.map(u => u.id ?? 0))) + 1;
+    console.warn(`[Reconcile] rekeyUser target id ${newId} occupied by ${occupant.username}, using ${maxId} instead`);
+    newId = maxId;
+  }
   
   // Transaction-like: update related tables first, then user
   await db.transaksi.where('user_id').equals(oldId).modify({ 
@@ -407,13 +424,14 @@ async function pullTables(tables: TableName[]): Promise<void> {
       
       if (table === 'users') {
         for (const rec of data) {
+          // Never let remote id overwrite a different local primary key (causes ConstraintError)
+          const { id: _remoteId, ...remoteFields } = rec;
           // Match by username first to avoid unique constraint errors
           const localByUsername = await (db as any).table('users').where('username').equals(rec.username).first();
           if (localByUsername) {
-            // Update local record with remote data (keep local id)
+            // Update local record with remote data, keep local id
             await (db as any).table('users').update(localByUsername.id, {
-              ...rec,
-              username: rec.username,
+              ...remoteFields,
               synced: true,
             });
           } else {
