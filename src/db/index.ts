@@ -163,13 +163,15 @@ const REAL_SKB_MENUS: SkbMenuDef[] = [
   { nama: 'Es Jeruk', harga: 4000, kategori: 'Minuman', biaya: 1500 },
 ];
 
-const MENU_MIGRATION_KEY = 'bukupos_menu_real_v1';
+const MENU_MIGRATION_KEY = 'bukupos_menu_real_v2';
 
 /**
  * Sinkronkan menu lokal dengan menu asli S.K.B (sekali jalan, ditandai localStorage):
  * - Rename nama lama ("Kepala"→"Kepala Kecil", "Es Teh"→"Es Teh Manis") → ID utuh, riwayat transaksi aman
  * - Tambah menu baru (Kepala Besar, Bakso), update harga (Bebek → custom)
- * - Nonaktifkan menu di luar daftar asli (mis. Nasi 1/2 Porsi)
+ * - HAPUS menu junk di luar daftar asli / di luar Cabang 1-2 (data experiment lama
+ *   seperti "Nasi Goreng Spesial", cabang "Depan Alfa") — referensi riwayat
+ *   detail_transaksi di-null-kan dulu supaya riwayat transaksi tetap utuh
  * - Tandai semua menu synced:false agar ikut ter-push ke Supabase
  */
 async function migrateMenuRealSkb(): Promise<void> {
@@ -177,7 +179,6 @@ async function migrateMenuRealSkb(): Promise<void> {
     if (localStorage.getItem(MENU_MIGRATION_KEY)) return;
 
     const nowIso = new Date().toISOString();
-    const realNames = new Set(REAL_SKB_MENUS.map((m) => m.nama.toLowerCase()));
 
     // 1. Rename nama lama (pertahankan ID agar referensi detail_transaksi tidak rusak)
     const renames: Record<string, { nama: string; harga: number }> = {
@@ -195,14 +196,18 @@ async function migrateMenuRealSkb(): Promise<void> {
     }
 
     // 2. Cocokkan dengan menu asli per cabang: update in-place atau tambah baru
+    const keepIds = new Set<number>();
     for (const cabang of ['Cabang 1', 'Cabang 2']) {
       for (const def of REAL_SKB_MENUS) {
         const match = allMenus.find(
           (m) =>
+            m.id !== undefined &&
+            !keepIds.has(m.id) &&
             m.nama.trim().toLowerCase() === def.nama.toLowerCase() &&
             menuCabangList(m.cabang).includes(cabang)
         );
         if (match && match.id) {
+          keepIds.add(match.id);
           await db.menus.update(match.id, {
             harga: def.harga,
             kategori: def.kategori,
@@ -212,7 +217,7 @@ async function migrateMenuRealSkb(): Promise<void> {
             harga_range: def.hargaRange,
           });
         } else {
-          await db.menus.add({
+          const newId = await db.menus.add({
             nama: def.nama,
             harga: def.harga,
             kategori: def.kategori,
@@ -225,16 +230,22 @@ async function migrateMenuRealSkb(): Promise<void> {
             created_at: nowIso,
             updated_at: nowIso,
           });
+          keepIds.add(newId);
         }
       }
+    }
 
-      // 3. Nonaktifkan menu di luar daftar asli milik cabang ini
-      for (const m of allMenus) {
-        if (!m.id || !m.aktif) continue;
-        if (!menuCabangList(m.cabang).includes(cabang)) continue;
-        if (realNames.has(m.nama.trim().toLowerCase())) continue;
-        await db.menus.update(m.id, { aktif: false });
-      }
+    // 3. Hapus menu junk: nama di luar daftar asli, cabang di luar Cabang 1/2
+    //    (mis. "Nasi Goreng Spesial", cabang "Depan Alfa"), atau duplikat.
+    //    Referensi riwayat detail_transaksi di-null-kan dulu (menu_id nullable)
+    //    supaya laporan keuangan lama tidak rusak.
+    const junkIds = allMenus
+      .map((m) => m.id)
+      .filter((id): id is number => typeof id === 'number' && !keepIds.has(id));
+    if (junkIds.length > 0) {
+      await db.detail_transaksi.where('menu_id').anyOf(junkIds).modify({ menu_id: null });
+      await db.menus.where('id').anyOf(junkIds).delete();
+      console.log(`[Migrasi] ${junkIds.length} menu junk dihapus.`);
     }
 
     // 4. Jaring pengaman: semua menu di-mark belum-sync → ter-push ke Supabase

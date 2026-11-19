@@ -60,6 +60,11 @@ export default defineConfig(() => {
       },
     },
     server: {
+      // Pin port 3000. strictPort stops Vite from silently falling back to
+      // 3001+ when 3000 is taken — a second origin would get its own
+      // IndexedDB copy and split user data across two databases.
+      port: 3000,
+      strictPort: true,
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
       // Do not modify—file watching is disabled to prevent flickering during agent edits.
       hmr: process.env.DISABLE_HMR !== 'true',
