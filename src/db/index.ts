@@ -169,7 +169,7 @@ const REAL_SKB_MENUS: SkbMenuDef[] = [
 ];
 
 const MENU_MIGRATION_KEY = 'bukupos_menu_real_v2';
-const CLEAR_TRANSAKSI_KEY = 'bukupos_clear_transaksi_v1';
+const CLEAR_TRANSAKSI_KEY = 'bukupos_clear_transaksi_v2';
 const SKIP_DEMO_DATA_KEY = 'bukupos_skip_demo_data_v1';
 
 /**
