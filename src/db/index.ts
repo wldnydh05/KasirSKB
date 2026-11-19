@@ -164,6 +164,8 @@ const REAL_SKB_MENUS: SkbMenuDef[] = [
 ];
 
 const MENU_MIGRATION_KEY = 'bukupos_menu_real_v2';
+const CLEAR_TRANSAKSI_KEY = 'bukupos_clear_transaksi_v1';
+const SKIP_DEMO_DATA_KEY = 'bukupos_skip_demo_data_v1';
 
 /**
  * Sinkronkan menu lokal dengan menu asli S.K.B (sekali jalan, ditandai localStorage):
@@ -258,6 +260,29 @@ async function migrateMenuRealSkb(): Promise<void> {
   }
 }
 
+/**
+ * Hapus SEMUA transaksi, detail_transaksi, dan pesanan_aktif (sekali jalan).
+ * Diperlukan saat user ingin reset data transaksi ke 0 (mis. pindah Tahun ajaran / reset bulanan).
+ * LocalStorage key 'bukupos_clear_transaksi_v1' memastikan hanya jalan sekali.
+ */
+async function clearAllTransaksiData(): Promise<void> {
+  try {
+    if (localStorage.getItem(CLEAR_TRANSAKSI_KEY)) return;
+
+    console.log('[Migrasi] Menghapus SEMUA data transaksi, detail_transaksi, pesanan_aktif...');
+    
+    await db.transaksi.clear();
+    await db.detail_transaksi.clear();
+    await db.pesanan_aktif.clear();
+    
+    localStorage.setItem(CLEAR_TRANSAKSI_KEY, '1');
+    localStorage.setItem(SKIP_DEMO_DATA_KEY, '1');
+    console.log('[Migrasi] Semua data transaksi berhasil dihapus (lokal).');
+  } catch (err) {
+    console.error('Migrasi hapus transaksi gagal:', err);
+  }
+}
+
 export async function seedDatabaseIfEmpty() {
   const userCount = await db.users.count();
   if (userCount > 0) {
@@ -298,6 +323,9 @@ export async function seedDatabaseIfEmpty() {
 
       // Sinkronkan daftar menu dengan menu asli S.K.B (sekali jalan)
       await migrateMenuRealSkb();
+
+      // Hapus SEMUA data transaksi, detail_transaksi, pesanan_aktif (sekali jalan)
+      await clearAllTransaksiData();
 
       // Owner
       const existingOwner = await db.users.where('role').equals('owner').first();
@@ -669,6 +697,11 @@ async function migrateKredensialLogin(): Promise<void> {
  */
 export async function ensureThirtyDaysData() {
   try {
+    // Skip if user explicitly cleared all transactions (wants fresh 0 state)
+    if (typeof localStorage !== 'undefined' && localStorage.getItem(SKIP_DEMO_DATA_KEY)) {
+      console.log('[Demo Data] Skipping 30-day demo data generation (user cleared transaksi)');
+      return;
+    }
     const today = new Date();
     const allMenus = await db.menus.toArray();
     if (allMenus.length === 0) return;

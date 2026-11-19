@@ -431,7 +431,6 @@ export const KelolaMenuView: React.FC = () => {
                   </td>
                   <td className="py-3 px-4">
                     <div className="font-bold text-[var(--teks)] text-sm">{menu.nama}</div>
-                    <div className="text-[11px] text-[var(--redup)]">ID #{menu.id}</div>
                   </td>
                   <td className="py-3 px-4">
                     <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-[var(--latar)] text-[var(--teks)]">
