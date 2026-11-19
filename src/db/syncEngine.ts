@@ -216,43 +216,76 @@ async function syncNow(): Promise<void> {
 
 async function pushLocalChanges(): Promise<void> {
   if (!supabase) return;
-  
+
+  const lastSyncIso = new Date(state.lastSync).toISOString();
+
   for (const table of TABLES) {
     try {
-      // Get unsynced records (synced = false OR updated_at > lastSync)
-      const unsynced = await (db as any).table(table)
-        .where('synced').equals(false)
-        .or('updated_at')
-        .above(state.lastSync)
+      // Record yang belum pernah di-sync (synced !== true — menangkap undefined)
+      // ATAU diubah setelah sync terakhir (updated_at > lastSync, format ISO sama → banding string aman)
+      const unsynced = await (db as any)
+        .table(table)
+        .filter(
+          (r: any) =>
+            r.synced !== true ||
+            (typeof r.updated_at === 'string' && r.updated_at > lastSyncIso)
+        )
         .toArray();
-      
+
       if (unsynced.length === 0) continue;
-      
+
       console.log(`[SyncEngine] Pushing ${unsynced.length} records for ${table}`);
-      
+
       // Convert to Supabase format (remove Dexie internal fields)
+      const nowIso = new Date().toISOString();
       const records = unsynced.map((record: any) => {
         const { synced, ...rest } = record;
+        if (!rest.updated_at) rest.updated_at = nowIso;
         return rest;
       });
-      
+
+      // app_config PK = 'key' (bukan 'id')
+      const onConflict = table === 'app_config' ? 'key' : 'id';
+      const okIds: (number | string)[] = [];
+
       // Upsert in batches of 100
       for (let i = 0; i < records.length; i += 100) {
         const batch = records.slice(i, i + 100);
+        const batchIds = unsynced
+          .slice(i, i + 100)
+          .map((r: any) => r.id)
+          .filter((v: any) => v !== undefined);
+
         const { error } = await supabase
           .from(table)
-          .upsert(batch, { onConflict: 'id', ignoreDuplicates: false });
-        
-        if (error) {
-          console.error(`[SyncEngine] Push error for ${table}:`, error);
-          throw error;
+          .upsert(batch, { onConflict, ignoreDuplicates: false });
+
+        if (!error) {
+          okIds.push(...batchIds);
+          continue;
+        }
+
+        // Fallback per-baris: isolasi record bermasalah (FK/constraint)
+        // supaya record lain tetap ikut tersync
+        console.error(`[SyncEngine] Batch push error ${table}:`, error.message);
+        for (let j = 0; j < batch.length; j++) {
+          const { error: rowError } = await supabase
+            .from(table)
+            .upsert([batch[j]], { onConflict, ignoreDuplicates: false });
+          if (rowError) {
+            console.error(
+              `[SyncEngine] Skip ${table} id=${batchIds[j] ?? batch[j].key}:`,
+              rowError.message
+            );
+          } else if (batchIds[j] !== undefined) {
+            okIds.push(batchIds[j]);
+          }
         }
       }
-      
-      // Mark as synced in local DB
-      const ids = unsynced.map((r: any) => r.id).filter(Boolean);
-      if (ids.length > 0) {
-        await (db as any).table(table).where('id').anyOf(ids).modify({ synced: true });
+
+      // Mark as synced in local DB (hanya yang berhasil dikirim)
+      if (okIds.length > 0) {
+        await (db as any).table(table).where('id').anyOf(okIds).modify({ synced: true });
       }
     } catch (error) {
       console.error(`[SyncEngine] Failed to push ${table}:`, error);
@@ -294,7 +327,11 @@ async function pullAll(): Promise<void> {
 async function updatePendingCount(): Promise<void> {
   let total = 0;
   for (const table of TABLES) {
-    const count = await (db as any).table(table).where('synced').equals(false).count();
+    // .filter() menangkap record yang belum pernah punya label synced (undefined)
+    const count = await (db as any)
+      .table(table)
+      .filter((r: any) => r.synced !== true)
+      .count();
     total += count;
   }
   setPendingCount(total);

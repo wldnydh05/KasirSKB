@@ -35,7 +35,7 @@ export interface ProcessCheckoutResult {
 
 interface CartContextType {
   items: CartItem[];
-  addItem: (menu: Menu) => void;
+  addItem: (menu: Menu, customHarga?: number) => void;
   updateQuantity: (index: number, delta: number) => void;
   removeItem: (index: number) => void;
   clearCart: () => void;
@@ -112,34 +112,40 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [activeOrderInfo]);
 
-  const addItem = (menu: Menu) => {
+  const addItem = (menu: Menu, customHarga?: number) => {
+    // Harga custom = kasir ketik sendiri (mis. Bebek Rp13.000–20.000) → item ditandai manual
+    const isManualPrice = typeof customHarga === 'number' && customHarga > 0;
+    const harga = isManualPrice ? customHarga : menu.harga;
+
     setItems((prev) => {
-      const existingIndex = prev.findIndex((item) => !item.is_manual && item.menu_id === menu.id);
-      if (existingIndex > -1) {
-        const next = [...prev];
-        const current = next[existingIndex];
-        const newQty = current.jumlah + 1;
-        next[existingIndex] = {
-          ...current,
-          jumlah: newQty,
-          subtotal: current.harga * newQty,
-        };
-        return next;
-      } else {
-        return [
-          ...prev,
-          {
-            menu_id: menu.id,
-            nama: menu.nama,
-            harga: menu.harga,
-            biaya_bahan_baku: menu.biaya_bahan_baku || 0,
-            jumlah: 1,
-            subtotal: menu.harga,
-            gambar_url: menu.gambar_url,
-            is_manual: false,
-          },
-        ];
+      if (!isManualPrice) {
+        const existingIndex = prev.findIndex((item) => !item.is_manual && item.menu_id === menu.id);
+        if (existingIndex > -1) {
+          const next = [...prev];
+          const current = next[existingIndex];
+          const newQty = current.jumlah + 1;
+          next[existingIndex] = {
+            ...current,
+            jumlah: newQty,
+            subtotal: current.harga * newQty,
+          };
+          return next;
+        }
       }
+      // Item harga custom tidak digestung — setiap ketikan harga = baris baru
+      return [
+        ...prev,
+        {
+          menu_id: menu.id,
+          nama: menu.nama,
+          harga,
+          biaya_bahan_baku: menu.biaya_bahan_baku || 0,
+          jumlah: 1,
+          subtotal: harga,
+          gambar_url: menu.gambar_url,
+          is_manual: isManualPrice,
+        },
+      ];
     });
   };
 

@@ -58,6 +58,10 @@ export const EditPesananView: React.FC<EditPesananViewProps> = ({
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
+  // Custom price dialog (menu harga ketik-sendiri, mis. Bebek)
+  const [customPriceMenu, setCustomPriceMenu] = useState<Menu | null>(null);
+  const [customPriceInput, setCustomPriceInput] = useState('');
+
   // Load menu catalog
   useEffect(() => {
     async function loadCatalog() {
@@ -100,37 +104,62 @@ export const EditPesananView: React.FC<EditPesananViewProps> = ({
     setItems((prev) => prev.filter((_, i) => i !== index));
   };
 
-  // Add menu item to order
-  const handleAddMenuItem = (menu: Menu) => {
+  // Add menu item to order (customHarga → kasir ketik sendiri, item ditandai manual)
+  const handleAddMenuItem = (menu: Menu, customHarga?: number) => {
+    const isManualPrice = typeof customHarga === 'number' && customHarga > 0;
+    const harga = isManualPrice ? customHarga : menu.harga;
+
     setItems((prev) => {
-      const existingIdx = prev.findIndex((it) => !it.is_manual && it.menu_id === menu.id);
-      if (existingIdx > -1) {
-        const next = [...prev];
-        const target = next[existingIdx];
-        const newQty = target.jumlah + 1;
-        next[existingIdx] = {
-          ...target,
-          jumlah: newQty,
-          subtotal: target.harga * newQty,
-        };
-        return next;
-      } else {
-        return [
-          ...prev,
-          {
-            menu_id: menu.id,
-            nama: menu.nama,
-            harga: menu.harga,
-            biaya_bahan_baku: menu.biaya_bahan_baku || 0,
-            jumlah: 1,
-            subtotal: menu.harga,
-            gambar_url: menu.gambar_url,
-            is_manual: false,
-          },
-        ];
+      if (!isManualPrice) {
+        const existingIdx = prev.findIndex((it) => !it.is_manual && it.menu_id === menu.id);
+        if (existingIdx > -1) {
+          const next = [...prev];
+          const target = next[existingIdx];
+          const newQty = target.jumlah + 1;
+          next[existingIdx] = {
+            ...target,
+            jumlah: newQty,
+            subtotal: target.harga * newQty,
+          };
+          return next;
+        }
       }
+      return [
+        ...prev,
+        {
+          menu_id: menu.id,
+          nama: menu.nama,
+          harga,
+          biaya_bahan_baku: menu.biaya_bahan_baku || 0,
+          jumlah: 1,
+          subtotal: harga,
+          gambar_url: menu.gambar_url,
+          is_manual: isManualPrice,
+        },
+      ];
     });
     showToast(`"${menu.nama}" ditambahkan ke pesanan.`, 'info');
+  };
+
+  // Klik menu di katalog: harga custom → buka dialog ketik harga dulu
+  const handleCatalogTap = (menu: Menu) => {
+    if (menu.harga_custom) {
+      setCustomPriceInput('');
+      setCustomPriceMenu(menu);
+      return;
+    }
+    handleAddMenuItem(menu);
+  };
+
+  const handleConfirmCustomPrice = () => {
+    if (!customPriceMenu) return;
+    const price = parseInt(customPriceInput, 10);
+    if (!price || price <= 0) {
+      showToast('Harga harus angka lebih dari 0.', 'error');
+      return;
+    }
+    handleAddMenuItem(customPriceMenu, price);
+    setCustomPriceMenu(null);
   };
 
   const total = items.reduce((sum, it) => sum + it.subtotal, 0);
@@ -453,7 +482,7 @@ export const EditPesananView: React.FC<EditPesananViewProps> = ({
                   return (
                     <div
                       key={menu.id}
-                      onClick={() => handleAddMenuItem(menu)}
+                      onClick={() => handleCatalogTap(menu)}
                       className="group bg-[var(--latar)] hover:bg-[var(--utama-muda)]/50 border border-[var(--garis)] hover:border-[var(--garis-kuat)] rounded-2xl p-3 flex flex-col justify-between transition cursor-pointer active:scale-98 relative"
                     >
                       {alreadyInOrder && (
@@ -482,7 +511,11 @@ export const EditPesananView: React.FC<EditPesananViewProps> = ({
 
                       <div className="mt-2 pt-2 border-t border-[var(--garis)]/60 flex items-center justify-between">
                         <span className="text-xs font-black text-[var(--teks)]">
-                          {formatRupiah(menu.harga)}
+                          {menu.harga_custom
+                            ? menu.harga_range
+                              ? `Rp${menu.harga_range}`
+                              : 'Ketik harga'
+                            : formatRupiah(menu.harga)}
                         </span>
                         <button
                           type="button"
@@ -499,6 +532,54 @@ export const EditPesananView: React.FC<EditPesananViewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Dialog Harga Custom (Bebek: ketik sendiri) */}
+      {customPriceMenu && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-in fade-in">
+          <div className="w-full max-w-sm rounded-3xl bg-[var(--kartu)] shadow-2xl p-6 border border-[var(--garis)] animate-in zoom-in-95">
+            <h3 className="text-base font-black text-[var(--teks)] mb-1">{customPriceMenu.nama}</h3>
+            <p className="text-xs text-[var(--redup)] mb-4 leading-relaxed">
+              Masukkan harga menu ini
+              {customPriceMenu.harga_range ? ` — di menu asli Rp${customPriceMenu.harga_range}` : ''}.
+            </p>
+
+            <div className="relative mb-4">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-[var(--redup)] pointer-events-none">
+                Rp
+              </span>
+              <input
+                autoFocus
+                type="text"
+                inputMode="numeric"
+                value={customPriceInput}
+                onChange={(e) => setCustomPriceInput(e.target.value.replace(/\D/g, ''))}
+                placeholder="Contoh: 16000"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleConfirmCustomPrice();
+                }}
+                className="w-full pl-9 pr-3 py-2.5 text-lg font-black text-[var(--teks)] bg-[var(--latar)] border border-[var(--garis-kuat)] rounded-xl outline-none focus:border-[var(--utama-teks)]"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-2.5">
+              <button
+                type="button"
+                onClick={() => setCustomPriceMenu(null)}
+                className="py-3 rounded-2xl border border-[var(--garis)] bg-[var(--latar)] hover:bg-[var(--garis)] text-xs font-bold text-[var(--teks)] transition active:scale-95"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmCustomPrice}
+                className="py-3 rounded-2xl bg-[var(--utama)] hover:bg-[var(--utama-tua)] text-xs font-black text-white shadow-sm transition active:scale-95"
+              >
+                Tambah ke Pesanan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* POPUP CONFIRMATION: "Yakin ingin batalkan ubah pesanan?" */}
       {isCancelDialogOpen && (

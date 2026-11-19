@@ -5,6 +5,7 @@
 
 import Dexie, { type Table } from 'dexie';
 import bcrypt from 'bcryptjs';
+import { menuCabangList } from '../utils/menuCabang';
 import type {
   User,
   Menu,
@@ -130,6 +131,122 @@ export function getFormattedTime(d: Date = new Date()): string {
   return `${hours}:${minutes}:${seconds}`;
 }
 
+// ============================================
+// DAFTAR MENU ASLI S.K.B (15 item)
+// ============================================
+
+interface SkbMenuDef {
+  nama: string;
+  harga: number;
+  kategori: string;
+  biaya: number;
+  /** Bebek: harga diketik kasir (range di menu asli Rp13.000–20.000) */
+  hargaCustom?: boolean;
+  hargaRange?: string;
+}
+
+const REAL_SKB_MENUS: SkbMenuDef[] = [
+  { nama: 'Ayam', harga: 9000, kategori: 'Makanan', biaya: 4000 },
+  { nama: 'Sayap', harga: 5000, kategori: 'Makanan', biaya: 2000 },
+  { nama: 'Lele', harga: 7000, kategori: 'Makanan', biaya: 3500 },
+  { nama: 'Kepala Besar', harga: 4000, kategori: 'Makanan', biaya: 2000 },
+  { nama: 'Kepala Kecil', harga: 2000, kategori: 'Makanan', biaya: 1000 },
+  { nama: 'Kulit', harga: 2000, kategori: 'Makanan', biaya: 1000 },
+  { nama: 'Ati', harga: 2000, kategori: 'Makanan', biaya: 1000 },
+  { nama: 'Usus', harga: 2000, kategori: 'Makanan', biaya: 1000 },
+  { nama: 'Tahu', harga: 1000, kategori: 'Makanan', biaya: 500 },
+  { nama: 'Tempe', harga: 1000, kategori: 'Makanan', biaya: 500 },
+  { nama: 'Bebek', harga: 13000, kategori: 'Makanan', biaya: 7000, hargaCustom: true, hargaRange: '13.000-20.000' },
+  { nama: 'Nasi 1 Porsi', harga: 5000, kategori: 'Makanan', biaya: 2000 },
+  { nama: 'Bakso', harga: 2000, kategori: 'Makanan', biaya: 1000 },
+  { nama: 'Es Teh Manis', harga: 2000, kategori: 'Minuman', biaya: 1000 },
+  { nama: 'Es Jeruk', harga: 4000, kategori: 'Minuman', biaya: 1500 },
+];
+
+const MENU_MIGRATION_KEY = 'bukupos_menu_real_v1';
+
+/**
+ * Sinkronkan menu lokal dengan menu asli S.K.B (sekali jalan, ditandai localStorage):
+ * - Rename nama lama ("Kepala"→"Kepala Kecil", "Es Teh"→"Es Teh Manis") → ID utuh, riwayat transaksi aman
+ * - Tambah menu baru (Kepala Besar, Bakso), update harga (Bebek → custom)
+ * - Nonaktifkan menu di luar daftar asli (mis. Nasi 1/2 Porsi)
+ * - Tandai semua menu synced:false agar ikut ter-push ke Supabase
+ */
+async function migrateMenuRealSkb(): Promise<void> {
+  try {
+    if (localStorage.getItem(MENU_MIGRATION_KEY)) return;
+
+    const nowIso = new Date().toISOString();
+    const realNames = new Set(REAL_SKB_MENUS.map((m) => m.nama.toLowerCase()));
+
+    // 1. Rename nama lama (pertahankan ID agar referensi detail_transaksi tidak rusak)
+    const renames: Record<string, { nama: string; harga: number }> = {
+      kepala: { nama: 'Kepala Kecil', harga: 2000 },
+      'es teh': { nama: 'Es Teh Manis', harga: 2000 },
+    };
+    const allMenus = await db.menus.toArray();
+    for (const m of allMenus) {
+      if (!m.id) continue;
+      const r = renames[m.nama.trim().toLowerCase()];
+      if (r && m.nama !== r.nama) {
+        await db.menus.update(m.id, { nama: r.nama, harga: r.harga });
+        m.nama = r.nama;
+      }
+    }
+
+    // 2. Cocokkan dengan menu asli per cabang: update in-place atau tambah baru
+    for (const cabang of ['Cabang 1', 'Cabang 2']) {
+      for (const def of REAL_SKB_MENUS) {
+        const match = allMenus.find(
+          (m) =>
+            m.nama.trim().toLowerCase() === def.nama.toLowerCase() &&
+            menuCabangList(m.cabang).includes(cabang)
+        );
+        if (match && match.id) {
+          await db.menus.update(match.id, {
+            harga: def.harga,
+            kategori: def.kategori,
+            biaya_bahan_baku: def.biaya,
+            aktif: true,
+            harga_custom: Boolean(def.hargaCustom),
+            harga_range: def.hargaRange,
+          });
+        } else {
+          await db.menus.add({
+            nama: def.nama,
+            harga: def.harga,
+            kategori: def.kategori,
+            biaya_bahan_baku: def.biaya,
+            aktif: true,
+            gambar_url: '',
+            cabang: [cabang],
+            harga_custom: Boolean(def.hargaCustom),
+            harga_range: def.hargaRange,
+            created_at: nowIso,
+            updated_at: nowIso,
+          });
+        }
+      }
+
+      // 3. Nonaktifkan menu di luar daftar asli milik cabang ini
+      for (const m of allMenus) {
+        if (!m.id || !m.aktif) continue;
+        if (!menuCabangList(m.cabang).includes(cabang)) continue;
+        if (realNames.has(m.nama.trim().toLowerCase())) continue;
+        await db.menus.update(m.id, { aktif: false });
+      }
+    }
+
+    // 4. Jaring pengaman: semua menu di-mark belum-sync → ter-push ke Supabase
+    await db.menus.toCollection().modify({ synced: false, updated_at: nowIso });
+
+    localStorage.setItem(MENU_MIGRATION_KEY, '1');
+    console.log('[Migrasi] Menu asli S.K.B (15 item) sudah diterapkan.');
+  } catch (err) {
+    console.error('Migrasi menu S.K.B gagal:', err);
+  }
+}
+
 export async function seedDatabaseIfEmpty() {
   const userCount = await db.users.count();
   if (userCount > 0) {
@@ -167,6 +284,9 @@ export async function seedDatabaseIfEmpty() {
       // Standarisasi kredensial login (sekali jalan):
       // Owner → username "Rpap" / password "Rpap123", kasir → PIN "111111"
       await migrateKredensialLogin();
+
+      // Sinkronkan daftar menu dengan menu asli S.K.B (sekali jalan)
+      await migrateMenuRealSkb();
 
       // Owner
       const existingOwner = await db.users.where('role').equals('owner').first();
@@ -293,45 +413,33 @@ export async function seedDatabaseIfEmpty() {
     await db.kategori.add(cat);
   }
 
-  // 3. Seed Menus (tanpa gambar dummy, upload gambar bersifat opsional)
-  const initialMenus: Omit<Menu, 'id'>[] = [
-    // Cabang 1
-    { nama: 'Ayam', harga: 9000, kategori: 'Makanan', biaya_bahan_baku: 4000, aktif: true, gambar_url: '', cabang: ['Cabang 1'], created_at: nowIso, updated_at: nowIso },
-    { nama: 'Sayap', harga: 5000, kategori: 'Makanan', biaya_bahan_baku: 2000, aktif: true, gambar_url: '', cabang: ['Cabang 1'], created_at: nowIso, updated_at: nowIso },
-    { nama: 'Lele', harga: 7000, kategori: 'Makanan', biaya_bahan_baku: 3500, aktif: true, gambar_url: '', cabang: ['Cabang 1'], created_at: nowIso, updated_at: nowIso },
-    { nama: 'Bebek', harga: 15000, kategori: 'Makanan', biaya_bahan_baku: 7000, aktif: true, gambar_url: '', cabang: ['Cabang 1'], created_at: nowIso, updated_at: nowIso },
-    { nama: 'Tempe', harga: 1000, kategori: 'Makanan', biaya_bahan_baku: 500, aktif: true, gambar_url: '', cabang: ['Cabang 1'], created_at: nowIso, updated_at: nowIso },
-    { nama: 'Kepala', harga: 2000, kategori: 'Makanan', biaya_bahan_baku: 1000, aktif: true, gambar_url: '', cabang: ['Cabang 1'], created_at: nowIso, updated_at: nowIso },
-    { nama: 'Kulit', harga: 2000, kategori: 'Makanan', biaya_bahan_baku: 1000, aktif: true, gambar_url: '', cabang: ['Cabang 1'], created_at: nowIso, updated_at: nowIso },
-    { nama: 'Ati', harga: 2000, kategori: 'Makanan', biaya_bahan_baku: 1000, aktif: true, gambar_url: '', cabang: ['Cabang 1'], created_at: nowIso, updated_at: nowIso },
-    { nama: 'Usus', harga: 2000, kategori: 'Makanan', biaya_bahan_baku: 1000, aktif: true, gambar_url: '', cabang: ['Cabang 1'], created_at: nowIso, updated_at: nowIso },
-    { nama: 'Tahu', harga: 1000, kategori: 'Makanan', biaya_bahan_baku: 500, aktif: true, gambar_url: '', cabang: ['Cabang 1'], created_at: nowIso, updated_at: nowIso },
-    { nama: 'Nasi 1/2 Porsi', harga: 3000, kategori: 'Makanan', biaya_bahan_baku: 1500, aktif: true, gambar_url: '', cabang: ['Cabang 1'], created_at: nowIso, updated_at: nowIso },
-    { nama: 'Nasi 1 Porsi', harga: 5000, kategori: 'Makanan', biaya_bahan_baku: 2000, aktif: true, gambar_url: '', cabang: ['Cabang 1'], created_at: nowIso, updated_at: nowIso },
-    { nama: 'Es Teh', harga: 3000, kategori: 'Minuman', biaya_bahan_baku: 1000, aktif: true, gambar_url: '', cabang: ['Cabang 1'], created_at: nowIso, updated_at: nowIso },
-    { nama: 'Es Jeruk', harga: 4000, kategori: 'Minuman', biaya_bahan_baku: 1500, aktif: true, gambar_url: '', cabang: ['Cabang 1'], created_at: nowIso, updated_at: nowIso },
-    // Cabang 2
-    { nama: 'Ayam', harga: 9000, kategori: 'Makanan', biaya_bahan_baku: 4000, aktif: true, gambar_url: '', cabang: ['Cabang 2'], created_at: nowIso, updated_at: nowIso },
-    { nama: 'Sayap', harga: 5000, kategori: 'Makanan', biaya_bahan_baku: 2000, aktif: true, gambar_url: '', cabang: ['Cabang 2'], created_at: nowIso, updated_at: nowIso },
-    { nama: 'Lele', harga: 7000, kategori: 'Makanan', biaya_bahan_baku: 3500, aktif: true, gambar_url: '', cabang: ['Cabang 2'], created_at: nowIso, updated_at: nowIso },
-    { nama: 'Bebek', harga: 15000, kategori: 'Makanan', biaya_bahan_baku: 7000, aktif: true, gambar_url: '', cabang: ['Cabang 2'], created_at: nowIso, updated_at: nowIso },
-    { nama: 'Tempe', harga: 1000, kategori: 'Makanan', biaya_bahan_baku: 500, aktif: true, gambar_url: '', cabang: ['Cabang 2'], created_at: nowIso, updated_at: nowIso },
-    { nama: 'Kepala', harga: 2000, kategori: 'Makanan', biaya_bahan_baku: 1000, aktif: true, gambar_url: '', cabang: ['Cabang 2'], created_at: nowIso, updated_at: nowIso },
-    { nama: 'Kulit', harga: 2000, kategori: 'Makanan', biaya_bahan_baku: 1000, aktif: true, gambar_url: '', cabang: ['Cabang 2'], created_at: nowIso, updated_at: nowIso },
-    { nama: 'Ati', harga: 2000, kategori: 'Makanan', biaya_bahan_baku: 1000, aktif: true, gambar_url: '', cabang: ['Cabang 2'], created_at: nowIso, updated_at: nowIso },
-    { nama: 'Usus', harga: 2000, kategori: 'Makanan', biaya_bahan_baku: 1000, aktif: true, gambar_url: '', cabang: ['Cabang 2'], created_at: nowIso, updated_at: nowIso },
-    { nama: 'Tahu', harga: 1000, kategori: 'Makanan', biaya_bahan_baku: 500, aktif: true, gambar_url: '', cabang: ['Cabang 2'], created_at: nowIso, updated_at: nowIso },
-    { nama: 'Nasi 1/2 Porsi', harga: 3000, kategori: 'Makanan', biaya_bahan_baku: 1500, aktif: true, gambar_url: '', cabang: ['Cabang 2'], created_at: nowIso, updated_at: nowIso },
-    { nama: 'Nasi 1 Porsi', harga: 5000, kategori: 'Makanan', biaya_bahan_baku: 2000, aktif: true, gambar_url: '', cabang: ['Cabang 2'], created_at: nowIso, updated_at: nowIso },
-    { nama: 'Es Teh', harga: 3000, kategori: 'Minuman', biaya_bahan_baku: 1000, aktif: true, gambar_url: '', cabang: ['Cabang 2'], created_at: nowIso, updated_at: nowIso },
-    { nama: 'Es Jeruk', harga: 4000, kategori: 'Minuman', biaya_bahan_baku: 1500, aktif: true, gambar_url: '', cabang: ['Cabang 2'], created_at: nowIso, updated_at: nowIso },
-  ];
+  // 3. Seed Menus — daftar menu asli S.K.B (15 item per cabang, tanpa gambar)
+  const initialMenus: Omit<Menu, 'id'>[] = [];
+  for (const cabang of ['Cabang 1', 'Cabang 2']) {
+    for (const m of REAL_SKB_MENUS) {
+      initialMenus.push({
+        nama: m.nama,
+        harga: m.harga,
+        kategori: m.kategori,
+        biaya_bahan_baku: m.biaya,
+        aktif: true,
+        gambar_url: '',
+        cabang: [cabang],
+        harga_custom: Boolean(m.hargaCustom),
+        harga_range: m.hargaRange,
+        created_at: nowIso,
+        updated_at: nowIso,
+      });
+    }
+  }
 
   const menuIds: { id: number; nama: string; harga: number; bahan: number }[] = [];
   for (const item of initialMenus) {
     const id = await db.menus.add(item as Menu);
     menuIds.push({ id, nama: item.nama, harga: item.harga, bahan: item.biaya_bahan_baku || 0 });
   }
+  // Seed baru sudah memakai menu asli S.K.B → tandai migrasi selesai
+  localStorage.setItem(MENU_MIGRATION_KEY, '1');
 
   // 4. Seed Daily Operational Costs for past 7 days
   const today = new Date();

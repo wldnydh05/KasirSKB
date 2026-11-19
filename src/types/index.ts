@@ -34,6 +34,10 @@ export interface Menu {
   gambar_url?: string;
   biaya_bahan_baku?: number;
   aktif: boolean;
+  /** true → kasir ketik harga sendiri saat memilih menu (mis. Bebek Rp13.000–20.000) */
+  harga_custom?: boolean;
+  /** Teks tampilan range harga untuk menu custom, mis. "13.000-20.000" */
+  harga_range?: string;
   /** Boleh lebih dari satu: ['Cabang 1','Cabang 2'] atau salah satu saja.
    *  Data lama masih berupa string tunggal → normalisasi dengan menuCabangList(). */
   cabang?: string[];

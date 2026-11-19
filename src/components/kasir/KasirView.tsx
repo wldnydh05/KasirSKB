@@ -14,17 +14,23 @@ import {
 import { db } from '../../db';
 import type { Menu, Kategori, Transaksi, DetailTransaksi } from '../../types';
 import { useCart } from '../../context/CartContext';
+import { useToast } from '../../context/ToastContext';
 import { formatRupiah } from '../../utils/formatters';
 import { CartBottomSheet } from './CartBottomSheet';
 import { ReceiptModal } from './ReceiptModal';
 
 export const KasirView: React.FC = () => {
   const { addItem, items: cartItems } = useCart();
+  const { showToast } = useToast();
 
   const [menus, setMenus] = useState<Menu[]>([]);
   const [categories, setCategories] = useState<Kategori[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('Semua');
   const [searchQuery, setSearchQuery] = useState<string>('');
+
+  // Custom price dialog (menu harga ketik-sendiri, mis. Bebek Rp13.000–20.000)
+  const [customPriceMenu, setCustomPriceMenu] = useState<Menu | null>(null);
+  const [customPriceInput, setCustomPriceInput] = useState('');
 
   // Completed transaction for receipt modal
   const [lastTx, setLastTx] = useState<Transaksi | null>(null);
@@ -49,7 +55,33 @@ export const KasirView: React.FC = () => {
 
   const handleMenuTap = (menu: Menu) => {
     if (!menu.aktif) return;
+
+    // Menu harga custom → minta kasir ketik harga dulu
+    if (menu.harga_custom) {
+      setCustomPriceInput('');
+      setCustomPriceMenu(menu);
+      return;
+    }
+
     addItem(menu);
+
+    if (menu.id) {
+      setRecentlyTappedId(menu.id);
+      setTimeout(() => setRecentlyTappedId(null), 300);
+    }
+  };
+
+  const handleConfirmCustomPrice = () => {
+    if (!customPriceMenu) return;
+    const price = parseInt(customPriceInput, 10);
+    if (!price || price <= 0) {
+      showToast('Harga harus angka lebih dari 0.', 'error');
+      return;
+    }
+    const menu = customPriceMenu;
+    addItem(menu, price);
+    setCustomPriceMenu(null);
+    showToast(`${menu.nama} Rp${price.toLocaleString('id-ID')} ditambahkan.`, 'success');
 
     if (menu.id) {
       setRecentlyTappedId(menu.id);
@@ -193,7 +225,11 @@ export const KasirView: React.FC = () => {
                   </h3>
                   <div className="mt-1 flex items-center justify-between">
                     <span className="text-xs sm:text-sm font-extrabold text-[var(--utama-teks)]">
-                      {formatRupiah(menu.harga)}
+                      {menu.harga_custom
+                        ? menu.harga_range
+                          ? `Rp${menu.harga_range}`
+                          : 'Ketik harga'
+                        : formatRupiah(menu.harga)}
                     </span>
 
                     <button
@@ -207,6 +243,54 @@ export const KasirView: React.FC = () => {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Dialog Harga Custom (Bebek: kasir ketik sendiri) */}
+      {customPriceMenu && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-in fade-in">
+          <div className="w-full max-w-sm rounded-3xl bg-[var(--kartu)] shadow-2xl p-5 border border-[var(--garis)] animate-in zoom-in-95">
+            <h3 className="text-base font-black text-[var(--teks)]">{customPriceMenu.nama}</h3>
+            <p className="text-xs text-[var(--redup)] mt-0.5 mb-4 leading-relaxed">
+              Masukkan harga menu ini
+              {customPriceMenu.harga_range ? ` — di menu asli Rp${customPriceMenu.harga_range}` : ''}.
+            </p>
+
+            <div className="relative mb-4">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-[var(--redup)] pointer-events-none">
+                Rp
+              </span>
+              <input
+                autoFocus
+                type="text"
+                inputMode="numeric"
+                value={customPriceInput}
+                onChange={(e) => setCustomPriceInput(e.target.value.replace(/\D/g, ''))}
+                placeholder="Contoh: 16000"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleConfirmCustomPrice();
+                }}
+                className="w-full pl-9 pr-3 py-2.5 text-lg font-black text-[var(--teks)] bg-[var(--latar)] border border-[var(--garis-kuat)] rounded-xl outline-none focus:border-[var(--utama-teks)]"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-2.5">
+              <button
+                type="button"
+                onClick={() => setCustomPriceMenu(null)}
+                className="py-2.5 rounded-xl border border-[var(--garis)] bg-[var(--latar)] hover:bg-[var(--garis)] text-xs font-bold text-[var(--teks)] transition active:scale-95"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmCustomPrice}
+                className="py-2.5 rounded-xl bg-[var(--utama)] hover:bg-[var(--utama-tua)] text-xs font-black text-white shadow-sm transition active:scale-95"
+              >
+                Tambah ke Keranjang
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
