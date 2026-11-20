@@ -11,6 +11,7 @@
   --aksen-tua: color-mix(in srgb, var(--aksen) 55%, #000);
   --aksen-muda: color-mix(in srgb, var(--aksen) 22%, var(--kartu));
   --aksen-teks: color-mix(in srgb, var(--aksen) 80%, #000);
+  --sukses: #10b981; --sukses-muda: color-mix(in srgb, var(--sukses) 15%, var(--kartu)); --sukses-teks: color-mix(in srgb, var(--sukses) 85%, #000);
   --bahaya: #c2410c; --bahaya-muda: #fdeee6; --bahaya-teks: #9a3412;
   --latar: var(--tema-latar, #f3f4ef); --kartu: var(--tema-panel, #fff); --teks: var(--tema-teks, #17201a);
   --nav: var(--tema-nav, #173f2b);

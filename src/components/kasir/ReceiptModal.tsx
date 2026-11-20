@@ -94,7 +94,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
             <div className="flex justify-between">
               <span className="text-slate-500">Cabang:</span>
               <span className="font-bold text-slate-900 bg-slate-100 px-1.5 py-0.5 rounded">
-                {transaksi.cabang || 'Cabang 1'}
+                {transaksi.cabang || '—'}
               </span>
             </div>
             <div className="flex justify-between">
@@ -153,17 +153,23 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
 
           {/* Items */}
           <div className="space-y-1.5 my-2">
-            {items.map((item, idx) => (
-              <div key={idx} className="flex justify-between items-start text-[11px]">
-                <div className="max-w-[190px]">
-                  <div className="font-semibold text-slate-800">{item.nama_item}</div>
-                  <div className="text-[10px] text-slate-500">
-                    {item.jumlah} x {formatRupiah(item.harga_satuan)}
+            {items.map((item, idx) => {
+              const nama = item.nama_item ?? '-';
+              const qty = Number(item.jumlah) || 0;
+              const harga = Number(item.harga_satuan) || 0;
+              const subtotal = Number(item.subtotal) || qty * harga;
+              return (
+                <div key={idx} className="flex justify-between items-start text-[11px]">
+                  <div className="max-w-[190px]">
+                    <div className="font-semibold text-slate-800">{nama}</div>
+                    <div className="text-[10px] text-slate-500">
+                      {qty} x {formatRupiah(harga)}
+                    </div>
                   </div>
+                  <div className="font-bold text-slate-900">{formatRupiah(subtotal)}</div>
                 </div>
-                <div className="font-bold text-slate-900">{formatRupiah(item.subtotal)}</div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           <div className="border-t border-dashed border-slate-300 my-2" />

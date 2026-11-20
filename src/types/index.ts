@@ -32,7 +32,9 @@ export interface Menu {
   harga: number;
   kategori: string;
   gambar_url?: string;
-  biaya_bahan_baku?: number;
+  biaya_bahan_baku?: number; // Legacy: HPP default (fallback untuk cabang yg tidak punya entry di biaya_per_cabang)
+  /** HPP per cabang: { "Cabang 1": 5000, "Cabang 2": 6000 } */
+  biaya_per_cabang?: Record<string, number>;
   aktif: boolean;
   /** true → kasir ketik harga sendiri saat memilih menu (mis. Bebek Rp13.000–20.000) */
   harga_custom?: boolean;
@@ -75,7 +77,9 @@ export interface DetailTransaksi {
   menu_id?: number | null;
   nama_item: string;
   harga_satuan: number;
-  biaya_bahan_baku?: number;
+  biaya_bahan_baku?: number; // Legacy fallback
+  /** HPP per cabang: { "Cabang 1": 5000, "Cabang 2": 6000 } */
+  biaya_per_cabang?: Record<string, number>;
   jumlah: number;
   subtotal: number;
   is_manual: boolean;
@@ -93,6 +97,7 @@ export interface BiayaRincianItem {
 export interface Biaya {
   id?: number;
   tanggal: string; // YYYY-MM-DD
+  cabang?: string; // Nama cabang (opsional, untuk multi-cabang)
   biaya_operasional: number; // Total = jumlah seluruh rincian
   /** Biaya operasional tambahan (di luar biaya tetap harian), mis. sambel/bumbu terpisah, gas tabung, dll. Boleh 0. */
   biaya_operasional_lainnya?: number;
@@ -124,7 +129,9 @@ export interface CartItem {
   menu_id?: number | null;
   nama: string;
   harga: number;
-  biaya_bahan_baku?: number;
+  biaya_bahan_baku?: number; // Legacy fallback
+  /** HPP per cabang: { "Cabang 1": 5000, "Cabang 2": 6000 } */
+  biaya_per_cabang?: Record<string, number>;
   jumlah: number;
   subtotal: number;
   gambar_url?: string;

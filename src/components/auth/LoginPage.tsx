@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { PWAInstallButton } from '../common/PWAInstallButton';
+import { Spinner } from '../ui/Spinner';
 import type { User } from '../../types';
 
 /** Jumlah digit PIN kasir (6 digit, seperti lockscreen HP). */
@@ -220,8 +221,9 @@ export const LoginPage: React.FC = () => {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full py-2.5 px-4 rounded-lg font-medium text-white bg-[var(--utama)] hover:bg-[var(--utama-tua)] active:bg-[var(--utama)] transition text-sm disabled:opacity-50 cursor-pointer"
+                className="w-full py-2.5 px-4 rounded-lg font-medium text-white bg-[var(--utama)] hover:bg-[var(--utama-tua)] active:bg-[var(--utama)] transition text-sm disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2"
               >
+                {isSubmitting ? <Spinner size="sm" /> : null}
                 {isSubmitting ? 'Memproses...' : 'Masuk sebagai Owner'}
               </button>
             </form>
@@ -247,7 +249,7 @@ export const LoginPage: React.FC = () => {
                 </span>
                 <div>
                   <div className="text-sm font-semibold text-[var(--teks)]">{selectedKasir.username}</div>
-                  <div className="text-xs text-[var(--redup)]">{selectedKasir.cabang || 'Cabang 1'}</div>
+                  <div className="text-xs text-[var(--redup)]">{selectedKasir.cabang || '—'}</div>
                 </div>
               </div>
 
@@ -340,7 +342,7 @@ export const LoginPage: React.FC = () => {
                         </span>
                       </div>
                       <div className="text-[10px] text-[var(--redup)] mt-1.5">
-                        {k.cabang || 'Cabang 1'}
+                        {k.cabang || '—'}
                       </div>
                     </button>
                   ))}

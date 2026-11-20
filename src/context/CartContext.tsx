@@ -4,9 +4,15 @@
  */
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { db, getFormattedDate, getFormattedTime, syncHelpers } from '../db';
 import { useAuth } from './AuthContext';
 import { useCabang } from './CabangContext';
+import {
+  transaksiService,
+  detailTransaksiService,
+  pesananAktifService,
+  getFormattedDate,
+  getFormattedTime,
+} from '../lib/supabaseService';
 import type { CartItem, Menu, Promo, Transaksi, DetailTransaksi, PesananAktif } from '../types';
 
 interface ActiveOrderInfo {
@@ -68,8 +74,9 @@ const ACTIVE_ORDER_STORAGE_KEY = 'bukupos_active_order_info';
 
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
-  const { activeCashierCabang } = useCabang();
-  const currentCabang = user?.cabang || activeCashierCabang || 'Cabang 1';
+  const { activeCashierCabang, cabangList } = useCabang();
+  // Fallback terakhir memakai daftar cabang yang berlaku — jangan hardcode nama cabang.
+  const currentCabang = user?.cabang || activeCashierCabang || cabangList[0] || '';
 
   const [items, setItems] = useState<CartItem[]>(() => {
     try {
@@ -116,6 +123,13 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Harga custom = kasir ketik sendiri (mis. Bebek Rp13.000–20.000) → item ditandai manual
     const isManualPrice = typeof customHarga === 'number' && customHarga > 0;
     const harga = isManualPrice ? customHarga : menu.harga;
+    
+    // Ambil HPP per cabang dari menu, fallback ke biaya_bahan_baku lama
+    const perCabang = (menu.biaya_per_cabang as Record<string, number>) || {};
+    const withDefaults: Record<string, number> = {};
+    // Gunakan cabang dari activeOrderInfo atau currentCabang
+    const targetCabang = activeOrderInfo?.cabang || currentCabang;
+    const hppDefault = perCabang[targetCabang] ?? menu.biaya_bahan_baku ?? 0;
 
     setItems((prev) => {
       if (!isManualPrice) {
@@ -139,7 +153,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           menu_id: menu.id,
           nama: menu.nama,
           harga,
-          biaya_bahan_baku: menu.biaya_bahan_baku || 0,
+          biaya_bahan_baku: hppDefault,
+          biaya_per_cabang: perCabang,
           jumlah: 1,
           subtotal: harga,
           gambar_url: menu.gambar_url,
@@ -213,14 +228,14 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const waktu = getFormattedTime(todayDate);
       const nowIso = todayDate.toISOString();
 
-      const orderNumber = `ORD-${String(Math.floor(Math.random() * 900) + 100)}`;
+      const orderNumber = await pesananAktifService.getNextOrderNumber();
       const resolvedTipe = tipePesanan || (nomorMeja ? 'Makan Di Tempat' : 'Bungkus');
 
       let orderId: number;
       if (activeOrderInfo?.id) {
         // Updating existing active order
         orderId = activeOrderInfo.id;
-        await db.pesanan_aktif.update(orderId, {
+        await pesananAktifService.update(orderId, {
           nama_pelanggan: namaPelanggan || activeOrderInfo.nama_pelanggan,
           tipe_pesanan: resolvedTipe,
           nomor_meja: resolvedTipe === 'Makan Di Tempat' ? nomorMeja : undefined,
@@ -230,7 +245,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
       } else {
         // Creating new active order
-        orderId = await db.pesanan_aktif.add({
+        orderId = (await pesananAktifService.create({
           nomor_pesanan: orderNumber,
           cabang: activeOrderInfo?.cabang || currentCabang,
           nama_pelanggan: namaPelanggan || (resolvedTipe === 'Bungkus' ? 'Pelanggan Bungkus' : 'Pelanggan Meja'),
@@ -245,7 +260,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           user_id: user?.id || 1,
           user_name: user?.username || 'Kasir',
           created_at: nowIso,
-        });
+        })).id!;
       }
 
       clearCart();
@@ -288,66 +303,38 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const kembalian = actualNominal - total;
 
     try {
-      let createdTxId: number | undefined;
-      let createdTx: Transaksi | undefined;
-      let detailIds: number[] = [];
-
-      // ACID transaction in Dexie IndexedDB
-      await db.transaction('rw', db.transaksi, db.detail_transaksi, async () => {
-        const txCabang = activeOrderInfo?.cabang || currentCabang;
-        createdTxId = await db.transaksi.add({
-          tanggal,
-          waktu,
-          total,
-          user_id: user?.id || 1,
-          user_name: user?.username || 'Kasir',
-          cabang: txCabang,
-          metode_pembayaran: metodePembayaran,
-          nominal_bayar: actualNominal,
-          kembalian,
-          created_at: nowIso,
-        });
-
-        detailIds = [];
-        for (const item of items) {
-          const detailId = await db.detail_transaksi.add({
-            transaksi_id: createdTxId,
-            menu_id: item.menu_id ?? null,
-            nama_item: item.nama,
-            harga_satuan: item.harga,
-            biaya_bahan_baku: item.biaya_bahan_baku || 0,
-            jumlah: item.jumlah,
-            subtotal: item.subtotal,
-            is_manual: Boolean(item.is_manual),
-          });
-          detailIds.push(detailId);
-        }
-
-        createdTx = {
-          id: createdTxId,
-          tanggal,
-          waktu,
-          total,
-          user_id: user?.id || 1,
-          user_name: user?.username || 'Kasir',
-          cabang: txCabang,
-          metode_pembayaran: metodePembayaran,
-          nominal_bayar: actualNominal,
-          kembalian,
-          created_at: nowIso,
-        };
+      const txCabang = activeOrderInfo?.cabang || currentCabang;
+      const createdTx = await transaksiService.create({
+        tanggal,
+        waktu,
+        total,
+        user_id: user?.id || 1,
+        user_name: user?.username || 'Kasir',
+        cabang: txCabang,
+        metode_pembayaran: metodePembayaran,
+        nominal_bayar: actualNominal,
+        kembalian,
+        created_at: nowIso,
       });
 
-      // Mark for sync
-      if (createdTxId) {
-        await syncHelpers.transaksi.markDirty(createdTxId);
-        await syncHelpers.transaksi.markDetailDirty(detailIds);
-      }
+      const createdTxId = createdTx.id!;
+
+      const details: Omit<DetailTransaksi, 'id'>[] = items.map((item) => ({
+        transaksi_id: createdTxId,
+        menu_id: item.menu_id ?? null,
+        nama_item: item.nama,
+        harga_satuan: item.harga,
+        biaya_bahan_baku: item.biaya_bahan_baku || 0,
+        jumlah: item.jumlah,
+        subtotal: item.subtotal,
+        is_manual: Boolean(item.is_manual),
+      }));
+
+      await detailTransaksiService.bulkCreate(details);
 
       // If this transaction was fulfilling an active order, remove it from pesanan_aktif
       if (activeOrderInfo?.id) {
-        await db.pesanan_aktif.delete(activeOrderInfo.id);
-        await syncHelpers.pesanan_aktif.markDirty(activeOrderInfo.id);
+        await pesananAktifService.softDelete(activeOrderInfo.id);
       }
 
       // Clear cart on successful save
@@ -359,7 +346,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         data: createdTx,
       };
     } catch (err) {
-      console.error('Failed to save transaction to IndexedDB:', err);
+      console.error('Failed to save transaction:', err);
       return { success: false };
     }
   };
@@ -375,8 +362,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const waktu = getFormattedTime(todayDate);
     const nowIso = todayDate.toISOString();
 
-    const orderCount = await db.pesanan_aktif.count();
-    const orderNumber = `ORD-${String(orderCount + 1).padStart(2, '0')}`;
+    const orderNumber = await pesananAktifService.getNextOrderNumber();
     const custName = payload.namaPelanggan.trim() || 'Pelanggan Umum';
 
     const actualNominal =
@@ -398,66 +384,50 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       let savedOrderId: number;
 
       // Paid immediately (Tunai / QRIS / Transfer)
-      // 1. Record ACID transaction in db.transaksi & db.detail_transaksi
+      // 1. Record transaction in transaksi & detail_transaksi
       const txCabang = activeOrderInfo?.cabang || currentCabang;
       const resolvedTipe = payload.tipePesanan || (payload.nomorMeja ? 'Makan Di Tempat' : 'Bungkus');
       const resolvedMeja = resolvedTipe === 'Makan Di Tempat' ? payload.nomorMeja?.trim() || undefined : undefined;
 
-      await db.transaction('rw', db.transaksi, db.detail_transaksi, async () => {
-        createdTxId = await db.transaksi.add({
-          tanggal,
-          waktu,
-          total,
-          user_id: user?.id || 1,
-          user_name: user?.username || 'Kasir',
-          cabang: txCabang,
-          metode_pembayaran: payload.metodePembayaran,
-          nominal_bayar: actualNominal,
-          kembalian,
-          nama_pelanggan: custName,
-          tipe_pesanan: resolvedTipe,
-          nomor_meja: resolvedMeja,
-          catatan: payload.catatan?.trim(),
-          created_at: nowIso,
-        });
-
-        for (const item of items) {
-          await db.detail_transaksi.add({
-            transaksi_id: createdTxId,
-            menu_id: item.menu_id ?? null,
-            nama_item: item.nama,
-            harga_satuan: item.harga,
-            biaya_bahan_baku: item.biaya_bahan_baku || 0,
-            jumlah: item.jumlah,
-            subtotal: item.subtotal,
-            is_manual: Boolean(item.is_manual),
-          });
-        }
-
-        createdTx = {
-          id: createdTxId,
-          tanggal,
-          waktu,
-          total,
-          user_id: user?.id || 1,
-          user_name: user?.username || 'Kasir',
-          cabang: txCabang,
-          metode_pembayaran: payload.metodePembayaran,
-          nominal_bayar: actualNominal,
-          kembalian,
-          nama_pelanggan: custName,
-          tipe_pesanan: resolvedTipe,
-          nomor_meja: resolvedMeja,
-          catatan: payload.catatan?.trim(),
-          created_at: nowIso,
-        };
+      const tx = await transaksiService.create({
+        tanggal,
+        waktu,
+        total,
+        user_id: user?.id || 1,
+        user_name: user?.username || 'Kasir',
+        cabang: txCabang,
+        metode_pembayaran: payload.metodePembayaran,
+        nominal_bayar: actualNominal,
+        kembalian,
+        nama_pelanggan: custName,
+        tipe_pesanan: resolvedTipe,
+        nomor_meja: resolvedMeja,
+        catatan: payload.catatan?.trim(),
+        created_at: nowIso,
       });
 
-      // 2. Automatically put order into db.pesanan_aktif (status: diproses)
+      createdTxId = tx.id!;
+      createdTx = tx;
+
+      const details: Omit<DetailTransaksi, 'id'>[] = items.map((item) => ({
+        transaksi_id: createdTxId,
+        menu_id: item.menu_id ?? null,
+        nama_item: item.nama,
+        harga_satuan: item.harga,
+        biaya_bahan_baku: item.biaya_bahan_baku || 0,
+        biaya_per_cabang: item.biaya_per_cabang || {},
+        jumlah: item.jumlah,
+        subtotal: item.subtotal,
+        is_manual: Boolean(item.is_manual),
+      }));
+
+      await detailTransaksiService.bulkCreate(details);
+
+      // 2. Automatically put order into pesanan_aktif (status: diproses)
       // so staff/dapur can see the order in the Pesanan section
       if (activeOrderInfo?.id) {
         savedOrderId = activeOrderInfo.id;
-        await db.pesanan_aktif.update(savedOrderId, {
+        await pesananAktifService.update(savedOrderId, {
           nama_pelanggan: custName,
           tipe_pesanan: resolvedTipe,
           nomor_meja: resolvedMeja,
@@ -471,7 +441,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           transaksi_id: createdTxId,
         });
       } else {
-        savedOrderId = await db.pesanan_aktif.add({
+        const newOrder = await pesananAktifService.create({
           nomor_pesanan: orderNumber,
           cabang: txCabang,
           nama_pelanggan: custName,
@@ -491,6 +461,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           user_name: user?.username || 'Kasir',
           created_at: nowIso,
         });
+        savedOrderId = newOrder.id!;
       }
 
       // Update detailSnapshot with generated ID
@@ -549,4 +520,3 @@ export const useCart = () => {
   }
   return context;
 };
-

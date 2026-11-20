@@ -5,7 +5,7 @@
 
 import { useEffect, useState } from 'react';
 import { useCart } from '../context/CartContext';
-import { db } from '../db';
+import { pesananAktifService } from '../lib/supabaseService';
 
 /**
  * Badge angka untuk navigasi — dipakai bersama oleh BottomNav (mobile)
@@ -22,8 +22,8 @@ export function useNavBadge() {
 
     const muat = async () => {
       try {
-        const n = await db.pesanan_aktif.count();
-        if (hidup) setUnpaidCount(n);
+        const orders = await pesananAktifService.getAll();
+        if (hidup) setUnpaidCount(orders.length);
       } catch (e) {
         console.error('Failed to count unpaid active orders', e);
       }

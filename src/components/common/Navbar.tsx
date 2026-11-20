@@ -7,7 +7,6 @@ import React from 'react';
 import { Sun, Moon } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTema } from '../../hooks/useTema';
-import { OfflineBadge } from './OfflineBadge';
 
 export type NavTab =
   | 'kasir'
@@ -61,8 +60,6 @@ export const Navbar: React.FC<NavbarProps> = ({ onSelectTab }) => {
             </span>
           </div>
         </button>
-
-        <OfflineBadge />
 
         {/* Actions - only theme toggle */}
         <div className="flex items-center gap-2 ml-auto">

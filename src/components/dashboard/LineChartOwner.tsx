@@ -18,8 +18,7 @@ import {
   Info,
   X,
 } from 'lucide-react';
-import { formatRupiah, formatDateIndo } from '../../utils/formatters';
-import { getFormattedDate } from '../../db';
+import { formatRupiah, formatDateIndo, getFormattedDate } from '../../utils/formatters';
 
 export interface ChartDataPoint {
   tanggal: string;

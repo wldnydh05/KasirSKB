@@ -5,7 +5,11 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import bcrypt from 'bcryptjs';
-import { db, seedDatabaseIfEmpty, syncHelpers } from '../db';
+import {
+  userService,
+  getFormattedDate,
+  loadLocalCabangList,
+} from '../lib/supabaseService';
 import type { User, UserRole } from '../types';
 
 interface AuthContextType {
@@ -32,20 +36,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Initialize DB and restore session
+  // Initialize and restore session
   useEffect(() => {
     async function init() {
       try {
-        await seedDatabaseIfEmpty();
         const storedUserId = localStorage.getItem(SESSION_KEY);
         if (storedUserId) {
-          const found = await db.users.get(Number(storedUserId));
+          const found = await userService.getById(Number(storedUserId));
           if (found) {
             setUser(found);
           }
         }
       } catch (err) {
-        console.error('Failed to initialize database/session:', err);
+        console.error('Failed to restore session:', err);
       } finally {
         setIsLoading(false);
       }
@@ -56,7 +59,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (username: string, password: string): Promise<{ success: boolean; message?: string }> => {
     try {
       const trimmedUser = username.trim().toLowerCase();
-      const foundUser = await db.users.where('username').equalsIgnoreCase(trimmedUser).first();
+      const foundUser = await userService.getByUsername(trimmedUser);
 
       if (!foundUser) {
         return { success: false, message: 'Username tidak ditemukan.' };
@@ -94,7 +97,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { success: false, message: 'Password minimal 4 karakter.' };
       }
 
-      const existing = await db.users.where('username').equalsIgnoreCase(cleanUsername).first();
+      const existing = await userService.getByUsername(cleanUsername);
       if (existing) {
         return { success: false, message: `Username "${cleanUsername}" sudah digunakan. Silakan pilih username lain.` };
       }
@@ -102,7 +105,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const passwordHash = bcrypt.hashSync(data.password, 10);
       const nowIso = new Date().toISOString();
 
-      const newOwnerId = await db.users.add({
+      const newOwner = await userService.create({
         username: cleanUsername,
         password_hash: passwordHash,
         role: 'owner',
@@ -111,14 +114,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         created_at: nowIso,
       });
 
-      // Mark for sync
-      await syncHelpers.users.markDirty(newOwnerId);
-
-      const newOwner = await db.users.get(newOwnerId);
-      if (newOwner) {
-        setUser(newOwner);
-        localStorage.setItem(SESSION_KEY, String(newOwner.id));
-      }
+      setUser(newOwner);
+      localStorage.setItem(SESSION_KEY, String(newOwner.id));
 
       return { success: true };
     } catch (err) {
@@ -149,7 +146,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { success: false, message: 'PIN kasir harus tepat 6 digit.' };
       }
 
-      const existing = await db.users.where('username').equalsIgnoreCase(cleanUsername).first();
+      const existing = await userService.getByUsername(cleanUsername);
       if (existing) {
         return { success: false, message: `Username "${cleanUsername}" sudah digunakan. Pilih username lain.` };
       }
@@ -157,17 +154,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const passwordHash = bcrypt.hashSync(data.password, 10);
       const nowIso = new Date().toISOString();
 
-      const newKasirId = await db.users.add({
+      await userService.create({
         username: cleanUsername,
         password_hash: passwordHash,
         role: 'staff',
-        cabang: data.cabang || 'Cabang 1',
+        cabang: data.cabang || loadLocalCabangList()[0] || '',
         foto_url: '',
         created_at: nowIso,
       });
-
-      // Mark for sync
-      await syncHelpers.users.markDirty(newKasirId);
 
       return { success: true };
     } catch (err) {
@@ -178,7 +172,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const getKasirList = async (): Promise<User[]> => {
     try {
-      return await db.users.where('role').equals('staff').toArray();
+      return await userService.getByRole('staff');
     } catch (err) {
       console.error('Get kasir list error:', err);
       return [];
@@ -190,16 +184,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { success: false, message: 'Hanya Owner yang berwenang menghapus akun kasir.' };
     }
     try {
-      const target = await db.users.get(id);
+      const target = await userService.getById(id);
       if (!target) {
         return { success: false, message: 'Akun kasir tidak ditemukan.' };
       }
       if (target.role !== 'staff') {
         return { success: false, message: 'Tidak dapat menghapus akun non-kasir.' };
       }
-      await db.users.delete(id);
-      // Mark for sync (soft delete will be handled by sync engine)
-      await syncHelpers.users.markDirty(id);
+      await userService.softDelete(id);
       return { success: true };
     } catch (err) {
       console.error('Delete kasir error:', err);
@@ -215,7 +207,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { success: false, message: 'Hanya Owner yang berwenang mengubah akun kasir.' };
     }
     try {
-      const target = await db.users.get(id);
+      const target = await userService.getById(id);
       if (!target || target.role !== 'staff') {
         return { success: false, message: 'Akun kasir tidak valid.' };
       }
@@ -226,7 +218,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (cleanUsername.length < 3) {
           return { success: false, message: 'Username kasir minimal 3 karakter.' };
         }
-        const existing = await db.users.where('username').equalsIgnoreCase(cleanUsername).first();
+        const existing = await userService.getByUsername(cleanUsername);
         if (existing && existing.id !== id) {
           return { success: false, message: `Username "${cleanUsername}" sudah digunakan. Pilih username lain.` };
         }
@@ -240,9 +232,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         updateData.password_hash = bcrypt.hashSync(data.newPassword, 10);
       }
 
-      await db.users.update(id, updateData);
-      // Mark for sync
-      await syncHelpers.users.markDirty(id);
+      await userService.update(id, updateData);
       return { success: true };
     } catch (err) {
       console.error('Update kasir error:', err);
@@ -252,9 +242,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const quickLogin = async (usernameOrRole: string): Promise<boolean> => {
     try {
-      let foundUser = await db.users.where('username').equalsIgnoreCase(usernameOrRole).first();
+      let foundUser = await userService.getByUsername(usernameOrRole);
       if (!foundUser) {
-        foundUser = await db.users.where('role').equals(usernameOrRole).first();
+        // Fallback: get first user with matching role
+        const users = await userService.getByRole(usernameOrRole as UserRole);
+        foundUser = users[0] || null;
       }
       if (foundUser) {
         setUser(foundUser);
@@ -278,8 +270,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const updateProfile = async (data: Partial<User>): Promise<boolean> => {
     if (!user || !user.id) return false;
     try {
-      await db.users.update(user.id, data);
-      const updated = await db.users.get(user.id);
+      await userService.update(user.id, data);
+      const updated = await userService.getById(user.id);
       if (updated) {
         setUser(updated);
       }
@@ -302,13 +294,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (cleanUsername === user.username) {
         return { success: true, message: 'Username tidak berubah.' };
       }
-      const existing = await db.users.where('username').equalsIgnoreCase(cleanUsername).first();
+      const existing = await userService.getByUsername(cleanUsername);
       if (existing && existing.id !== user.id) {
         return { success: false, message: `Username "${cleanUsername}" sudah digunakan. Pilih username lain.` };
       }
-      await db.users.update(user.id, { username: cleanUsername });
-      await syncHelpers.users.markDirty(user.id);
-      const updated = await db.users.get(user.id);
+      await userService.update(user.id, { username: cleanUsername });
+      const updated = await userService.getById(user.id);
       if (updated) {
         setUser(updated);
       }
@@ -335,8 +326,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       const newHash = bcrypt.hashSync(newPass, 10);
-      await db.users.update(user.id, { password_hash: newHash });
-      const updated = await db.users.get(user.id);
+      await userService.update(user.id, { password_hash: newHash });
+      const updated = await userService.getById(user.id);
       if (updated) {
         setUser(updated);
       }
@@ -377,5 +368,3 @@ export const useAuth = () => {
   }
   return context;
 };
-
-

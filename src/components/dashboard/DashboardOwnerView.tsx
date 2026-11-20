@@ -19,8 +19,15 @@ import {
   PieChart,
   Tag,
 } from 'lucide-react';
-import { db, getFormattedDate, ensureThirtyDaysData, initializeSyncEngine } from '../../db';
-import type { Transaksi, DetailTransaksi, Biaya } from '../../types';
+import {
+  transaksiService,
+  detailTransaksiService,
+  biayaService,
+  userService,
+  menuService,
+  getFormattedDate,
+} from '../../lib/supabaseService';
+import type { Transaksi, DetailTransaksi, Biaya, User } from '../../types';
 import { formatRupiah, formatDateIndo } from '../../utils/formatters';
 import type { NavTab } from '../common/Navbar';
 import { useCabang } from '../../context/CabangContext';
@@ -46,8 +53,18 @@ interface CabangComparison {
 export const DashboardOwnerView: React.FC<DashboardOwnerViewProps> = ({ onNavigate }) => {
   const { selectedCabangFilter, setSelectedCabangFilter, cabangList } = useCabang();
 
+  // Nama cabang BERLAKU dari daftar cabang — jangan hardcode 'Cabang 1'/'Cabang 2'
+  const cabang1Name = cabangList[0] || 'Cabang 1';
+  const cabang2Name = cabangList[1] || 'Cabang 2';
+
+  // Username kasir yang bertugas di suatu cabang (kolom "Petugas")
+  const staffOf = (cabang: string) => {
+    const list = staffList.filter((s) => (s.cabang || '').toLowerCase() === cabang.toLowerCase());
+    return list.length > 0 ? list.map((s) => s.username).join(', ') : '—';
+  };
+
   // ALL useState hooks MUST be called unconditionally at the top (Rules of Hooks)
-  const [isSyncReady, setIsSyncReady] = useState(false);
+  const [isLoadingKpi, setIsLoadingKpi] = useState(true);
   const [todayPenjualan, setTodayPenjualan] = useState(0);
   const [todayTransaksiCount, setTodayTransaksiCount] = useState(0);
   const [todayLabaRugi, setTodayLabaRugi] = useState(0);
@@ -61,6 +78,9 @@ export const DashboardOwnerView: React.FC<DashboardOwnerViewProps> = ({ onNaviga
     cabang2Sales: 0,
     cabang2Count: 0,
   });
+
+  // Daftar kasir (untuk menampilkan petugas tiap cabang — bukan nama hardcode)
+  const [staffList, setStaffList] = useState<User[]>([]);
 
   // Line Chart States & Filters
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
@@ -81,35 +101,30 @@ export const DashboardOwnerView: React.FC<DashboardOwnerViewProps> = ({ onNaviga
 
   const [isLoadingChart, setIsLoadingChart] = useState(true);
 
-  // Initialize sync engine on first render
-  useEffect(() => {
-    initializeSyncEngine()
-      .then(() => setIsSyncReady(true))
-      .catch((err) => {
-        console.warn('[Dashboard] Sync engine not available:', err);
-        setIsSyncReady(true);
-      });
-  }, []);
-
   // 1. Load Today's Real-time KPIs & Branch Breakdown
   useEffect(() => {
     async function loadTodayKpi() {
+      setIsLoadingKpi(true);
       try {
         const todayStr = getFormattedDate(new Date());
-        const rawTodayTx = await db.transaksi.where('tanggal').equals(todayStr).toArray();
+        const rawTodayTx = await transaksiService.getByDateRange(todayStr, todayStr);
 
-        // Calculate comparison across Cabang 1 vs Cabang 2
+        // Muat daftar kasir aktif (kolom Petugas per cabang)
+        const staff = await userService.getByRole('staff');
+        setStaffList(staff);
+
+        // Calculate comparison across cabang pertama vs cabang kedua (daftar berlaku)
         let c1Sales = 0;
         let c1Count = 0;
         let c2Sales = 0;
         let c2Count = 0;
 
         for (const t of rawTodayTx) {
-          if (t.cabang === 'Cabang 2') {
+          if (t.cabang && t.cabang.toLowerCase() === cabang2Name.toLowerCase()) {
             c2Sales += t.total;
             c2Count += 1;
           } else {
-            // Default to Cabang 1
+            // Default ke cabang pertama
             c1Sales += t.total;
             c1Count += 1;
           }
@@ -126,26 +141,62 @@ export const DashboardOwnerView: React.FC<DashboardOwnerViewProps> = ({ onNaviga
         const txList =
           selectedCabangFilter === 'Semua'
             ? rawTodayTx
-            : rawTodayTx.filter((t) => (t.cabang || 'Cabang 1') === selectedCabangFilter);
+            : rawTodayTx.filter((t) => (t.cabang || cabang1Name) === selectedCabangFilter);
+
+        // If no transactions today (or filtered out by branch), show zero KPIs instead of negative profit
+        if (rawTodayTx.length === 0 || txList.length === 0) {
+          setTodayPenjualan(0);
+          setTodayTransaksiCount(0);
+          setTodayBahanBaku(0);
+          setTodayOperasional(0);
+          setTodayLabaRugi(0);
+          return;
+        }
 
         const txIds = txList.map((t) => t.id!).filter(Boolean);
         const details =
           txIds.length > 0
-            ? await db.detail_transaksi.where('transaksi_id').anyOf(txIds).toArray()
+            ? await Promise.all(txIds.map((id) => detailTransaksiService.getByTransaksiId(id))).then(
+                (arr) => arr.flat()
+              )
             : [];
+
+        // Fetch all menus for HPP per cabang lookup
+        const allMenus = await menuService.getAll();
+        const menuHppMap = new Map<number, Record<string, number>>();
+        for (const m of allMenus) {
+          if (m.id) {
+            const perCabang = (m.biaya_per_cabang as Record<string, number>) || {};
+            // Fallback ke biaya_bahan_baku lama
+            const withDefaults: Record<string, number> = {};
+            cabangList.forEach((c) => {
+              withDefaults[c] = perCabang[c] ?? m.biaya_bahan_baku ?? 0;
+            });
+            menuHppMap.set(m.id, withDefaults);
+          }
+        }
 
         let dayBahanCost = 0;
         for (const item of details) {
-          dayBahanCost += (item.biaya_bahan_baku || 0) * item.jumlah;
+          // Get HPP per cabang dari transaksi's cabang
+          const tx = txList.find((t) => t.id === item.transaksi_id);
+          const txCabang = tx?.cabang || cabangList[0] || '';
+          const menuHpp = item.menu_id ? menuHppMap.get(item.menu_id) : null;
+          const hpp = menuHpp?.[txCabang] ?? menuHpp?.[cabangList[0] || ''] ?? item.biaya_bahan_baku ?? 0;
+          dayBahanCost += (hpp || 0) * item.jumlah;
         }
 
-        const biayaList = await db.biaya.where('tanggal').equals(todayStr).toArray();
-        let ops = biayaList.reduce((acc, b) => acc + b.biaya_operasional, 0) || 150000;
+        const singleBiaya = selectedCabangFilter !== 'Semua'
+            ? await biayaService.getByDateAndCabang(todayStr, selectedCabangFilter)
+            : null;
+        const biayaList = selectedCabangFilter === 'Semua'
+            ? await biayaService.getByDateRange(todayStr, todayStr)
+            : singleBiaya ? [singleBiaya] : [];
+        let ops = biayaList.reduce((sum, b) => sum + (b.biaya_operasional || 0), 0);
 
-        // If filtering by a single branch, allocate 50% of shared operational costs
-        if (selectedCabangFilter !== 'Semua') {
-          ops = Math.round(ops / 2);
-        }
+        // If no operational cost record exists, use 0 instead of default 150000
+        // This ensures profit is 0 when no costs are set
+        if (ops === 0) ops = 0;
 
         const totalSales = txList.reduce((acc, t) => acc + t.total, 0);
 
@@ -156,21 +207,29 @@ export const DashboardOwnerView: React.FC<DashboardOwnerViewProps> = ({ onNaviga
         setTodayLabaRugi(totalSales - (dayBahanCost + ops));
       } catch (e) {
         console.error('Failed to load today KPI', e);
+      } finally {
+        setIsLoadingKpi(false);
       }
     }
 
     loadTodayKpi();
-  }, [selectedCabangFilter]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCabangFilter, cabangList]);
 
   // 2. Load Line Chart Data based on Period, Month, or Custom Date Range, filtered by branch
   useEffect(() => {
     async function loadChartData() {
       setIsLoadingChart(true);
       try {
-        await ensureThirtyDaysData();
         const today = new Date();
 
-        let dateBuckets: { dateStr: string; label: string; isMonthlyAggregate?: boolean; monthNum?: number; year?: number }[] = [];
+        let dateBuckets: {
+          dateStr: string;
+          label: string;
+          isMonthlyAggregate?: boolean;
+          monthNum?: number;
+          year?: number;
+        }[] = [];
 
         if (period === '7-hari') {
           // 7 days backwards
@@ -259,22 +318,21 @@ export const DashboardOwnerView: React.FC<DashboardOwnerViewProps> = ({ onNaviga
         }
 
         // Fetch transactions for the entire date range
-        const rawTxList = await db.transaksi
-          .where('tanggal')
-          .between(queryStartStr, queryEndStr, true, true)
-          .toArray();
+        const rawTxList = await transaksiService.getByDateRange(queryStartStr, queryEndStr);
 
         // Apply Branch Filter to Chart Data!
         const txList =
           selectedCabangFilter === 'Semua'
             ? rawTxList
-            : rawTxList.filter((t) => (t.cabang || 'Cabang 1') === selectedCabangFilter);
+            : rawTxList.filter((t) => (t.cabang || cabang1Name) === selectedCabangFilter);
 
         // Fetch detail items to calculate raw material costs
         const txIds = txList.map((t) => t.id!).filter(Boolean);
         const details =
           txIds.length > 0
-            ? await db.detail_transaksi.where('transaksi_id').anyOf(txIds).toArray()
+            ? await Promise.all(txIds.map((id) => detailTransaksiService.getByTransaksiId(id))).then(
+                (arr) => arr.flat()
+              )
             : [];
 
         const detailsByTxId: Record<number, DetailTransaksi[]> = {};
@@ -285,17 +343,32 @@ export const DashboardOwnerView: React.FC<DashboardOwnerViewProps> = ({ onNaviga
           detailsByTxId[det.transaksi_id].push(det);
         }
 
-        // Fetch operational costs
-        const biayaList = await db.biaya
-          .where('tanggal')
-          .between(queryStartStr, queryEndStr, true, true)
-          .toArray();
+        // Fetch all menus for HPP per cabang lookup
+        const allMenus = await menuService.getAll();
+        const menuHppMap = new Map<number, Record<string, number>>();
+        for (const m of allMenus) {
+          if (m.id) {
+            const perCabang = (m.biaya_per_cabang as Record<string, number>) || {};
+            const withDefaults: Record<string, number> = {};
+            cabangList.forEach((c) => {
+              withDefaults[c] = perCabang[c] ?? m.biaya_bahan_baku ?? 0;
+            });
+            menuHppMap.set(m.id, withDefaults);
+          }
+        }
+
+        // Fetch operational costs - filter by cabang
+        let biayaList: Biaya[] = [];
+        if (selectedCabangFilter === 'Semua') {
+          biayaList = await biayaService.getByDateRange(queryStartStr, queryEndStr);
+        } else {
+          const allBiaya = await biayaService.getByDateRange(queryStartStr, queryEndStr);
+          biayaList = allBiaya.filter(b => b.cabang === selectedCabangFilter);
+        }
 
         const biayaByDate: Record<string, number> = {};
         for (const b of biayaList) {
-          // If filtering by branch, divide shared operational cost by 2
-          const alloc = selectedCabangFilter === 'Semua' ? b.biaya_operasional : Math.round(b.biaya_operasional / 2);
-          biayaByDate[b.tanggal] = (biayaByDate[b.tanggal] || 0) + alloc;
+          biayaByDate[b.tanggal] = (biayaByDate[b.tanggal] || 0) + (b.biaya_operasional || 0);
         }
 
         // Aggregate into ChartDataPoint objects
@@ -310,17 +383,28 @@ export const DashboardOwnerView: React.FC<DashboardOwnerViewProps> = ({ onNaviga
             // Aggregate operational costs in this month
             for (const b of biayaList) {
               if (b.tanggal.startsWith(monthPrefix)) {
-                const alloc = selectedCabangFilter === 'Semua' ? b.biaya_operasional : Math.round(b.biaya_operasional / 2);
-                dayOperasional += alloc;
+                dayOperasional += (b.biaya_operasional || 0);
               }
-            }
-            if (dayOperasional === 0 && dayTx.length > 0) {
-              dayOperasional = (selectedCabangFilter === 'Semua' ? 150000 : 75000) * 30;
             }
           } else {
             // Daily bucket
             dayTx = txList.filter((t) => t.tanggal === bucket.dateStr);
-            dayOperasional = biayaByDate[bucket.dateStr] ?? (dayTx.length > 0 ? (selectedCabangFilter === 'Semua' ? 150000 : 75000) : 0);
+            // Tanpa record biaya → 0. JANGAN pakai default 150.000 (penyebab laba minus).
+            dayOperasional = biayaByDate[bucket.dateStr] ?? 0;
+          }
+
+          // Tidak ada transaksi → semua angka 0 (laba/rugi TIDAK boleh minus)
+          if (dayTx.length === 0) {
+            return {
+              tanggal: bucket.dateStr,
+              label: bucket.label,
+              penjualan: 0,
+              biayaBahan: 0,
+              biayaOperasional: 0,
+              labaKotor: 0,
+              labaBersih: 0,
+              totalTransaksi: 0,
+            };
           }
 
           const dayPenjualan = dayTx.reduce((sum, t) => sum + t.total, 0);
@@ -328,8 +412,11 @@ export const DashboardOwnerView: React.FC<DashboardOwnerViewProps> = ({ onNaviga
           let dayBahanCost = 0;
           for (const tx of dayTx) {
             const txItems = detailsByTxId[tx.id!] || [];
+            const txCabang = tx.cabang || cabangList[0] || '';
             for (const item of txItems) {
-              dayBahanCost += (item.biaya_bahan_baku || 0) * item.jumlah;
+              const menuHpp = item.menu_id ? menuHppMap.get(item.menu_id) : null;
+              const hpp = menuHpp?.[txCabang] ?? menuHpp?.[cabangList[0] || ''] ?? item.biaya_bahan_baku ?? 0;
+              dayBahanCost += (hpp || 0) * item.jumlah;
             }
           }
 
@@ -357,10 +444,20 @@ export const DashboardOwnerView: React.FC<DashboardOwnerViewProps> = ({ onNaviga
     }
 
     loadChartData();
-  }, [period, selectedMonth, selectedMonthEnd, selectedYear, selectedYearEnd, monthViewMode, customStartDate, customEndDate, selectedCabangFilter]);
+  }, [
+    period,
+    selectedMonth,
+    selectedMonthEnd,
+    selectedYear,
+    selectedYearEnd,
+    monthViewMode,
+    customStartDate,
+    customEndDate,
+    selectedCabangFilter,
+  ]);
 
-  // Show loading while sync initializes (AFTER all hooks - Rules of Hooks)
-  if (!isSyncReady) {
+  // Show loading while KPI loads
+  if (isLoadingKpi) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="animate-spin rounded-full h-8 w-8 border-2 border-[var(--utama)] border-t-[var(--utama)]" />
@@ -418,199 +515,6 @@ export const DashboardOwnerView: React.FC<DashboardOwnerViewProps> = ({ onNaviga
           })}
         </div>
       </div>
-
-      {/* Perbandingan penjualan dipindahkan ke filter cabang di Navbar. */}
-      {false && (
-        <>
-        <div className="p-4 bg-[var(--latar)] border-b border-[var(--garis)] flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <div>
-            <h3 className="font-bold text-sm sm:text-base text-[var(--teks)] flex items-center gap-2">
-              <Store className="w-4 h-4 text-[var(--utama-teks)]" />
-              <span>Tabel Perbandingan Penjualan Antar Cabang (Hari Ini)</span>
-            </h3>
-            <p className="text-xs text-[var(--redup)] mt-0.5">
-              Rekap perolehan omzet dan volume transaksi harian per kasir cabang
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2 text-left sm:text-right">
-            <div>
-              <span className="text-[11px] text-[var(--redup)] block uppercase font-medium">Total Omzet Gabungan</span>
-              <span className="text-base font-bold text-[var(--teks)]">
-                {formatRupiah(totalCombinedToday)}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Tabel Komparasi Cabang */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs sm:text-sm border-collapse">
-            <thead className="bg-[var(--latar)]/90 text-[var(--teks)] text-xs font-semibold uppercase tracking-wider border-b border-[var(--garis)]">
-              <tr>
-                <th className="px-4 py-3">Nama Cabang</th>
-                <th className="px-4 py-3">Kasir Bertugas</th>
-                <th className="px-4 py-3 text-center">Jumlah Transaksi</th>
-                <th className="px-4 py-3 text-right">Total Omzet</th>
-                <th className="px-4 py-3 text-center">Rata-rata/Nota</th>
-                <th className="px-4 py-3">Porsi Penjualan</th>
-                <th className="px-4 py-3 text-center">Aksi Filter</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[var(--garis)] text-[var(--teks)]">
-              {/* Row Cabang 1 */}
-              <tr className={`hover:bg-[var(--latar)]/80 transition ${selectedCabangFilter === 'Cabang 1' ? 'bg-[var(--utama-muda)]/60 font-medium' : ''}`}>
-                <td className="px-4 py-3.5 font-semibold text-[var(--teks)] flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[var(--utama)] inline-block"></span>
-                  Cabang 1
-                </td>
-                <td className="px-4 py-3.5">
-                  <span className="text-[var(--teks)] font-medium">Siti</span>
-                  <span className="text-xs text-[var(--redup)] block font-normal">user: kasir1</span>
-                </td>
-                <td className="px-4 py-3.5 text-center font-medium">
-                  {branchComparison.cabang1Count} Transaksi
-                </td>
-                <td className="px-4 py-3.5 text-right font-bold text-[var(--teks)]">
-                  {formatRupiah(branchComparison.cabang1Sales)}
-                </td>
-                <td className="px-4 py-3.5 text-center text-[var(--redup)]">
-                  {formatRupiah(branchComparison.cabang1Count > 0 ? Math.round(branchComparison.cabang1Sales / branchComparison.cabang1Count) : 0)}
-                </td>
-                <td className="px-4 py-3.5">
-                  <div className="flex items-center gap-2">
-                    <div className="w-24 bg-[var(--latar)] rounded h-2 overflow-hidden">
-                      <div style={{ width: `${c1Percent}%` }} className="bg-[var(--utama)] h-full"></div>
-                    </div>
-                    <span className="text-xs font-semibold text-[var(--teks)] w-10 text-right">{c1Percent}%</span>
-                  </div>
-                </td>
-                <td className="px-4 py-3.5 text-center">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedCabangFilter(selectedCabangFilter === 'Cabang 1' ? 'Semua' : 'Cabang 1')}
-                    className={`px-3 py-1 text-xs rounded border cursor-pointer font-medium transition ${
-                      selectedCabangFilter === 'Cabang 1'
-                        ? 'bg-[var(--utama)] text-white border-[var(--utama-teks)]'
-                        : 'bg-[var(--kartu)] text-[var(--teks)] border-[var(--garis-kuat)] hover:bg-[var(--latar)]'
-                    }`}
-                  >
-                    {selectedCabangFilter === 'Cabang 1' ? 'Sedang Dipilih ✓' : 'Filter Cabang'}
-                  </button>
-                </td>
-              </tr>
-
-              {/* Row Cabang 2 */}
-              <tr className={`hover:bg-[var(--latar)]/80 transition ${selectedCabangFilter === 'Cabang 2' ? 'bg-[var(--utama-muda)]/60 font-medium' : ''}`}>
-                <td className="px-4 py-3.5 font-semibold text-[var(--teks)] flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[var(--nav)] inline-block"></span>
-                  Cabang 2
-                </td>
-                <td className="px-4 py-3.5">
-                  <span className="text-[var(--teks)] font-medium">Rian</span>
-                  <span className="text-xs text-[var(--redup)] block font-normal">user: kasir2</span>
-                </td>
-                <td className="px-4 py-3.5 text-center font-medium">
-                  {branchComparison.cabang2Count} Transaksi
-                </td>
-                <td className="px-4 py-3.5 text-right font-bold text-[var(--teks)]">
-                  {formatRupiah(branchComparison.cabang2Sales)}
-                </td>
-                <td className="px-4 py-3.5 text-center text-[var(--redup)]">
-                  {formatRupiah(branchComparison.cabang2Count > 0 ? Math.round(branchComparison.cabang2Sales / branchComparison.cabang2Count) : 0)}
-                </td>
-                <td className="px-4 py-3.5">
-                  <div className="flex items-center gap-2">
-                    <div className="w-24 bg-[var(--latar)] rounded h-2 overflow-hidden">
-                      <div style={{ width: `${c2Percent}%` }} className="bg-[var(--nav)] h-full"></div>
-                    </div>
-                    <span className="text-xs font-semibold text-[var(--teks)] w-10 text-right">{c2Percent}%</span>
-                  </div>
-                </td>
-                <td className="px-4 py-3.5 text-center">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedCabangFilter(selectedCabangFilter === 'Cabang 2' ? 'Semua' : 'Cabang 2')}
-                    className={`px-3 py-1 text-xs rounded border cursor-pointer font-medium transition ${
-                      selectedCabangFilter === 'Cabang 2'
-                        ? 'bg-[var(--utama)] text-white border-[var(--utama-teks)]'
-                        : 'bg-[var(--kartu)] text-[var(--teks)] border-[var(--garis-kuat)] hover:bg-[var(--latar)]'
-                    }`}
-                  >
-                    {selectedCabangFilter === 'Cabang 2' ? 'Sedang Dipilih ✓' : 'Filter Cabang'}
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-            <tfoot className="bg-[var(--latar)] border-t-2 border-[var(--garis-kuat)] font-semibold text-[var(--teks)]">
-              <tr>
-                <td className="px-4 py-3" colSpan={2}>
-                  Total Gabungan Semua Cabang
-                </td>
-                <td className="px-4 py-3 text-center">
-                  {branchComparison.cabang1Count + branchComparison.cabang2Count} Transaksi
-                </td>
-                <td className="px-4 py-3 text-right text-[var(--utama-teks)] font-bold">
-                  {formatRupiah(totalCombinedToday)}
-                </td>
-                <td className="px-4 py-3 text-center text-[var(--teks)]">
-                  {formatRupiah(
-                    branchComparison.cabang1Count + branchComparison.cabang2Count > 0
-                      ? Math.round(totalCombinedToday / (branchComparison.cabang1Count + branchComparison.cabang2Count))
-                      : 0
-                  )}
-                </td>
-                <td className="px-4 py-3 text-xs text-[var(--redup)] font-normal">
-                  100% (Akumulasi)
-                </td>
-                <td className="px-4 py-3 text-center">
-                  {selectedCabangFilter !== 'Semua' ? (
-                    <button
-                      type="button"
-                      onClick={() => setSelectedCabangFilter('Semua')}
-                      className="px-2.5 py-1 text-xs rounded bg-[var(--latar)] text-[var(--teks)] hover:bg-[var(--garis)] cursor-pointer font-medium"
-                    >
-                      Tampilkan Semua
-                    </button>
-                  ) : (
-                    <span className="text-xs text-[var(--redup)] font-normal">Semua Terpilih</span>
-                  )}
-                </td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-
-        {/* Visual Rasio Sederhana */}
-        <div className="p-3.5 bg-[var(--latar)] border-t border-[var(--garis)] text-xs">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-2">
-            <span className="font-semibold text-[var(--teks)]">Grafik Rasio Kontribusi Penjualan:</span>
-            <div className="flex flex-wrap items-center gap-4 text-xs text-[var(--redup)]">
-              <span className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 bg-[var(--utama)] rounded-sm inline-block"></span>
-                <span>Cabang 1: {c1Percent}% ({formatRupiah(branchComparison.cabang1Sales)})</span>
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 bg-[var(--nav)] rounded-sm inline-block"></span>
-                <span>Cabang 2: {c2Percent}% ({formatRupiah(branchComparison.cabang2Sales)})</span>
-              </span>
-            </div>
-          </div>
-          <div className="h-3 w-full bg-[var(--latar)] rounded flex overflow-hidden">
-            <div
-              style={{ width: `${c1Percent}%` }}
-              className="bg-[var(--utama)] h-full transition-all duration-300"
-              title={`Cabang 1: ${c1Percent}%`}
-            />
-            <div
-              style={{ width: `${c2Percent}%` }}
-              className="bg-[var(--nav)] h-full transition-all duration-300"
-              title={`Cabang 2: ${c2Percent}%`}
-            />
-          </div>
-        </div>
-      </>
-      )}
 
       {/* Active Filter Notice Sederhana */}
       <div className="flex items-center justify-between mb-4 bg-[var(--kartu)] px-3.5 py-2.5 rounded-lg border border-[var(--garis)] text-xs">
@@ -787,4 +691,3 @@ export const DashboardOwnerView: React.FC<DashboardOwnerViewProps> = ({ onNaviga
     </div>
   );
 };
-

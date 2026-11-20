@@ -31,6 +31,7 @@ import { useToast } from '../../context/ToastContext';
 import { useCabang } from '../../context/CabangContext';
 import { useTema } from '../../hooks/useTema';
 import { compressImageFile } from '../../utils/imageUtils';
+import { Spinner } from '../ui/Spinner';
 import type { User as UserType } from '../../types';
 
 interface ProfileModalProps {
@@ -75,7 +76,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
   const [showAddKasirForm, setShowAddKasirForm] = useState(false);
   const [newKasirUsername, setNewKasirUsername] = useState('');
   const [newKasirPassword, setNewKasirPassword] = useState('');
-  const [newKasirCabang, setNewKasirCabang] = useState(cabangList[0] || 'Cabang 1');
+  const [newKasirCabang, setNewKasirCabang] = useState(cabangList[0] || '');
   const [showNewKasirPassword, setShowNewKasirPassword] = useState(false);
 
   // Editing Kasir
@@ -89,6 +90,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
   const [newCabangName, setNewCabangName] = useState('');
   const [editingCabang, setEditingCabang] = useState<string | null>(null);
   const [editCabangName, setEditCabangName] = useState('');
+  const [isCabangLoading, setIsCabangLoading] = useState(false);
 
   // Load kasir list when modal opens or tab changes to 'kasir'
   const loadKasirList = async () => {
@@ -247,7 +249,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
   const handleStartEditKasir = (kasir: UserType) => {
     setEditingKasirId(kasir.id || null);
     setEditKasirUsername(kasir.username);
-    setEditKasirCabang(kasir.cabang || 'Cabang 1');
+    setEditKasirCabang(kasir.cabang || cabangList[0] || '');
     setEditKasirNewPassword('');
   };
 
@@ -279,17 +281,27 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
   // --- Kelola Cabang (Owner) ---
   const handleAddCabang = async (e: React.FormEvent) => {
     e.preventDefault();
-    const res = await addCabang(newCabangName);
-    showToast(res.message, res.success ? 'success' : 'error');
-    if (res.success) setNewCabangName('');
+    setIsCabangLoading(true);
+    try {
+      const res = await addCabang(newCabangName);
+      showToast(res.message, res.success ? 'success' : 'error');
+      if (res.success) setNewCabangName('');
+    } finally {
+      setIsCabangLoading(false);
+    }
   };
 
   const handleRenameCabang = async (oldName: string) => {
-    const res = await renameCabang(oldName, editCabangName);
-    showToast(res.message, res.success ? 'success' : 'error');
-    if (res.success) {
-      setEditingCabang(null);
-      setEditCabangName('');
+    setIsCabangLoading(true);
+    try {
+      const res = await renameCabang(oldName, editCabangName);
+      showToast(res.message, res.success ? 'success' : 'error');
+      if (res.success) {
+        setEditingCabang(null);
+        setEditCabangName('');
+      }
+    } finally {
+      setIsCabangLoading(false);
     }
   };
 
@@ -298,9 +310,14 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
       `Hapus cabang "${name}"? Menu tidak lagi ditampilkan di cabang ini. Data transaksi lama tetap tersimpan.`
     );
     if (!confirmDelete) return;
-    const res = await deleteCabang(name);
-    showToast(res.message, res.success ? 'success' : 'error');
-    if (res.success && editingCabang === name) setEditingCabang(null);
+    setIsCabangLoading(true);
+    try {
+      const res = await deleteCabang(name);
+      showToast(res.message, res.success ? 'success' : 'error');
+      if (res.success && editingCabang === name) setEditingCabang(null);
+    } finally {
+      setIsCabangLoading(false);
+    }
   };
 
   return (
@@ -839,7 +856,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
                                     {kasir.username}
                                   </span>
                                   <span className="text-[10px] px-1.5 py-0.5 rounded font-medium bg-[var(--latar)] text-[var(--teks)] border border-[var(--garis)] shrink-0">
-                                    {kasir.cabang || 'Cabang 1'}
+                                    {kasir.cabang || '—'}
                                   </span>
                                 </div>
                               </div>
@@ -903,10 +920,15 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
                 </div>
                 <button
                   type="submit"
-                  className="px-3.5 py-1.5 rounded-lg bg-[var(--utama)] hover:bg-[var(--utama-tua)] active:bg-[var(--utama)] text-white text-xs font-medium transition flex items-center gap-1.5 cursor-pointer shadow-xs shrink-0"
+                  disabled={isCabangLoading}
+                  className={`px-3.5 py-1.5 rounded-lg text-white text-xs font-medium transition flex items-center gap-1.5 cursor-pointer shadow-xs shrink-0 ${
+                    isCabangLoading
+                      ? 'bg-[var(--garis)] cursor-not-allowed opacity-70'
+                      : 'bg-[var(--utama)] hover:bg-[var(--utama-tua)] active:bg-[var(--utama)]'
+                  }`}
                 >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Tambah</span>
+                  {isCabangLoading ? <Spinner size="sm" /> : <Plus className="w-3.5 h-3.5" />}
+                  <span>{isCabangLoading ? 'Menambah...' : 'Tambah'}</span>
                 </button>
               </form>
 
@@ -951,9 +973,14 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
                               <button
                                 type="button"
                                 onClick={() => handleRenameCabang(cabang)}
-                                className="px-3 py-1 rounded-md bg-[var(--utama)] text-white text-xs font-medium hover:bg-[var(--utama-tua)] cursor-pointer"
+                                disabled={isCabangLoading}
+                                className={`px-3 py-1 rounded-md text-white text-xs font-medium cursor-pointer ${
+                                  isCabangLoading
+                                    ? 'bg-[var(--garis)] cursor-not-allowed opacity-70'
+                                    : 'bg-[var(--utama)] hover:bg-[var(--utama-tua)]'
+                                }`}
                               >
-                                Simpan
+                                {isCabangLoading ? <Spinner size="sm" /> : <span>Simpan</span>}
                               </button>
                             </div>
                           </div>
@@ -984,10 +1011,14 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
                                 type="button"
                                 onClick={() => handleDeleteCabangClick(cabang)}
                                 title="Hapus cabang"
-                                disabled={cabangList.length <= 1}
-                                className="p-1 rounded-md text-red-500 hover:text-red-700 hover:bg-red-50 transition disabled:opacity-30 disabled:cursor-not-allowed"
+                                disabled={cabangList.length <= 1 || isCabangLoading}
+                                className={`p-1 rounded-md transition disabled:opacity-30 disabled:cursor-not-allowed ${
+                                  isCabangLoading
+                                    ? 'text-[var(--redup)] cursor-not-allowed opacity-70'
+                                    : 'text-red-500 hover:text-red-700 hover:bg-red-50'
+                                }`}
                               >
-                                <Trash2 className="w-3.5 h-3.5" />
+                                {isCabangLoading ? <Spinner size="sm" /> : <Trash2 className="w-3.5 h-3.5" />}
                               </button>
                             </div>
                           </div>

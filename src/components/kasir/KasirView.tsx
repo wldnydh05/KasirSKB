@@ -10,11 +10,14 @@ import {
   Tag,
   CheckCircle,
   ImageOff,
+  Store,
 } from 'lucide-react';
-import { db } from '../../db';
+import { menuService, kategoriService } from '../../lib/supabaseService';
 import type { Menu, Kategori, Transaksi, DetailTransaksi } from '../../types';
 import { useCart } from '../../context/CartContext';
 import { useToast } from '../../context/ToastContext';
+import { useAuth } from '../../context/AuthContext';
+import { useCabang } from '../../context/CabangContext';
 import { formatRupiah } from '../../utils/formatters';
 import { CartBottomSheet } from './CartBottomSheet';
 import { ReceiptModal } from './ReceiptModal';
@@ -22,6 +25,12 @@ import { ReceiptModal } from './ReceiptModal';
 export const KasirView: React.FC = () => {
   const { addItem, items: cartItems } = useCart();
   const { showToast } = useToast();
+  const { user } = useAuth();
+  const { activeCashierCabang } = useCabang();
+
+  // Cabang tempat kasir ini bertugas (owner tidak masuk POS — diblokir di App).
+  const cabangAktif =
+    user?.cabang && user.cabang !== 'Semua Cabang' ? user.cabang : activeCashierCabang;
 
   const [menus, setMenus] = useState<Menu[]>([]);
   const [categories, setCategories] = useState<Kategori[]>([]);
@@ -40,18 +49,35 @@ export const KasirView: React.FC = () => {
   // Recent tapped item id for micro-animation
   const [recentlyTappedId, setRecentlyTappedId] = useState<number | null>(null);
 
-  // Load menu & categories from Dexie IndexedDB
+  // Load menu & categories from Supabase
   const loadData = async () => {
-    const allCategories = await db.kategori.toArray();
-    setCategories(allCategories);
+    try {
+      const [allCategories, allMenus] = await Promise.all([
+        kategoriService.getAll(),
+        menuService.getByCabang(cabangAktif),
+      ]);
+      setCategories(allCategories);
 
-    const allMenus = await db.menus.toArray();
-    setMenus(allMenus);
+      // Filter by cabang
+      const filteredMenus = allMenus.filter((m) => {
+        if (m.deleted_at) return false;
+        // Hanya tampil di cabang yang memilikinya.
+        // Produk tanpa cabang ("-") dianggap berlaku untuk semua cabang.
+        const cabangArr = Array.isArray(m.cabang) ? m.cabang : [];
+        if (cabangArr.length === 0) return true;
+        const target = cabangAktif.toLowerCase();
+        return cabangArr.some((r) => String(r ?? '').toLowerCase() === target);
+      });
+      setMenus(filteredMenus);
+    } catch (err) {
+      console.error('Failed to load menu data:', err);
+    }
   };
 
   useEffect(() => {
     loadData();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cabangAktif]);
 
   const handleMenuTap = (menu: Menu) => {
     if (!menu.aktif) return;
@@ -97,11 +123,13 @@ export const KasirView: React.FC = () => {
 
   // Filter menus
   const filteredMenus = menus.filter((menu) => {
+    const namaMenu = String(menu.nama ?? '');
+    const kategoriMenu = String(menu.kategori ?? '');
     const matchesCategory =
-      selectedCategory === 'Semua' || menu.kategori.toLowerCase() === selectedCategory.toLowerCase();
+      selectedCategory === 'Semua' || kategoriMenu.toLowerCase() === selectedCategory.toLowerCase();
     const matchesSearch =
-      menu.nama.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      menu.kategori.toLowerCase().includes(searchQuery.toLowerCase());
+      namaMenu.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      kategoriMenu.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesCategory && matchesSearch;
   });
 
@@ -131,6 +159,17 @@ export const KasirView: React.FC = () => {
         </div>
       </div>
 
+      {/* Cabang aktif kasir — pengingat di cabang mana POS ini berjualan */}
+      <div className="flex items-center gap-1.5 mb-2 text-[11px] font-bold text-[var(--redup)]">
+        <Store className="w-3.5 h-3.5" />
+        <span>
+          Menjual di:{' '}
+          <b className="text-[var(--teks)]" data-testid="cabang-aktif">
+            {cabangAktif}
+          </b>
+        </span>
+      </div>
+
       {/* Categories Horizontal Scroll */}
       <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-3 mb-2">
         {['Semua', 'Makanan', 'Minuman', 'Lainnya'].map((catName) => {
@@ -156,7 +195,9 @@ export const KasirView: React.FC = () => {
         <div className="text-center py-12 bg-[var(--kartu)] rounded-3xl border border-dashed border-[var(--garis)] p-6">
           <p className="text-sm font-semibold text-[var(--teks)]">Tidak ada menu yang cocok</p>
           <p className="text-xs text-[var(--redup)] mt-1">
-            Coba ubah kata kunci pencarian atau pilih kategori lain.
+            {selectedCategory === 'Semua' && !searchQuery
+              ? `Tidak ada menu aktif untuk cabang ${cabangAktif}.`
+              : 'Coba ubah kata kunci pencarian atau pilih kategori lain.'}
           </p>
         </div>
       ) : (
@@ -308,4 +349,3 @@ export const KasirView: React.FC = () => {
     </div>
   );
 };
-

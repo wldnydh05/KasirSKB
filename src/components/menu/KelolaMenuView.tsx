@@ -19,14 +19,14 @@ import {
   AlertTriangle,
   Building2,
 } from 'lucide-react';
-import { db } from '../../db';
+import { menuService, kategoriService } from '../../lib/supabaseService';
 import type { Menu, Kategori } from '../../types';
 import { formatRupiah } from '../../utils/formatters';
 import { useAuth } from '../../context/AuthContext';
+import { Spinner } from '../ui/Spinner';
 import { useToast } from '../../context/ToastContext';
 import { useCabang } from '../../context/CabangContext';
 import { compressImageFile } from '../../utils/imageUtils';
-import { menuCabangList, menuMilikCabang } from '../../utils/menuCabang';
 
 export const KelolaMenuView: React.FC = () => {
   const { user } = useAuth();
@@ -55,18 +55,32 @@ export const KelolaMenuView: React.FC = () => {
   const [gambarUrl, setGambarUrl] = useState('');
   const [aktif, setAktif] = useState(true);
   // Cabang tujuan menu — boleh lebih dari satu (Cabang 1 & Cabang 2) atau salah satu
-  const [cabangDipilih, setCabangDipilih] = useState<string[]>(['Cabang 1']);
+  // Default diambil dari cabangList context (akan di-set ulang di openAddModal).
+  // Hindari default 'Cabang 1' yang basi.
+  const [cabangDipilih, setCabangDipilih] = useState<string[]>([]);
+  // HPP per cabang: { "Cabang 1": 5000, "Cabang 2": 6000 }
+  const [biayaPerCabang, setBiayaPerCabang] = useState<Record<string, number>>({});
   const [isProcessingPhoto, setIsProcessingPhoto] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   const loadData = async () => {
+    setIsLoading(true);
     try {
-      const cats = await db.kategori.toArray();
+      const [cats, allMenus] = await Promise.all([
+        kategoriService.getAll(),
+        menuService.getAll(),
+      ]);
       setCategories(cats);
 
-      const allMenus = await db.menus.toArray();
-      setMenus(allMenus);
+      // Filter out soft-deleted
+      const activeMenus = allMenus.filter((m) => !m.deleted_at);
+      setMenus(activeMenus);
     } catch (err) {
       console.error('Failed to load menu data:', err);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -81,7 +95,12 @@ export const KelolaMenuView: React.FC = () => {
     setKategori('Makanan');
     setGambarUrl('');
     setAktif(true);
-    setCabangDipilih(cabangList.length > 0 ? [cabangList[0]] : ['Cabang 1']);
+    // Default: Semua Cabang terpilih
+    setCabangDipilih(cabangList.length > 0 ? [...cabangList] : []);
+    // Default HPP 0 per cabang
+    const defaultHpp: Record<string, number> = {};
+    cabangList.forEach((c) => { defaultHpp[c] = 0; });
+    setBiayaPerCabang(defaultHpp);
     setIsModalOpen(true);
   };
 
@@ -92,8 +111,24 @@ export const KelolaMenuView: React.FC = () => {
     setKategori(m.kategori);
     setGambarUrl(m.gambar_url || '');
     setAktif(m.aktif);
-    const cabangLama = menuCabangList(m.cabang);
-    setCabangDipilih(cabangLama.length > 0 ? cabangLama : cabangList.length > 0 ? [cabangList[0]] : ['Cabang 1']);
+    const cabangLama = Array.isArray(m.cabang) ? m.cabang : [];
+    // Jika menu sudah di Semua Cabang, pilih semua; jika kosong, pilih semua current
+    setCabangDipilih(
+      cabangLama.length > 0 && cabangList.every((c) => cabangLama.includes(c))
+        ? [...cabangList]
+        : cabangLama.length > 0
+        ? cabangLama
+        : cabangList.length > 0
+        ? [...cabangList]
+        : []
+    );
+    // Load HPP per cabang from menu data
+    const existingHpp = (m.biaya_per_cabang as Record<string, number>) || {};
+    const loadedHpp: Record<string, number> = {};
+    cabangList.forEach((c) => {
+      loadedHpp[c] = existingHpp[c] ?? m.biaya_bahan_baku ?? 0;
+    });
+    setBiayaPerCabang(loadedHpp);
     setIsModalOpen(true);
   };
 
@@ -149,65 +184,95 @@ export const KelolaMenuView: React.FC = () => {
       return;
     }
 
+    // Validasi HPP per cabang
+    for (const c of cabangDipilih) {
+      const hpp = biayaPerCabang[c] ?? 0;
+      if (hpp < 0) {
+        showToast(`HPP untuk ${c} tidak boleh negatif`, 'error');
+        return;
+      }
+    }
+
+    setIsSaving(true);
     const nowIso = new Date().toISOString();
-    // Do NOT use dummy unsplash images. If gambarUrl is empty, save as empty string.
     const finalImage = gambarUrl.trim();
 
+    // HPP default (fallback untuk cabang yg tidak punya entry) = rata-rata atau 0
+    const hppDefault = Object.values(biayaPerCabang).length > 0
+      ? Math.round(Object.values(biayaPerCabang).reduce((a, b) => a + b, 0) / Object.values(biayaPerCabang).length)
+      : 0;
+
     try {
+      let savedId: number | undefined;
+      let kataAksi: string;
       if (editingMenu && editingMenu.id) {
         // UPDATE MENU
-        await db.menus.update(editingMenu.id, {
+        savedId = editingMenu.id;
+        await menuService.update(editingMenu.id, {
           nama: nama.trim(),
           harga: numHarga,
           kategori,
           gambar_url: finalImage,
           aktif,
           cabang: [...cabangDipilih],
+          biaya_bahan_baku: hppDefault,
+          biaya_per_cabang: biayaPerCabang,
           updated_at: nowIso,
         });
-        showToast(`Menu "${nama}" berhasil diupdate!`, 'success');
+        kataAksi = 'diupdate';
       } else {
         // CREATE MENU
-        await db.menus.add({
+        const newMenu = await menuService.create({
           nama: nama.trim(),
           harga: numHarga,
           kategori,
           gambar_url: finalImage,
-          biaya_bahan_baku: 0,
+          biaya_bahan_baku: hppDefault,
+          biaya_per_cabang: biayaPerCabang,
           aktif,
           cabang: [...cabangDipilih],
           created_at: nowIso,
           updated_at: nowIso,
         });
-        showToast(`Menu "${nama}" berhasil ditambahkan!`, 'success');
+        savedId = newMenu.id;
+        kataAksi = 'ditambahkan';
       }
+
+      showToast(`Menu "${nama.trim()}" ${kataAksi} — tersimpan ke database.`, 'success');
 
       setIsModalOpen(false);
       await loadData();
     } catch (err) {
       console.error('Failed to save menu:', err);
       showToast('Gagal menyimpan menu.', 'error');
+    } finally {
+      setIsSaving(false);
     }
   };
 
   const confirmDelete = async () => {
     if (!menuToDelete || !menuToDelete.id) return;
+    setIsDeleting(true);
     try {
-      await db.menus.delete(menuToDelete.id);
-      showToast(`Menu "${menuToDelete.nama}" berhasil dihapus.`, 'info');
+      // Soft delete - mark as deleted so it syncs to Supabase and persists
+      await menuService.softDelete(menuToDelete.id);
+      showToast(`Menu "${menuToDelete.nama}" dihapus.`, 'info');
+
       setMenuToDelete(null);
       setIsModalOpen(false);
       await loadData();
     } catch (err) {
       console.error('Failed to delete menu:', err);
       showToast('Gagal menghapus menu.', 'error');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
   const handleToggleAktif = async (menu: Menu) => {
     if (!menu.id) return;
     try {
-      await db.menus.update(menu.id, {
+      await menuService.update(menu.id, {
         aktif: !menu.aktif,
         updated_at: new Date().toISOString(),
       });
@@ -223,13 +288,16 @@ export const KelolaMenuView: React.FC = () => {
 
   // Filter
   const filtered = menus.filter((m) => {
+    const namaMenu = String(m.nama ?? '');
+    const kategoriMenu = String(m.kategori ?? '');
     const matchCat =
-      selectedCat === 'Semua' || m.kategori.toLowerCase() === selectedCat.toLowerCase();
+      selectedCat === 'Semua' || kategoriMenu.toLowerCase() === selectedCat.toLowerCase();
     const matchSearch =
-      m.nama.toLowerCase().includes(search.toLowerCase()) ||
-      m.kategori.toLowerCase().includes(search.toLowerCase());
+      namaMenu.toLowerCase().includes(search.toLowerCase()) ||
+      kategoriMenu.toLowerCase().includes(search.toLowerCase());
     const matchCabang =
-      selectedCabang === 'Semua' || menuMilikCabang(m.cabang, selectedCabang);
+      selectedCabang === 'Semua' ||
+      (Array.isArray(m.cabang) ? m.cabang.some((c) => String(c ?? '').toLowerCase() === selectedCabang.toLowerCase()) : false);
     return matchCat && matchSearch && matchCabang;
   });
 
@@ -312,9 +380,16 @@ export const KelolaMenuView: React.FC = () => {
         </div>
       </div>
 
+      {/* Loading Spinner for initial data fetch */}
+      {isLoading && (
+        <div className="flex justify-center items-center py-16">
+          <Spinner size="lg" />
+        </div>
+      )}
+
       {/* Phone/Mobile View: Card List */}
       <div className="md:hidden space-y-2.5">
-        {filtered.length === 0 ? (
+        {!isLoading && filtered.length === 0 ? (
           <div className="text-center py-12 bg-[var(--kartu)] rounded-3xl border border-dashed border-[var(--garis)] p-6 text-xs text-[var(--redup)]">
             Tidak ada menu yang cocok dengan pencarian.
           </div>
@@ -400,21 +475,26 @@ export const KelolaMenuView: React.FC = () => {
 
       {/* Desktop/Tablet View: Table List */}
       <div className="hidden md:block bg-[var(--kartu)] rounded-3xl border border-[var(--garis)]/90 shadow-2xs overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-[var(--latar)] border-b border-[var(--garis)] text-[var(--redup)] uppercase font-semibold">
-              <tr>
-                <th className="py-3 px-4 w-16">Foto</th>
-                <th className="py-3 px-4">Nama Menu</th>
-                <th className="py-3 px-4">Kategori</th>
-                {isOwner && <th className="py-3 px-4">Cabang</th>}
-                <th className="py-3 px-4 text-right">Harga Jual</th>
-                <th className="py-3 px-4 text-center">Status</th>
-                {isOwner && <th className="py-3 px-4 text-right">Aksi</th>}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[var(--garis)]">
-              {filtered.map((menu) => (
+        {isLoading ? (
+          <div className="flex justify-center items-center py-16">
+            <Spinner size="lg" />
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-[var(--latar)] border-b border-[var(--garis)] text-[var(--redup)] uppercase font-semibold">
+                <tr>
+                  <th className="py-3 px-4 w-16">Foto</th>
+                  <th className="py-3 px-4">Nama Menu</th>
+                  <th className="py-3 px-4">Kategori</th>
+                  {isOwner && <th className="py-3 px-4">Cabang</th>}
+                  <th className="py-3 px-4 text-right">Harga Jual</th>
+                  <th className="py-3 px-4 text-center">Status</th>
+                  {isOwner && <th className="py-3 px-4 text-right">Aksi</th>}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[var(--garis)]">
+                {filtered.map((menu) => (
                 <tr key={menu.id} className="hover:bg-[var(--latar)]/70 transition">
                   <td className="py-3 px-4">
                     {menu.gambar_url ? (
@@ -440,15 +520,25 @@ export const KelolaMenuView: React.FC = () => {
                   {isOwner && (
                     <td className="py-3 px-4">
                       <div className="flex flex-wrap gap-1">
-                        {menuCabangList(menu.cabang).map((c) => (
-                          <span
-                            key={c}
-                            className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-[var(--utama-muda)] text-[var(--utama-teks)]"
-                          >
-                            {c}
+                        {Array.isArray(menu.cabang) && menu.cabang.length > 0 &&
+                        cabangList.length > 0 &&
+                        cabangList.every((c) =>
+                          (menu.cabang ?? []).some((r) => String(r ?? '').toLowerCase() === c.toLowerCase())
+                        ) ? (
+                          <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-[var(--utama-muda)] text-[var(--utama-teks)]">
+                            Semua Cabang
                           </span>
-                        ))}
-                        {menuCabangList(menu.cabang).length === 0 && (
+                        ) : (
+                          (Array.isArray(menu.cabang) ? menu.cabang : []).map((c) => (
+                            <span
+                              key={c}
+                              className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-[var(--utama-muda)] text-[var(--utama-teks)]"
+                            >
+                              {c}
+                            </span>
+                          ))
+                        )}
+                        {(Array.isArray(menu.cabang) ? menu.cabang : []).length === 0 && (
                           <span className="text-[10px] text-[var(--redup)]">—</span>
                         )}
                       </div>
@@ -498,6 +588,7 @@ export const KelolaMenuView: React.FC = () => {
             </tbody>
           </table>
         </div>
+      )}
       </div>
 
       {/* Modal Add / Update Menu (Tanpa Modal Bahan Baku & Mendukung Foto Lokal) */}
@@ -573,9 +664,27 @@ export const KelolaMenuView: React.FC = () => {
                 <div>
                   <label className="block text-xs font-semibold text-[var(--teks)] mb-1.5">
                     Cabang <span className="text-rose-500">*</span>
-                    <span className="text-[var(--redup)] font-normal"> — pilih salah satu atau keduanya</span>
+                    <span className="text-[var(--redup)] font-normal"> — pilih salah satu, keduanya, atau Semua Cabang</span>
                   </label>
                   <div className="flex flex-wrap gap-2">
+                    {/* Semua Cabang Toggle */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const allSelected = cabangList.length > 0 && cabangList.every((c) => cabangDipilih.includes(c));
+                        setCabangDipilih(allSelected ? [] : [...cabangList]);
+                      }}
+                      className={`flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs font-bold border transition active:scale-95 cursor-pointer ${
+                        cabangList.length > 0 && cabangList.every((c) => cabangDipilih.includes(c))
+                          ? 'bg-[var(--utama)] text-white border-[var(--utama)] shadow-sm shadow-[var(--utama)]/25'
+                          : 'bg-[var(--kartu)] text-[var(--teks)] border-[var(--garis)] hover:border-[var(--garis-kuat)]'
+                      }`}
+                      aria-pressed={cabangList.length > 0 && cabangList.every((c) => cabangDipilih.includes(c))}
+                    >
+                      {cabangList.length > 0 && cabangList.every((c) => cabangDipilih.includes(c)) ? <Check className="w-3.5 h-3.5" /> : <Building2 className="w-3.5 h-3.5" />}
+                      <span>Semua Cabang</span>
+                    </button>
+                    {/* Individual branches */}
                     {cabangList.map((c) => {
                       const dipilih = cabangDipilih.includes(c);
                       return (
@@ -597,10 +706,38 @@ export const KelolaMenuView: React.FC = () => {
                     })}
                   </div>
                   <p className="text-[10px] text-[var(--redup)] mt-1.5">
-                    Menu tampil pada cabang yang dicentang. Boleh <strong>Cabang 1 &amp; Cabang 2</strong> sekaligus, atau cukup salah satunya.
+                    Menu tampil pada cabang yang dicentang. Pilih <strong>Semua Cabang</strong> agar otomatis di semua cabang saat ini & yang akan datang.
                   </p>
                 </div>
               )}
+
+            {/* HPP per Cabang (Owner only) */}
+            {isOwner && cabangDipilih.length > 0 && (
+              <div>
+                <label className="block text-xs font-semibold text-[var(--teks)] mb-1.5">
+                  HPP (Biaya Bahan Baku) per Cabang <span className="text-rose-500">*</span>
+                  <span className="text-[var(--redup)] font-normal"> — isi 0 jika tidak pakai HPP terpisah</span>
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {cabangDipilih.map((c) => (
+                    <div key={c} className="p-3 bg-[var(--latar)] rounded-xl border border-[var(--garis)]">
+                      <label className="block text-xs font-medium text-[var(--teks)] mb-1">
+                        {c}
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="500"
+                        value={biayaPerCabang[c] ?? 0}
+                        onChange={(e) => setBiayaPerCabang((prev) => ({ ...prev, [c]: Math.max(0, parseInt(e.target.value) || 0) }))}
+                        placeholder="0"
+                        className="w-full px-3 py-2 text-sm font-bold text-[var(--teks)] border border-[var(--garis)] rounded-lg focus:ring-2 focus:ring-[var(--utama-teks)]/30 focus:border-[var(--utama-teks)] outline-none"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
               {/* Local Photo Selection (Opsional) */}
               <div>
@@ -705,10 +842,15 @@ export const KelolaMenuView: React.FC = () => {
                   </button>
                   <button
                     type="submit"
-                    className="py-2.5 px-4 rounded-xl bg-[var(--utama)] hover:bg-[var(--utama-tua)] active:bg-[var(--utama)] text-xs font-bold text-white transition flex items-center gap-1.5 shadow-sm shadow-[var(--utama)]/25 active:scale-95"
+                    disabled={isSaving}
+                    className={`py-2.5 px-4 rounded-xl text-xs font-bold text-white transition flex items-center gap-1.5 active:scale-95 ${
+                      isSaving
+                        ? 'bg-[var(--garis)] cursor-not-allowed opacity-70'
+                        : 'bg-[var(--utama)] hover:bg-[var(--utama-tua)] active:bg-[var(--utama)] shadow-sm shadow-[var(--utama)]/25'
+                    }`}
                   >
-                    <Check className="w-4 h-4" />
-                    <span>{editingMenu ? 'Simpan Perubahan' : 'Tambah Menu'}</span>
+                    {isSaving ? <Spinner size="sm" /> : <Check className="w-4 h-4" />}
+                    <span>{isSaving ? 'Menyimpan...' : editingMenu ? 'Simpan Perubahan' : 'Tambah Menu'}</span>
                   </button>
                 </div>
               </div>
@@ -761,10 +903,15 @@ export const KelolaMenuView: React.FC = () => {
               <button
                 type="button"
                 onClick={confirmDelete}
-                className="py-2.5 px-3 rounded-xl bg-[var(--bahaya)] hover:bg-[var(--bahaya-teks)] text-xs font-bold text-white transition shadow-sm shadow-[var(--bahaya-teks)]/20 active:scale-95 flex items-center justify-center gap-1.5"
+                disabled={isDeleting}
+                className={`py-2.5 px-3 rounded-xl text-xs font-bold text-white transition shadow-sm active:scale-95 flex items-center justify-center gap-1.5 ${
+                  isDeleting
+                    ? 'bg-[var(--garis)] cursor-not-allowed opacity-70'
+                    : 'bg-[var(--bahaya)] hover:bg-[var(--bahaya-teks)] shadow-[var(--bahaya-teks)]/20'
+                }`}
               >
-                <Trash2 className="w-4 h-4" />
-                <span>Ya, Hapus</span>
+                {isDeleting ? <Spinner size="sm" /> : <Trash2 className="w-4 h-4" />}
+                <span>{isDeleting ? 'Menghapus...' : 'Ya, Hapus'}</span>
               </button>
             </div>
           </div>
@@ -773,4 +920,3 @@ export const KelolaMenuView: React.FC = () => {
     </div>
   );
 };
-

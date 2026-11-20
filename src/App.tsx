@@ -7,10 +7,11 @@ import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
 import { ToastProvider, useToast } from './context/ToastContext';
+import { GlobalLoadingProvider } from './context/GlobalLoadingContext';
+import { GlobalLoadingBar } from './components/ui/GlobalLoadingBar';
 import { grupTab, type NavTab } from './components/common/Navbar';
 import { LoginPage } from './components/auth/LoginPage';
 import { ProfileModal } from './components/auth/ProfileModal';
-import { initializeSyncEngine } from './db/syncEngine';
 
 // Views
 import { KasirView } from './components/kasir/KasirView';
@@ -38,17 +39,6 @@ const labelTab: Record<NavTab, string> = {
 function MainLayout() {
   const { user, isLoading } = useAuth();
   const { showToast } = useToast();
-  const [syncReady, setSyncReady] = useState(false);
-
-  // Initialize sync engine once on mount (non-blocking)
-  useEffect(() => {
-    initializeSyncEngine()
-      .then(() => setSyncReady(true))
-      .catch((err) => {
-        console.warn('[App] Sync engine not available:', err);
-        setSyncReady(true);
-      });
-  }, []);
 
   const isOwner = user?.role === 'owner';
   const [currentTab, setCurrentTab] = useState<NavTab>(() =>
@@ -164,17 +154,19 @@ import { CabangProvider } from './context/CabangContext';
 
 export default function App() {
   return (
-    <ToastProvider>
-      <AuthProvider>
-        <CabangProvider>
-          <CartProvider>
-            <ErrorBoundary>
-              <MainLayout />
-            </ErrorBoundary>
-          </CartProvider>
-        </CabangProvider>
-      </AuthProvider>
-    </ToastProvider>
+    <GlobalLoadingProvider>
+      <ToastProvider>
+        <AuthProvider>
+          <CabangProvider>
+            <CartProvider>
+              <ErrorBoundary>
+                <GlobalLoadingBar />
+                <MainLayout />
+              </ErrorBoundary>
+            </CartProvider>
+          </CabangProvider>
+        </AuthProvider>
+      </ToastProvider>
+    </GlobalLoadingProvider>
   );
 }
-

@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { useToast } from '../../context/ToastContext';
-import { db } from '../../db';
+import { promoService, getFormattedDate } from '../../lib/supabaseService';
 import type { Promo, Transaksi, DetailTransaksi } from '../../types';
 import { formatRupiah } from '../../utils/formatters';
 
@@ -67,8 +67,8 @@ export const CartBottomSheet: React.FC<CartBottomSheetProps> = ({ onTransactionS
   // Load active promos
   useEffect(() => {
     async function fetchPromos() {
-      const activePromos = await db.promo.where('aktif').equals(1).toArray();
-      setPromos(activePromos);
+      const activePromo = await promoService.getActive(getFormattedDate(new Date()));
+      setPromos(activePromo ? [activePromo] : []);
     }
     fetchPromos();
   }, [isOpen]);

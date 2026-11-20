@@ -18,7 +18,11 @@ import {
   X,
   File,
 } from 'lucide-react';
-import { db, getFormattedDate } from '../../db';
+import {
+  transaksiService,
+  detailTransaksiService,
+  getFormattedDate,
+} from '../../lib/supabaseService';
 import type { Transaksi, DetailTransaksi } from '../../types';
 import { formatRupiah, formatDateIndo } from '../../utils/formatters';
 import { useToast } from '../../context/ToastContext';
@@ -59,19 +63,19 @@ export const EksporDataView: React.FC = () => {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      let txList = await db.transaksi
-        .where('tanggal')
-        .between(startDate, endDate, true, true)
-        .toArray();
+      let txList = await transaksiService.getByDateRange(startDate, endDate);
 
       if (selectedCabangFilter !== 'Semua') {
-        txList = txList.filter((tx) => (tx.cabang || 'Cabang 1') === selectedCabangFilter);
+        // tx tanpa cabang ('-') dianggap berlaku untuk semua cabang
+        txList = txList.filter((tx) => !tx.cabang || tx.cabang === selectedCabangFilter);
       }
 
       const txIds = txList.map((t) => t.id!).filter(Boolean);
       const details =
         txIds.length > 0
-          ? await db.detail_transaksi.where('transaksi_id').anyOf(txIds).toArray()
+          ? await Promise.all(txIds.map((id) => detailTransaksiService.getByTransaksiId(id))).then(
+              (arr) => arr.flat()
+            )
           : [];
 
       // Map tx details
@@ -89,7 +93,7 @@ export const EksporDataView: React.FC = () => {
       for (const tx of txList) {
         sumOmzet += tx.total;
         const txItems = detailsByTxId[tx.id!] || [];
-        const txCabang = tx.cabang || 'Cabang 1';
+        const txCabang = tx.cabang || '—';
 
         if (txItems.length === 0) {
           rows.push({
@@ -454,11 +458,11 @@ export const EksporDataView: React.FC = () => {
                     <td className="py-2 px-3 text-[var(--redup)]">{row.waktu}</td>
                     <td className="py-2 px-3">
                       <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-black ${
-                        row.cabang === 'Cabang 1'
+                        !row.cabang || row.cabang === (cabangList[0] || '')
                           ? 'bg-amber-100 text-amber-900'
                           : 'bg-indigo-100 text-indigo-900'
                       }`}>
-                        {row.cabang}
+                        {row.cabang || '—'}
                       </span>
                     </td>
                     <td className="py-2 px-3 text-[var(--teks)] font-bold">#{row.id_transaksi}</td>
@@ -484,4 +488,3 @@ export const EksporDataView: React.FC = () => {
     </div>
   );
 };
-

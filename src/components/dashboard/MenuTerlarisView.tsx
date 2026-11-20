@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { TrendingUp, Award, UtensilsCrossed, ArrowUpRight, Store } from 'lucide-react';
-import { db, getFormattedDate } from '../../db';
+import { transaksiService, detailTransaksiService, getFormattedDate } from '../../lib/supabaseService';
 import type { DetailTransaksi } from '../../types';
 import { formatRupiah } from '../../utils/formatters';
 import { useCabang } from '../../context/CabangContext';
@@ -35,14 +35,11 @@ export const MenuTerlarisView: React.FC = () => {
         const endDateStr = getFormattedDate(today);
 
         // 1. Get transactions in this date range
-        let txList = await db.transaksi
-          .where('tanggal')
-          .between(startDateStr, endDateStr, true, true)
-          .toArray();
+        let txList = await transaksiService.getByDateRange(startDateStr, endDateStr);
 
-        // Filter by branch
+        // Filter by branch (tx tanpa cabang tampil di semua filter)
         if (selectedCabangFilter !== 'Semua') {
-          txList = txList.filter((tx) => (tx.cabang || 'Cabang 1') === selectedCabangFilter);
+          txList = txList.filter((tx) => !tx.cabang || tx.cabang === selectedCabangFilter);
         }
 
         const txIds = txList.map((t) => t.id!).filter(Boolean);
@@ -53,10 +50,9 @@ export const MenuTerlarisView: React.FC = () => {
         }
 
         // 2. Get all details
-        const details = await db.detail_transaksi
-          .where('transaksi_id')
-          .anyOf(txIds)
-          .toArray();
+        const details = await Promise.all(
+          txIds.map((id) => detailTransaksiService.getByTransaksiId(id))
+        ).then((arr) => arr.flat());
 
         // 3. Aggregate by nama_item
         const aggregateMap: Record<string, { terjual: number; pendapatan: number }> = {};
@@ -235,4 +231,3 @@ export const MenuTerlarisView: React.FC = () => {
     </div>
   );
 };
-

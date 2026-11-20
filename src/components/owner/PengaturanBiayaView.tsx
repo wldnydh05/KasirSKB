@@ -5,61 +5,98 @@
 
 import React, { useState, useEffect } from 'react';
 import { DollarSign, Save, Calculator, Plus, Trash2 } from 'lucide-react';
-import { db, getFormattedDate } from '../../db';
+import {
+  menuService,
+  biayaService,
+  getFormattedDate,
+} from '../../lib/supabaseService';
 import type { Menu, BiayaRincianItem } from '../../types';
 import { formatRupiah } from '../../utils/formatters';
 import { useToast } from '../../context/ToastContext';
+import { useCabang } from '../../context/CabangContext';
+import { Spinner } from '../../components/ui/Spinner';
 
 export const PengaturanBiayaView: React.FC = () => {
   const { showToast } = useToast();
+  const { cabangList, selectedCabangFilter } = useCabang();
   const [menus, setMenus] = useState<Menu[]>([]);
   const [rincian, setRincian] = useState<BiayaRincianItem[]>([]);
-  const [bahanBakuInputs, setBahanBakuInputs] = useState<Record<number, number>>({});
+  // HPP per cabang per menu: { menuId: { "Cabang 1": 5000, "Cabang 2": 6000 } }
+  const [bahanBakuInputs, setBahanBakuInputs] = useState<Record<number, Record<string, number>>>({});
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Load existing menu & latest daily operational cost
   useEffect(() => {
     async function loadData() {
-      const allMenus = await db.menus.toArray();
-      setMenus(allMenus);
+      setIsLoading(true);
+      try {
+        const allMenus = (await menuService.getAll()).filter((m) => !m.deleted_at);
+        setMenus(allMenus);
 
-      const inputs: Record<number, number> = {};
-      for (const m of allMenus) {
-        if (m.id) {
-          inputs[m.id] = m.biaya_bahan_baku || 0;
+        const inputs: Record<number, Record<string, number>> = {};
+        for (const m of allMenus) {
+          if (m.id) {
+            const perCabang = (m.biaya_per_cabang as Record<string, number>) || {};
+            // Default fallback ke biaya_bahan_baku lama untuk cabang yg tidak punya entry
+            const withDefaults: Record<string, number> = {};
+            cabangList.forEach((c) => {
+              withDefaults[c] = perCabang[c] ?? m.biaya_bahan_baku ?? 0;
+            });
+            inputs[m.id] = withDefaults;
+          }
         }
-      }
-      setBahanBakuInputs(inputs);
+        setBahanBakuInputs(inputs);
 
-      // Ambil biaya hari ini (yang akan ditimpa saat simpan). Jika hari ini belum
-      // ada record, pakai record dengan tanggal terbaru sebagai nilai awal.
-      // Catatan: jangan pakai db.biaya.reverse().first() — itu id terbesar, dan id
-      // terbesar bisa jadi tanggal lama (data historis ditambahkan belakangan),
-      // sehingga nilai 0 yang baru disimpan seolah-olah tidak tersimpan.
-      const today = getFormattedDate(new Date());
-      const latestCost =
-        (await db.biaya.where('tanggal').equals(today).first()) ??
-        (await db.biaya.orderBy('tanggal').last());
-      if (latestCost) {
-        if (latestCost.rincian && latestCost.rincian.length > 0) {
-          setRincian(latestCost.rincian);
+        // Ambil biaya hari ini berdasarkan filter cabang
+        const today = getFormattedDate(new Date());
+        let latestCost = null;
+        
+        if (selectedCabangFilter === 'Semua') {
+          // Ambil biaya cabang pertama sebagai referensi
+          const firstCabang = cabangList[0];
+          if (firstCabang) {
+            latestCost = await biayaService.getByDateAndCabang(today, firstCabang);
+          }
+          if (!latestCost) {
+            const allCosts = await biayaService.getByDateRange('', today);
+            latestCost = allCosts[0] || null;
+          }
         } else {
-          // Data lama (belum berformat rincian) → tampilkan sebagai satu baris
-          const totalLama =
-            (latestCost.biaya_operasional || 0) + (latestCost.biaya_operasional_lainnya || 0);
-          setRincian(totalLama > 0 ? [{ nama: 'Biaya Operasional Harian', biaya: totalLama }] : []);
+          latestCost = await biayaService.getByDateAndCabang(today, selectedCabangFilter);
+          if (!latestCost) {
+            const allCosts = await biayaService.getByDateRange('', today);
+            latestCost = allCosts.find(c => c.cabang === selectedCabangFilter) || null;
+          }
         }
+        
+        if (latestCost) {
+          if (latestCost.rincian && latestCost.rincian.length > 0) {
+            setRincian(latestCost.rincian);
+          } else {
+            const totalLama =
+              (latestCost.biaya_operasional || 0) + (latestCost.biaya_operasional_lainnya || 0);
+            setRincian(totalLama > 0 ? [{ nama: 'Biaya Operasional Harian', biaya: totalLama }] : []);
+          }
+        } else {
+          setRincian([]);
+        }
+      } finally {
+        setIsLoading(false);
       }
     }
 
     loadData();
-  }, []);
+  }, [selectedCabangFilter, cabangList]);
 
-  const handleBahanChange = (menuId: number, val: string) => {
+  const handleBahanChange = (menuId: number, cabang: string, val: string) => {
     const num = Math.max(0, parseInt(val) || 0);
     setBahanBakuInputs((prev) => ({
       ...prev,
-      [menuId]: num,
+      [menuId]: {
+        ...(prev[menuId] || {}),
+        [cabang]: num,
+      },
     }));
   };
 
@@ -86,49 +123,67 @@ export const PengaturanBiayaView: React.FC = () => {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
+    const failedMenus: string[] = [];
+
     try {
-      // 1. Update each menu's biaya_bahan_baku in IndexedDB
-      for (const [idStr, cost] of Object.entries(bahanBakuInputs)) {
-        await db.menus.update(Number(idStr), {
-          biaya_bahan_baku: cost,
-          updated_at: new Date().toISOString(),
-        });
+      // 1. Update each menu's biaya_per_cabang — best effort, collect failures
+      for (const [idStr, perCabang] of Object.entries(bahanBakuInputs)) {
+        try {
+          const menuId = Number(idStr);
+          // Hitung default HPP (rata-rata) untuk fallback biaya_bahan_baku
+          const hppValues = Object.values(perCabang);
+          const hppDefault = hppValues.length > 0
+            ? Math.round(hppValues.reduce((a, b) => a + b, 0) / hppValues.length)
+            : 0;
+          
+          await menuService.update(menuId, {
+            biaya_bahan_baku: hppDefault,
+            biaya_per_cabang: perCabang,
+            updated_at: new Date().toISOString(),
+          });
+        } catch (menuErr) {
+          console.error('Gagal update menu HPP:', idStr, menuErr);
+          const menu = menus.find((m) => m.id === Number(idStr));
+          if (menu) failedMenus.push(menu.nama);
+        }
       }
 
-      // 2. Save today's operational cost (format rincian: Nama Barang/Kebutuhan + Biaya)
+      // 2. Save today's operational cost per cabang — THIS IS CRITICAL
       const rincianTersimpan = rincian
         .map((r) => ({ nama: r.nama.trim(), biaya: Math.max(0, r.biaya || 0) }))
         .filter((r) => r.nama.length > 0 || r.biaya > 0);
       const totalOps = rincianTersimpan.reduce((acc, r) => acc + r.biaya, 0);
 
       const today = getFormattedDate(new Date());
-      const existingToday = await db.biaya.where('tanggal').equals(today).first();
+      const targetCabangs = selectedCabangFilter === 'Semua' ? cabangList : [selectedCabangFilter];
 
-      if (existingToday && existingToday.id) {
-        await db.biaya.update(existingToday.id, {
+      for (const cabang of targetCabangs) {
+        await biayaService.upsertByDateAndCabang(today, cabang, {
           biaya_operasional: totalOps,
           biaya_operasional_lainnya: 0,
           rincian: rincianTersimpan,
           keterangan: rincianTersimpan.map((r) => `${r.nama} (${r.biaya})`).join(', '),
-        });
-      } else {
-        await db.biaya.add({
-          tanggal: today,
-          biaya_operasional: totalOps,
-          biaya_operasional_lainnya: 0,
-          rincian: rincianTersimpan,
-          keterangan: rincianTersimpan.map((r) => `${r.nama} (${r.biaya})`).join(', '),
-          created_at: new Date().toISOString(),
         });
       }
 
-      // Sinkronkan state lokal supaya baris kosong langsung hilang
+      // Sinkronkan state lokal
       setRincian(rincianTersimpan);
 
-      showToast('Komponen biaya dan kalkulasi laba/rugi berhasil disimpan!', 'success');
+      // 3. Toast: Biaya operasional SUCCESS (critical path)
+      const opsMsg = selectedCabangFilter === 'Semua' 
+        ? 'Biaya operasional tersimpan untuk semua cabang!' 
+        : `Biaya operasional tersimpan untuk ${selectedCabangFilter}!`;
+      showToast(opsMsg, 'success');
+
+      // 4. Toast: HPP failures (non-blocking, delayed)
+      if (failedMenus.length > 0) {
+        setTimeout(() => {
+          showToast(`Gagal update HPP: ${failedMenus.join(', ')}`, 'info');
+        }, 500);
+      }
     } catch (err) {
-      console.error('Failed to save costs:', err);
-      showToast('Gagal menyimpan biaya.', 'error');
+      console.error('Failed to save biaya operasional:', err);
+      showToast('Gagal menyimpan biaya operasional.', 'error');
     } finally {
       setIsSaving(false);
     }
@@ -140,9 +195,17 @@ export const PengaturanBiayaView: React.FC = () => {
       ? menus.reduce((acc, m) => acc + m.harga, 0) / menus.length
       : 0;
 
+  // bahanBakuInputs is now Record<number, Record<string, number>> - get average HPP across all menus and cabangs
   const avgCostOfGoods =
     menus.length > 0
-      ? Object.values(bahanBakuInputs).reduce((acc, v) => acc + v, 0) / menus.length
+      ? menus.reduce((acc, m) => {
+          const perCabang = bahanBakuInputs[m.id!] || {};
+          const hppValues = Object.values(perCabang);
+          const menuAvg = hppValues.length > 0
+            ? hppValues.reduce((a, b) => a + b, 0) / hppValues.length
+            : m.biaya_bahan_baku ?? 0;
+          return acc + menuAvg;
+        }, 0) / menus.length
       : 0;
 
   const avgGrossMarginPct =
@@ -150,8 +213,17 @@ export const PengaturanBiayaView: React.FC = () => {
 
   return (
     <div className="pb-24 max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 pt-3 sm:pt-4">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+      {/* Loading Spinner for initial data fetch */}
+      {isLoading && (
+        <div className="flex justify-center items-center py-16">
+          <Spinner size="lg" />
+        </div>
+      )}
+
+      {!isLoading && (
+        <>
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
         <div>
           <h2 className="text-xl font-extrabold text-[var(--teks)] tracking-tight flex items-center gap-2">
             <DollarSign className="w-6 h-6 text-[var(--utama-teks)]" />
@@ -177,16 +249,21 @@ export const PengaturanBiayaView: React.FC = () => {
 
             <div className="divide-y divide-[var(--garis)] max-h-[500px] overflow-y-auto">
               {menus.map((menu) => {
-                const currentCost = bahanBakuInputs[menu.id!] ?? menu.biaya_bahan_baku ?? 0;
+                const perCabang = bahanBakuInputs[menu.id!] || {};
+                // Default HPP untuk margin calculation (rata-rata)
+                const hppValues = Object.values(perCabang);
+                const currentCost = hppValues.length > 0
+                  ? Math.round(hppValues.reduce((a, b) => a + b, 0) / hppValues.length)
+                  : menu.biaya_bahan_baku ?? 0;
                 const margin = menu.harga - currentCost;
                 const marginPct = menu.harga > 0 ? Math.round((margin / menu.harga) * 100) : 0;
 
                 return (
                   <div
                     key={menu.id}
-                    className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-[var(--latar)]/70 transition"
+                    className="p-3.5 sm:p-4 hover:bg-[var(--latar)]/70 transition"
                   >
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 mb-2">
                       <img
                         src={
                           menu.gambar_url ||
@@ -209,19 +286,26 @@ export const PengaturanBiayaView: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 self-end sm:self-center">
-                      <span className="text-xs text-[var(--redup)] font-medium">Bahan: Rp</span>
-                      <input
-                        type="number"
-                        min="0"
-                        step="any"
-                        inputMode="numeric"
-                        placeholder="0"
-                        title="Boleh 0 jika biaya bahan sudah include/tidak dihitung terpisah"
-                        value={currentCost}
-                        onChange={(e) => handleBahanChange(menu.id!, e.target.value)}
-                        className="w-28 px-2.5 py-1.5 text-right font-bold text-xs rounded-xl border border-[var(--garis)] outline-none focus:border-[var(--utama-teks)] bg-[var(--latar)] focus:bg-[var(--kartu)]"
-                      />
+                    {/* HPP per Cabang inputs */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                      {cabangList.map((c) => (
+                        <div key={c} className="p-2 bg-[var(--latar)] rounded-xl border border-[var(--garis)]">
+                          <label className="block text-[10px] font-medium text-[var(--redup)] mb-0.5 uppercase tracking-wide">
+                            {c}
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            step="500"
+                            inputMode="numeric"
+                            placeholder="0"
+                            title="HPP untuk cabang ini. Boleh 0."
+                            value={perCabang[c] ?? 0}
+                            onChange={(e) => handleBahanChange(menu.id!, c, e.target.value)}
+                            className="w-full px-2.5 py-1.5 text-right font-bold text-xs rounded-lg border border-[var(--garis)] outline-none focus:border-[var(--utama-teks)] bg-[var(--kartu)] focus:bg-[var(--kartu)]"
+                          />
+                        </div>
+                      ))}
                     </div>
                   </div>
                 );
@@ -324,7 +408,8 @@ export const PengaturanBiayaView: React.FC = () => {
           </button>
         </div>
       </form>
+      </>
+    )}
     </div>
   );
 };
-
