@@ -60,6 +60,15 @@ export const KelolaMenuView: React.FC = () => {
   const [cabangDipilih, setCabangDipilih] = useState<string[]>([]);
   // HPP per cabang: { "Cabang 1": 5000, "Cabang 2": 6000 }
   const [biayaPerCabang, setBiayaPerCabang] = useState<Record<string, number>>({});
+
+  // Filter cabang yang valid — hanya cabang yang ada di cabangList
+  const validCabangNames = cabangList.filter((c) => c && c.trim());
+  const normalizeCabang = (cabangArr: string[] | undefined): string[] => {
+    if (!Array.isArray(cabangArr)) return [];
+    return cabangArr.filter((c) =>
+      validCabangNames.some((valid) => String(valid ?? '').toLowerCase() === String(c ?? '').toLowerCase())
+    );
+  };
   const [isProcessingPhoto, setIsProcessingPhoto] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -95,8 +104,8 @@ export const KelolaMenuView: React.FC = () => {
     setKategori('Makanan');
     setGambarUrl('');
     setAktif(true);
-    // Default: Semua Cabang terpilih
-    setCabangDipilih(cabangList.length > 0 ? [...cabangList] : []);
+    // Default: cabang kosong (tidak memiliki cabang)
+    setCabangDipilih([]);
     // Default HPP 0 per cabang
     const defaultHpp: Record<string, number> = {};
     cabangList.forEach((c) => { defaultHpp[c] = 0; });
@@ -112,16 +121,9 @@ export const KelolaMenuView: React.FC = () => {
     setGambarUrl(m.gambar_url || '');
     setAktif(m.aktif);
     const cabangLama = Array.isArray(m.cabang) ? m.cabang : [];
-    // Jika menu sudah di Semua Cabang, pilih semua; jika kosong, pilih semua current
-    setCabangDipilih(
-      cabangLama.length > 0 && cabangList.every((c) => cabangLama.includes(c))
-        ? [...cabangList]
-        : cabangLama.length > 0
-        ? cabangLama
-        : cabangList.length > 0
-        ? [...cabangList]
-        : []
-    );
+    // Filter hanya cabang yang valid (ada di cabangList) — cabang tidak valid jadi kosong
+    const validCabang = normalizeCabang(cabangLama);
+    setCabangDipilih(validCabang);
     // Load HPP per cabang from menu data
     const existingHpp = (m.biaya_per_cabang as Record<string, number>) || {};
     const loadedHpp: Record<string, number> = {};
@@ -179,10 +181,7 @@ export const KelolaMenuView: React.FC = () => {
       return;
     }
 
-    if (cabangDipilih.length === 0) {
-      showToast('Pilih minimal satu cabang (boleh Cabang 1 & Cabang 2 sekaligus)', 'error');
-      return;
-    }
+    // Cabang tidak wajib dipilih — kosong = tidak memiliki cabang
 
     // Validasi HPP per cabang
     for (const c of cabangDipilih) {
@@ -520,27 +519,36 @@ export const KelolaMenuView: React.FC = () => {
                   {isOwner && (
                     <td className="py-3 px-4">
                       <div className="flex flex-wrap gap-1">
-                        {Array.isArray(menu.cabang) && menu.cabang.length > 0 &&
-                        cabangList.length > 0 &&
-                        cabangList.every((c) =>
-                          (menu.cabang ?? []).some((r) => String(r ?? '').toLowerCase() === c.toLowerCase())
-                        ) ? (
-                          <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-[var(--utama-muda)] text-[var(--utama-teks)]">
-                            Semua Cabang
-                          </span>
-                        ) : (
-                          (Array.isArray(menu.cabang) ? menu.cabang : []).map((c) => (
+                        {(() => {
+                          const validCabang = normalizeCabang(menu.cabang);
+                          if (validCabang.length === 0) {
+                            return (
+                              <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-gray-100 text-gray-600">
+                                - tidak memiliki cabang
+                              </span>
+                            );
+                          }
+                          if (
+                            cabangList.length > 0 &&
+                            cabangList.every((c) =>
+                              validCabang.some((r) => String(r ?? '').toLowerCase() === String(c ?? '').toLowerCase())
+                            )
+                          ) {
+                            return (
+                              <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-[var(--utama-muda)] text-[var(--utama-teks)]">
+                                Semua Cabang
+                              </span>
+                            );
+                          }
+                          return validCabang.map((c) => (
                             <span
                               key={c}
                               className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-[var(--utama-muda)] text-[var(--utama-teks)]"
                             >
                               {c}
                             </span>
-                          ))
-                        )}
-                        {(Array.isArray(menu.cabang) ? menu.cabang : []).length === 0 && (
-                          <span className="text-[10px] text-[var(--redup)]">—</span>
-                        )}
+                          ));
+                        })()}
                       </div>
                     </td>
                   )}
@@ -663,8 +671,8 @@ export const KelolaMenuView: React.FC = () => {
               {isOwner && (
                 <div>
                   <label className="block text-xs font-semibold text-[var(--teks)] mb-1.5">
-                    Cabang <span className="text-rose-500">*</span>
-                    <span className="text-[var(--redup)] font-normal"> — pilih salah satu, keduanya, atau Semua Cabang</span>
+                    Cabang <span className="text-[var(--redup)] font-normal">(Opsional)</span>
+                    <span className="text-[var(--redup)] font-normal"> — kosong = tidak memiliki cabang</span>
                   </label>
                   <div className="flex flex-wrap gap-2">
                     {/* Semua Cabang Toggle */}
@@ -706,7 +714,7 @@ export const KelolaMenuView: React.FC = () => {
                     })}
                   </div>
                   <p className="text-[10px] text-[var(--redup)] mt-1.5">
-                    Menu tampil pada cabang yang dicentang. Pilih <strong>Semua Cabang</strong> agar otomatis di semua cabang saat ini & yang akan datang.
+                    Menu tampil pada cabang yang dicentang. Jika tidak memilih cabang, menu akan menampilkan <strong>- tidak memiliki cabang</strong>.
                   </p>
                 </div>
               )}
@@ -715,8 +723,8 @@ export const KelolaMenuView: React.FC = () => {
             {isOwner && cabangDipilih.length > 0 && (
               <div>
                 <label className="block text-xs font-semibold text-[var(--teks)] mb-1.5">
-                  HPP (Biaya Bahan Baku) per Cabang <span className="text-rose-500">*</span>
-                  <span className="text-[var(--redup)] font-normal"> — isi 0 jika tidak pakai HPP terpisah</span>
+                  HPP (Biaya Bahan Baku) per Cabang <span className="text-[var(--redup)] font-normal">(Opsional)</span>
+                  <span className="text-[var(--redup)] font-normal"> — kosong = 0</span>
                 </label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   {cabangDipilih.map((c) => (
@@ -728,8 +736,8 @@ export const KelolaMenuView: React.FC = () => {
                         type="number"
                         min="0"
                         step="500"
-                        value={biayaPerCabang[c] ?? 0}
-                        onChange={(e) => setBiayaPerCabang((prev) => ({ ...prev, [c]: Math.max(0, parseInt(e.target.value) || 0) }))}
+                        value={biayaPerCabang[c] || ''}
+                        onChange={(e) => setBiayaPerCabang((prev) => ({ ...prev, [c]: e.target.value === '' ? 0 : Math.max(0, parseInt(e.target.value) || 0) }))}
                         placeholder="0"
                         className="w-full px-3 py-2 text-sm font-bold text-[var(--teks)] border border-[var(--garis)] rounded-lg focus:ring-2 focus:ring-[var(--utama-teks)]/30 focus:border-[var(--utama-teks)] outline-none"
                       />

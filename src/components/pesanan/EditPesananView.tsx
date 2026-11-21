@@ -383,7 +383,7 @@ export const EditPesananView: React.FC<EditPesananViewProps> = ({
               <div
                 key={menu.id}
                 onClick={() => handleMenuTap(menu)}
-                className={`relative group bg-[var(--kartu)] rounded-2xl p-2.5 border transition duration-150 cursor-pointer select-none flex flex-col justify-between ${
+                className={`relative group bg-[var(--kartu)] rounded-2xl p-2.5 border transition duration-150 cursor-pointer flex flex-col justify-between ${
                   !menu.aktif
                     ? 'opacity-50 grayscale border-[var(--garis)] pointer-events-none'
                     : 'border-[var(--garis)]/90 hover:border-[var(--garis-kuat)] hover:shadow-md'
@@ -399,7 +399,7 @@ export const EditPesananView: React.FC<EditPesananViewProps> = ({
                       loading="lazy"
                     />
                   ) : (
-                    <div className="w-full h-full flex flex-col items-center justify-center bg-[var(--latar)] text-[var(--redup)] p-2 text-center select-none group-hover:bg-[var(--garis)]/60 transition">
+                    <div className="w-full h-full flex flex-col items-center justify-center bg-[var(--latar)] text-[var(--redup)] p-2 text-center group-hover:bg-[var(--garis)]/60 transition">
                       <ImageOff className="w-5 h-5 text-[var(--redup)] mb-1" />
                       <span className="text-[10px] font-bold text-[var(--redup)] leading-tight">
                         Gambar tidak ada

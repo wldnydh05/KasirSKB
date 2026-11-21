@@ -633,11 +633,8 @@ export const biayaService = {
         .eq('tanggal', date)
         .eq('cabang', cabang)
         .is('deleted_at', null)
-        .single();
-      if (error) {
-        if (error.code === 'PGRST116') return null;
-        throw error;
-      }
+        .maybeSingle();
+      if (error) throw error;
       return data;
     });
   },
@@ -684,11 +681,16 @@ export const biayaService = {
   async upsertByDateAndCabang(date: string, cabang: string, biaya: Partial<Biaya>): Promise<Biaya> {
     return withMutationLoading(async () => {
       assertSupabase();
-      const existing = await this.getByDateAndCabang(date, cabang);
-      if (existing) {
-        return this.update(existing.id!, { ...biaya, tanggal: date, cabang });
-      }
-      return this.create({ ...biaya, tanggal: date, cabang } as Omit<Biaya, 'id'>);
+      const { data, error } = await supabase!
+        .from('biaya')
+        .upsert(
+          { ...biaya, tanggal: date, cabang },
+          { onConflict: 'tanggal,cabang' }
+        )
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
     });
   },
 

@@ -512,7 +512,7 @@ export const LineChartOwner: React.FC<LineChartOwnerProps> = ({
       </div>
 
       {/* 4. Interactive SVG Line Chart */}
-      <div className="relative w-full overflow-hidden select-none">
+      <div className="relative w-full overflow-hidden">
         {isLoading ? (
           <div className="h-72 flex items-center justify-center text-xs font-semibold text-[var(--redup)] bg-[var(--latar)]/50 rounded-2xl">
             Memuat data grafik garis...

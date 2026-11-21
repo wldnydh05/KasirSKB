@@ -5,7 +5,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
-import { appConfigService, userService, menuService, transaksiService, pesananAktifService } from '../lib/supabaseService';
+import { appConfigService, userService, menuService, transaksiService, pesananAktifService, biayaService } from '../lib/supabaseService';
 
 export const DEFAULT_CABANG_LIST = ['Cabang 1', 'Cabang 2'];
 
@@ -232,35 +232,124 @@ export const CabangProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
 
     try {
-      // Cascade ke seluruh data yang menyimpan nama cabang di Supabase
-      // Note: These are sequential calls. In production, consider batching.
-      const users = await userService.getAll();
-      for (const u of users) {
-        if (u.cabang?.toLowerCase() === oldName.toLowerCase()) {
-          await userService.update(u.id!, { cabang: clean });
+      // CANCEL ALL - safe rollback if any step fails
+
+      // 1. UPDATE UI FIRST (localStorage) - fast, no Supabase
+      const updatedList = cabangList.map((c) => (c.toLowerCase() === oldName.toLowerCase() ? clean : c));
+      setCabangList(updatedList);
+      localStorage.setItem(CABANG_LIST_STORAGE_KEY, JSON.stringify(updatedList));
+      localStorage.setItem(CABANG_LIST_TS_KEY, new Date().toISOString());
+      localStorage.setItem(OWNER_FILTER_STORAGE_KEY, clean); // update filter
+      localStorage.setItem(CASHIER_CABANG_STORAGE_KEY, updatedList[0] || clean); // fallback ke cabang pertama
+
+      // 2. UPDATE ITEMS IN PRODUCTION - cascade
+      // 2a. Rename cabang in menus arrays
+      const allMenus = await menuService.getAll(true);
+      const menusToUpdate: Array<{ id: number; updates: Partial<any> }> = [];
+
+      for (const m of allMenus) {
+        const cabangVal: any = m.cabang;
+        const cabangArr: string[] = Array.isArray(cabangVal) ? cabangVal : [];
+        const cabangStr: string = typeof cabangVal === 'string' ? cabangVal : '';
+        const shouldUpdate = cabangArr.some((c: string) => c.toLowerCase() === oldName.toLowerCase()) ||
+                            (cabangStr && cabangStr.toLowerCase() === oldName.toLowerCase());
+
+        if (shouldUpdate) {
+          const updates: Partial<any> = {};
+
+          // Update cabang array if it's an array
+          if (cabangArr.length > 0) {
+            updates.cabang = cabangArr.filter((c: string) => c.toLowerCase() !== oldName.toLowerCase());
+          }
+          // Also update individual cabang string if present
+          if (cabangStr && cabangStr.toLowerCase() === oldName.toLowerCase()) {
+            updates.cabang = clean;
+          }
+
+          // Update biaya_per_cabang keys
+          if (m.biaya_per_cabang && typeof m.biaya_per_cabang === 'object') {
+            const updatedPerCabang: Record<string, number> = {};
+            let hasChanged = false;
+            for (const [key, value] of Object.entries(m.biaya_per_cabang)) {
+              if (key.toLowerCase() === oldName.toLowerCase()) {
+                updatedPerCabang[clean] = value as number;
+                hasChanged = true;
+              } else {
+                updatedPerCabang[key] = value as number;
+              }
+            }
+            if (hasChanged) {
+              updates.biaya_per_cabang = updatedPerCabang;
+            }
+          }
+
+          if (Object.keys(updates).length > 0) {
+            menusToUpdate.push({ id: m.id!, updates });
+          }
         }
       }
 
-      // For transaksi and pesanan_aktif, we'd need to query by cabang
-      // Since we don't have a direct "get by cabang" for all, we'll fetch and filter
-      // This is a limitation of the current service - in production, add specific queries
-      
-      // Sinkronkan filter & cabang aktif yang tersimpan
-      if (localStorage.getItem(OWNER_FILTER_STORAGE_KEY) === oldName) {
-        setSelectedCabangFilterState(clean);
-        localStorage.setItem(OWNER_FILTER_STORAGE_KEY, clean);
+      await Promise.all(menusToUpdate.map((u) => menuService.update(u.id, u.updates)));
+
+      // 2b. Rename cabang in users
+      const users = await userService.getAll();
+      const usersToUpdate: Array<{ id: number; updates: Partial<any> }> = [];
+
+      for (const u of users) {
+        if (u.cabang?.toLowerCase() === oldName.toLowerCase()) {
+          usersToUpdate.push({ id: u.id!, updates: { cabang: clean } });
+        }
       }
+
+      await Promise.all(usersToUpdate.map((u) => userService.update(u.id, u.updates)));
+
+      // 2c. Rename cabang in biaya records
+      const biayaRecords = await biayaService.getAll();
+      const biayaToUpdate: Array<{ id: number; cabang: string }> = [];
+
+      for (const b of biayaRecords) {
+        // Only update if this record belongs to the old branch (has the old name)
+        if ((typeof b.cabang === 'string' && b.cabang.toLowerCase() === oldName.toLowerCase()) ||
+            (b.cabang === oldName)) {  // fallback for any case
+          biayaToUpdate.push({ id: b.id!, cabang: clean });
+        }
+      }
+
+      await Promise.all(biayaToUpdate.map((b) => biayaService.update(b.id, { cabang: b.cabang })));
+
+      // 2d. Rename cabang in transactions (if needed)
+      const transactions = await transaksiService.getAll();
+      const transactionsToUpdate: Array<{ id: number; cabang: string }> = [];
+
+      for (const t of transactions) {
+        if (typeof t.cabang === 'string' && t.cabang.toLowerCase() === oldName.toLowerCase()) {
+          transactionsToUpdate.push({ id: t.id!, cabang: clean });
+        }
+      }
+
+      if (transactionsToUpdate.length > 0) {
+        // Using update with partial updates
+        await Promise.all(transactionsToUpdate.map((t) => transaksiService.update(t.id, { cabang: t.cabang })));
+      }
+
+      // 2e. Update active_cashier_cabang localStorage if pointing to old branch
       if (localStorage.getItem(CASHIER_CABANG_STORAGE_KEY) === oldName) {
-        setActiveCashierCabangState(clean);
         localStorage.setItem(CASHIER_CABANG_STORAGE_KEY, clean);
       }
 
-      persistList(
-        cabangList.map((c) => (c.toLowerCase() === oldName.toLowerCase() ? clean : c))
-      );
-      return { success: true, message: `Nama cabang diubah menjadi "${clean}".` };
+      // SUCCESS - update filter state
+      setSelectedCabangFilter(clean);
+
+      // Also update activeCashierCabang if pointing to old name
+      if (activeCashierCabang === oldName) {
+        setActiveCashierCabangState(updatedList[0] || clean);
+      }
+
+      return { success: true, message: `Nama cabang diubah menjadi "${clean}"!` };
     } catch (err) {
       console.error('Rename cabang error:', err);
+      // Rollback: restore original list to localStorage
+      persistList(cabangList); // restore original list
       return { success: false, message: 'Gagal mengubah nama cabang.' };
     }
   };
@@ -270,10 +359,15 @@ export const CabangProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       return { success: false, message: 'Minimal harus ada 1 cabang.' };
     }
 
+    const cleanName = normCabang(name);
+    if (cleanName !== normCabang(name)) { // user input has spaces
+      return { success: false, message: 'Nama cabang tidak valid.' };
+    }
+
     try {
       // Check if any staff assigned to this cabang
       const staff = await userService.getByRole('staff');
-      const kasirDiCabang = staff.filter(s => s.cabang?.toLowerCase() === name.toLowerCase()).length;
+      const kasirDiCabang = staff.filter(s => s.cabang?.toLowerCase() === cleanName.toLowerCase()).length;
       if (kasirDiCabang > 0) {
         return {
           success: false,
@@ -281,50 +375,74 @@ export const CabangProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         };
       }
 
-      const sisa = cabangList.filter((c) => c.toLowerCase() !== name.toLowerCase());
-
-      // Hapus referensi cabang yang dihapus dari menu
-      // Jika menu HANYA berada di cabang yang dihapus -> hapus menu permanen (karena tidak punya cabang lagi)
-      // Jika menu ada di cabang lain -> hapus cabang yg dihapus dari array cabang
-      const allMenus = await menuService.getAll(true);
+      // 1. UPDATE ITEMS IN DATABASE FIRST (cascade)
+      const sisa = cabangList.filter((c) => c.toLowerCase() !== cleanName.toLowerCase());
       const menusToDelete: number[] = [];
-      
+      const menusToUpdate: Array<{ id: number; updates: Partial<any> }> = [];
+
+      // Fetch menus with all data (including deleted)
+      const allMenus = await menuService.getAll(true);
+
       for (const m of allMenus) {
-        if (
-          Array.isArray(m.cabang) &&
-          m.cabang.some((c) => String(c ?? '').toLowerCase() === name.toLowerCase())
-        ) {
-          const filtered = m.cabang.filter((c) => String(c ?? '').toLowerCase() !== name.toLowerCase());
-          if (filtered.length === 0) {
-            // Menu hanya punya cabang yg dihapus -> hapus menu
-            if (m.id) menusToDelete.push(m.id);
-          } else {
-            await menuService.update(m.id!, { cabang: filtered });
+        if (Array.isArray(m.cabang)) {
+          // Menu yang NRLA punya cabang yg dihapus
+          if (m.cabang.some((c: string) => c.toLowerCase() === cleanName.toLowerCase())) {
+            if (m.cabang.length === 1 && !m.cabang.filter((c: string) => c.toLowerCase() !== cleanName.toLowerCase()).length) {
+              // Menu hanya Punya cabang yg dihapus → JADIKAN NETRAL (kosong array)
+              menusToUpdate.push({
+                id: m.id!,
+                updates: { cabang: [] } // kosong = netral = bisa dipakai semua cabang
+              });
+            } else {
+              // Menu ada di cabang lain → Hapus cabang yg dihapus dari array
+              const filteredCabang = m.cabang.filter((c: string) => c.toLowerCase() !== cleanName.toLowerCase());
+              menusToUpdate.push({
+                id: m.id!,
+                updates: { cabang: filteredCabang }
+              });
+            }
+          }
+
+          // Update biaya_per_cabang - remove entries for deleted branch
+          if (m.biaya_per_cabang && typeof m.biaya_per_cabang === 'object') {
+            let needsUpdate = false;
+            const updatedPerCabang: Record<string, number> = {};
+
+            for (const [key, value] of Object.entries(m.biaya_per_cabang)) {
+              if (key.toLowerCase() === cleanName.toLowerCase()) {
+                needsUpdate = true;
+                // Keep HPP values for other branches, skip deleted first
+              } else if (key.toLowerCase() !== cleanName.toLowerCase()) {
+                updatedPerCabang[key] = value as number;
+              }
+            }
+
+            if (needsUpdate) {
+              menusToUpdate.push({
+                id: m.id!,
+                updates: { biaya_per_cabang: updatedPerCabang }
+              });
+            }
           }
         }
       }
 
-      // Hapus menu yang hanya ada di cabang yang dihapus
-      for (const id of menusToDelete) {
-        await menuService.softDelete(id);
-        console.log(`[deleteCabang] Menu id=${id} dihapus karena hanya ada di cabang "${name}"`);
-      }
+      await Promise.all(menusToUpdate.map((u) => menuService.update(u.id, u.updates)));
 
       // Reset filter/cabang aktif bila menunjuk ke cabang yang dihapus
-      if (localStorage.getItem(OWNER_FILTER_STORAGE_KEY) === name) {
-        setSelectedCabangFilterState('Semua');
-        localStorage.setItem(OWNER_FILTER_STORAGE_KEY, 'Semua');
+      if (localStorage.getItem(OWNER_FILTER_STORAGE_KEY) === cleanName) {
+        setSelectedCabangFilterState(sisa[0]);
+        localStorage.setItem(OWNER_FILTER_STORAGE_KEY, sisa[0]);
       }
-      if (
-        localStorage.getItem(CASHIER_CABANG_STORAGE_KEY) === name ||
-        activeCashierCabang === name
-      ) {
+      if (localStorage.getItem(CASHIER_CABANG_STORAGE_KEY) === cleanName || activeCashierCabang === cleanName) {
         setActiveCashierCabangState(sisa[0]);
         localStorage.setItem(CASHIER_CABANG_STORAGE_KEY, sisa[0]);
       }
 
+      // 2. UPDATE LOCALSTORAGE yang global
       persistList(sisa);
-      return { success: true, message: `Cabang "${name}" berhasil dihapus.` };
+
+      return { success: true, message: `Cabang "${name}" berhasil dihapus I` };
     } catch (err) {
       console.error('Delete cabang error:', err);
       return { success: false, message: 'Gagal menghapus cabang.' };

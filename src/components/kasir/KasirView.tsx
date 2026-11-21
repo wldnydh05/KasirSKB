@@ -212,7 +212,7 @@ export const KasirView: React.FC = () => {
               <div
                 key={menu.id}
                 onClick={() => handleMenuTap(menu)}
-                className={`relative group bg-[var(--kartu)] rounded-2xl sm:rounded-3xl p-2.5 sm:p-3 border transition duration-150 cursor-pointer select-none flex flex-col justify-between ${
+                className={`relative group bg-[var(--kartu)] rounded-2xl sm:rounded-3xl p-2.5 sm:p-3 border transition duration-150 cursor-pointer flex flex-col justify-between ${
                   !menu.aktif
                     ? 'opacity-50 grayscale border-[var(--garis)] pointer-events-none'
                     : isTapped
@@ -230,7 +230,7 @@ export const KasirView: React.FC = () => {
                       loading="lazy"
                     />
                   ) : (
-                    <div className="w-full h-full flex flex-col items-center justify-center bg-[var(--latar)] text-[var(--redup)] p-2 text-center select-none group-hover:bg-[var(--garis)]/60 transition">
+                    <div className="w-full h-full flex flex-col items-center justify-center bg-[var(--latar)] text-[var(--redup)] p-2 text-center group-hover:bg-[var(--garis)]/60 transition">
                       <ImageOff className="w-6 h-6 sm:w-7 sm:h-7 text-[var(--redup)] mb-1" />
                       <span className="text-[10px] sm:text-[11px] font-bold text-[var(--redup)] leading-tight">
                         Gambar tidak ada
